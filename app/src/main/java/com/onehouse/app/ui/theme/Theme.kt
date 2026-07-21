@@ -14,6 +14,7 @@ import com.onehouse.app.design.AzulOneHouse
 import com.onehouse.app.design.FondoInferior
 import com.onehouse.app.design.FondoTarjeta
 import com.onehouse.app.design.FondoTarjetaSecundaria
+import com.onehouse.app.design.BordeTarjeta
 import com.onehouse.app.design.RojoEstado
 import com.onehouse.app.design.TextoPrincipal
 import com.onehouse.app.design.TextoSecundario
@@ -35,7 +36,10 @@ private val OneHouseDarkColorScheme = darkColorScheme(
     onSurfaceVariant = TextoSecundario,
     error = RojoEstado,
     onError = TextoPrincipal,
-    outline = TextoSecundario.copy(alpha = 0.35f)
+    outline = BordeTarjeta,
+    outlineVariant = BordeTarjeta.copy(alpha = 0.55f),
+    surfaceTint = AzulOneHouse,
+    scrim = FondoInferior.copy(alpha = 0.72f)
 )
 
 @Composable

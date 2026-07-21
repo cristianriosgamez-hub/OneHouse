@@ -1,10 +1,14 @@
 package com.onehouse.app.design
 
 import androidx.compose.animation.animateContentSize
+import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -25,10 +29,12 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextFieldColors
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
@@ -46,8 +52,28 @@ fun OneHouseCard(
 ) {
     val shape = RoundedCornerShape(24.dp)
     val interactionSource = remember { MutableInteractionSource() }
+    val isPressed by interactionSource.collectIsPressedAsState()
+    val scale by animateFloatAsState(
+        targetValue = if (isPressed && onClick != null) 0.985f else 1f,
+        animationSpec = spring(stiffness = 700f, dampingRatio = 0.78f),
+        label = "oneHouseCardScale"
+    )
+    val elevation by animateDpAsState(
+        targetValue = if (isPressed && onClick != null) 3.dp else 10.dp,
+        animationSpec = spring(stiffness = 700f, dampingRatio = 0.8f),
+        label = "oneHouseCardElevation"
+    )
     val cardModifier = modifier
-        .shadow(elevation = 10.dp, shape = shape, ambientColor = Color.Black.copy(alpha = 0.28f))
+        .graphicsLayer {
+            scaleX = scale
+            scaleY = scale
+        }
+        .shadow(
+            elevation = elevation,
+            shape = shape,
+            ambientColor = Color.Black.copy(alpha = 0.28f),
+            spotColor = AzulClaro.copy(alpha = 0.10f)
+        )
         .animateContentSize()
         .then(
             if (onClick != null) {
@@ -79,9 +105,30 @@ fun OneHouseSecondaryCard(
     content: @Composable () -> Unit
 ) {
     val shape = RoundedCornerShape(20.dp)
+    val interactionSource = remember { MutableInteractionSource() }
+    val isPressed by interactionSource.collectIsPressedAsState()
+    val scale by animateFloatAsState(
+        targetValue = if (isPressed && onClick != null) 0.985f else 1f,
+        animationSpec = spring(stiffness = 700f, dampingRatio = 0.78f),
+        label = "oneHouseSecondaryCardScale"
+    )
     val cardModifier = modifier
+        .graphicsLayer {
+            scaleX = scale
+            scaleY = scale
+        }
         .animateContentSize()
-        .then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier)
+        .then(
+            if (onClick != null) {
+                Modifier.clickable(
+                    interactionSource = interactionSource,
+                    indication = null,
+                    onClick = onClick
+                )
+            } else {
+                Modifier
+            }
+        )
 
     Surface(
         modifier = cardModifier,
