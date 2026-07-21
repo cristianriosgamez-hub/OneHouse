@@ -6,6 +6,7 @@ import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.LocalIndication
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
@@ -79,7 +80,7 @@ fun OneHouseCard(
             if (onClick != null) {
                 Modifier.clickable(
                     interactionSource = interactionSource,
-                    indication = null,
+                    indication = LocalIndication.current,
                     onClick = onClick
                 )
             } else {
@@ -122,7 +123,7 @@ fun OneHouseSecondaryCard(
             if (onClick != null) {
                 Modifier.clickable(
                     interactionSource = interactionSource,
-                    indication = null,
+                    indication = LocalIndication.current,
                     onClick = onClick
                 )
             } else {

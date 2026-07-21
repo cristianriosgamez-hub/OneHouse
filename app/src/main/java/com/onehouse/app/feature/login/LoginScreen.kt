@@ -272,7 +272,7 @@ fun LoginScreen(
             Spacer(modifier = Modifier.height(18.dp))
 
             Text(
-                text = "OneHouse v1.1.9 · Premium UI",
+                text = "OneHouse v1.1.9 · Final",
                 color = TextoDesactivado,
                 style = MaterialTheme.typography.labelSmall
             )
