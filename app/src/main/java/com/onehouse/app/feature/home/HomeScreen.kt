@@ -79,7 +79,11 @@ fun HomeScreen(
                 .verticalScroll(rememberScrollState())
                 .padding(start = 18.dp, end = 18.dp, top = 24.dp, bottom = 34.dp)
         ) {
-            OneHouseHeader(title = "OneHouse", subtitle = "Buenos días", badgeText = "OH")
+            OneHouseHeader(
+                title = "OneHouse",
+                subtitle = "Buenos días · Tu hogar está listo",
+                badgeText = null
+            )
 
             Spacer(modifier = Modifier.height(22.dp))
             ClimateHeroCard()

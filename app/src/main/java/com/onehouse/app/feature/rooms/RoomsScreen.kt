@@ -49,6 +49,7 @@ import com.onehouse.app.design.BordeTarjeta
 import com.onehouse.app.design.FondoInferior
 import com.onehouse.app.design.FondoSuperior
 import com.onehouse.app.design.FondoTarjeta
+import com.onehouse.app.design.OneHouseHeader
 import com.onehouse.app.design.TextoPrincipal
 import com.onehouse.app.design.TextoSecundario
 
@@ -98,20 +99,11 @@ fun RoomsScreen(
             .fillMaxSize()
             .background(Brush.verticalGradient(listOf(FondoSuperior, FondoInferior, Color.Black)))
     ) {
-        Column(modifier = Modifier.padding(start = 20.dp, top = 24.dp, end = 20.dp)) {
-            Text(
-                text = "Estancias",
-                color = TextoPrincipal,
-                fontSize = 30.sp,
-                fontWeight = FontWeight.Bold
-            )
-            Spacer(Modifier.height(4.dp))
-            Text(
-                text = "Controla cada espacio de OneHouse",
-                color = TextoSecundario,
-                fontSize = 14.sp
-            )
-        }
+        OneHouseHeader(
+            title = "Estancias",
+            subtitle = "Controla cada espacio de OneHouse",
+            modifier = Modifier.padding(start = 20.dp, top = 24.dp, end = 20.dp)
+        )
 
         Spacer(Modifier.height(16.dp))
 

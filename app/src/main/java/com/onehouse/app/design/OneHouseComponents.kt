@@ -298,7 +298,7 @@ fun OneHouseSectionTitle(title: String, modifier: Modifier = Modifier) {
 fun OneHouseHeader(
     title: String,
     subtitle: String,
-    badgeText: String? = "OH",
+    badgeText: String? = null,
     modifier: Modifier = Modifier
 ) {
     Row(modifier = modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {

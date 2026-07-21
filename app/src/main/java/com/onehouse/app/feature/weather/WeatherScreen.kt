@@ -39,6 +39,7 @@ import androidx.compose.ui.unit.sp
 import com.onehouse.app.design.BordeTarjeta
 import com.onehouse.app.design.FondoInferior
 import com.onehouse.app.design.FondoSuperior
+import com.onehouse.app.design.OneHouseHeader
 import com.onehouse.app.design.TextoPrincipal
 import com.onehouse.app.design.TextoSecundario
 import com.onehouse.app.feature.rooms.detail.RoomHeader
@@ -83,12 +84,10 @@ fun WeatherScreen(onBack: (() -> Unit)? = null) {
         if (onBack != null) {
             RoomHeader(title = "Tiempo", onBack = onBack)
         } else {
-            Text(
-                text = "Tiempo",
-                color = TextoPrincipal,
-                fontSize = 30.sp,
-                fontWeight = FontWeight.Bold,
-                modifier = Modifier.padding(vertical = 14.dp)
+            OneHouseHeader(
+                title = "Tiempo",
+                subtitle = "Meteorología exterior",
+                modifier = Modifier.padding(vertical = 10.dp)
             )
         }
         Spacer(Modifier.height(12.dp))
