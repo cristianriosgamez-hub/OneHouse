@@ -118,9 +118,11 @@ class EnergyViewModel(
         readingsJob = scope.launch {
             repository.observeAll().collect { readings ->
                 allReadings = readings
+                val summaries = repository.buildSummaries(readings)
                 _state.value = _state.value.copy(
                     isLoading = false,
-                    summaries = repository.buildSummaries(readings)
+                    summaries = summaries,
+                    overview = repository.buildOverview(readings, summaries)
                 )
                 rebuildSelectedMeter()
             }

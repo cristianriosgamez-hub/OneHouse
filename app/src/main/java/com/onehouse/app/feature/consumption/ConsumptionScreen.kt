@@ -78,6 +78,7 @@ fun ConsumptionScreen(onBack: (() -> Unit)? = null) {
         EnergyDashboardScreen(
             isLoading = state.isLoading,
             summaries = state.summaries,
+            overview = state.overview,
             onBack = onBack,
             onMeterSelected = viewModel::openMeter
         )
@@ -121,6 +122,7 @@ fun ConsumptionScreen(onBack: (() -> Unit)? = null) {
 private fun EnergyDashboardScreen(
     isLoading: Boolean,
     summaries: List<com.onehouse.app.data.energy.MeterSummary>,
+    overview: com.onehouse.app.data.energy.EnergyOverview,
     onBack: (() -> Unit)?,
     onMeterSelected: (com.onehouse.app.data.energy.MeterType) -> Unit
 ) {
@@ -150,6 +152,11 @@ private fun EnergyDashboardScreen(
             fontSize = 14.sp
         )
         Spacer(Modifier.height(18.dp))
+
+        if (!isLoading) {
+            EnergyOverviewCard(overview = overview)
+            Spacer(Modifier.height(16.dp))
+        }
 
         if (isLoading) {
             Column(

@@ -28,6 +28,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.onehouse.app.data.energy.EnergyChartPoint
+import com.onehouse.app.data.energy.EnergyOverview
 import com.onehouse.app.data.energy.EnergyPeriod
 import com.onehouse.app.data.energy.MeterSummary
 import com.onehouse.app.data.energy.MeterType
@@ -45,6 +46,68 @@ internal val EnergyAqua = Color(0xFF35D6C7)
 internal val EnergyGreen = Color(0xFF5BD18A)
 internal val EnergyCard = Color(0xFF0A1926)
 internal val EnergyCardAlt = Color(0xFF0D2130)
+
+@Composable
+internal fun EnergyOverviewCard(
+    overview: EnergyOverview,
+    modifier: Modifier = Modifier
+) {
+    Column(
+        modifier = modifier
+            .fillMaxWidth()
+            .background(EnergyCard, RoundedCornerShape(26.dp))
+            .border(1.dp, EnergyBlue.copy(alpha = 0.32f), RoundedCornerShape(26.dp))
+            .padding(20.dp)
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    "Resumen anual",
+                    color = TextoSecundario,
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Medium
+                )
+                Spacer(Modifier.height(4.dp))
+                Text(
+                    "${formatNumber(overview.electricityYearKwh)} kWh",
+                    color = TextoPrincipal,
+                    fontSize = 27.sp,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+            Box(
+                modifier = Modifier
+                    .size(48.dp)
+                    .background(EnergyBlue.copy(alpha = 0.16f), RoundedCornerShape(16.dp)),
+                contentAlignment = Alignment.Center
+            ) {
+                Text("ϟ", color = EnergyBlue, fontSize = 27.sp, fontWeight = FontWeight.Bold)
+            }
+        }
+
+        Spacer(Modifier.height(18.dp))
+        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            CompactMetric(
+                "Agua anual",
+                "${formatNumber(overview.waterYearM3)} m³",
+                Modifier.weight(1f)
+            )
+            CompactMetric(
+                "Coste estimado",
+                "${formatNumber(overview.totalYearCost)} €",
+                Modifier.weight(1f)
+            )
+        }
+        Spacer(Modifier.height(10.dp))
+        val status = when {
+            overview.totalReadings == 0 -> "Todavía no hay lecturas registradas"
+            overview.lastUpdatedAt != null ->
+                "${overview.metersWithData}/${MeterType.entries.size} contadores · Actualizado ${formatDate(overview.lastUpdatedAt)}"
+            else -> "${overview.totalReadings} lecturas registradas este año"
+        }
+        Text(status, color = TextoSecundario, fontSize = 11.sp)
+    }
+}
 
 @Composable
 internal fun EnergySummaryCard(

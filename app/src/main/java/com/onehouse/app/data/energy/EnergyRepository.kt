@@ -62,6 +62,34 @@ class EnergyRepository(private val dao: EnergyReadingDao) {
         }
     }
 
+
+    fun buildOverview(
+        readings: List<EnergyReadingEntity>,
+        summaries: List<MeterSummary>,
+        now: Long = System.currentTimeMillis()
+    ): EnergyOverview {
+        val currentYear = calendarField(now, Calendar.YEAR)
+        val currentYearReadings = readings.filter {
+            calendarField(it.timestamp, Calendar.YEAR) == currentYear
+        }
+        val byType = summaries.associateBy { it.type }
+        val electricityKwh =
+            (byType[MeterType.ENDESA]?.yearConsumption ?: 0.0) +
+                (byType[MeterType.CLIMATIZATION]?.yearConsumption ?: 0.0) * 1_000.0
+        val waterM3 =
+            (byType[MeterType.ACS]?.yearConsumption ?: 0.0) +
+                (byType[MeterType.AGBAR]?.yearConsumption ?: 0.0)
+
+        return EnergyOverview(
+            electricityYearKwh = electricityKwh,
+            waterYearM3 = waterM3,
+            totalYearCost = summaries.sumOf { it.yearCost },
+            metersWithData = summaries.count { it.latestReading != null },
+            totalReadings = currentYearReadings.size,
+            lastUpdatedAt = readings.maxOfOrNull { it.timestamp }
+        )
+    }
+
     fun readingsForPeriod(
         readings: List<EnergyReadingEntity>,
         type: MeterType,
