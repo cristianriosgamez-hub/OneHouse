@@ -37,7 +37,6 @@ import com.onehouse.app.design.OneHouseCard
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
-import androidx.compose.runtime.getValue
 
 
 internal val EnergyBlue = Color(0xFF168EFF)
@@ -213,6 +212,12 @@ private fun DistributionRow(
     share: Float,
     accent: Color
 ) {
+    val animatedShare = animateFloatAsState(
+        targetValue = share.coerceIn(0f, 1f),
+        animationSpec = spring(stiffness = 360f, dampingRatio = 0.84f),
+        label = "energyDistributionShare"
+    ).value
+
     Row(verticalAlignment = Alignment.CenterVertically) {
         Box(
             modifier = Modifier
@@ -238,7 +243,7 @@ private fun DistributionRow(
         Box(
             modifier = Modifier
                 .fillMaxHeight()
-                .fillMaxWidth(share)
+                .fillMaxWidth(animatedShare)
                 .background(accent, RoundedCornerShape(50))
         )
     }
@@ -258,7 +263,7 @@ internal fun EnergySummaryCard(
         onClick = onClick
     ) {
         Column(modifier = Modifier.padding(17.dp)) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
             Box(
                 modifier = Modifier
                     .size(46.dp)
@@ -394,11 +399,11 @@ internal fun SmartEnergyCard(
         SmartEnergyLevel.CRITICAL -> "Crítico"
     }
     val targetProgress = state.goalProgress.coerceIn(0f, 1f)
-    val progress by animateFloatAsState(
+    val progress = animateFloatAsState(
         targetValue = targetProgress,
         animationSpec = spring(stiffness = 320f, dampingRatio = 0.82f),
         label = "smartEnergyProgress"
-    )
+    ).value
 
     Column(
         modifier = modifier

@@ -34,6 +34,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.Color
@@ -75,6 +76,7 @@ fun OneHouseCard(
             ambientColor = Color.Black.copy(alpha = 0.28f),
             spotColor = AzulClaro.copy(alpha = 0.10f)
         )
+        .clip(shape)
         .animateContentSize()
         .then(
             if (onClick != null) {
@@ -118,6 +120,7 @@ fun OneHouseSecondaryCard(
             scaleX = scale
             scaleY = scale
         }
+        .clip(shape)
         .animateContentSize()
         .then(
             if (onClick != null) {

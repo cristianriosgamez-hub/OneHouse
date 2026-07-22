@@ -120,8 +120,9 @@ private fun DashboardEnergyChart(
         label = "dashboardEnergyChartAlpha"
     )
     val values = points.map { it.value }
-    val min = values.minOrNull() ?: 0.0
-    val max = values.maxOrNull() ?: 0.0
+    val chartValues = if (projectedValue > 0.0) values + projectedValue else values
+    val min = chartValues.minOrNull() ?: 0.0
+    val max = chartValues.maxOrNull() ?: 0.0
     val range = (max - min).takeIf { it > 0.0 } ?: 1.0
 
     Canvas(modifier = modifier) {
@@ -157,11 +158,8 @@ private fun DashboardEnergyChart(
 
         if (projectedValue > 0.0 && points.isNotEmpty()) {
             val lastValue = points.last().value
-            val projectedMax = maxOf(max, projectedValue)
-            val projectedMin = minOf(min, projectedValue)
-            val projectedRange = (projectedMax - projectedMin).takeIf { it > 0.0 } ?: 1.0
-            val startY = verticalPadding + heightAvailable * (1f - ((lastValue - projectedMin) / projectedRange).toFloat())
-            val endY = verticalPadding + heightAvailable * (1f - ((projectedValue - projectedMin) / projectedRange).toFloat())
+            val startY = verticalPadding + heightAvailable * (1f - ((lastValue - min) / range).toFloat())
+            val endY = verticalPadding + heightAvailable * (1f - ((projectedValue - min) / range).toFloat())
             drawLine(
                 color = EnergyOrange.copy(alpha = chartAlpha),
                 start = Offset(size.width - horizontalPadding - widthAvailable / points.lastIndex.coerceAtLeast(1), startY),
@@ -217,5 +215,7 @@ internal fun EnergyLineChart(
     }
 }
 
-private val analyticsMonthFormat = SimpleDateFormat("MMM", Locale.getDefault())
-private fun shortMonth(timestamp: Long): String = analyticsMonthFormat.format(Date(timestamp)).replaceFirstChar { it.uppercase() }
+private fun shortMonth(timestamp: Long): String =
+    SimpleDateFormat("MMM", Locale.getDefault())
+        .format(Date(timestamp))
+        .replaceFirstChar { it.uppercase() }

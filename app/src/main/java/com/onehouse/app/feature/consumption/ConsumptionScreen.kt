@@ -6,6 +6,7 @@ import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -21,15 +22,12 @@ import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
@@ -43,17 +41,17 @@ import com.onehouse.app.data.energy.EnergyRepository
 import com.onehouse.app.data.local.OneHouseDatabase
 import com.onehouse.app.design.FondoInferior
 import com.onehouse.app.design.FondoSuperior
+import com.onehouse.app.design.OneHouseSectionHeader
 import com.onehouse.app.design.TextoPrincipal
 import com.onehouse.app.design.TextoSecundario
-import com.onehouse.app.design.OneHouseSectionHeader
 import com.onehouse.app.feature.rooms.detail.RoomHeader
-import kotlinx.coroutines.delay
 
 @Composable
 fun ConsumptionScreen(onBack: (() -> Unit)? = null) {
     val context = LocalContext.current
-    val database = remember(context.applicationContext) {
-        OneHouseDatabase.getInstance(context.applicationContext)
+    val applicationContext = context.applicationContext
+    val database = remember(applicationContext) {
+        OneHouseDatabase.getInstance(applicationContext)
     }
     val repository = remember(database) { EnergyRepository(database.energyReadingDao()) }
     val viewModel = remember(repository) { EnergyViewModel(repository) }
@@ -63,48 +61,52 @@ fun ConsumptionScreen(onBack: (() -> Unit)? = null) {
     val snackbarHostState = remember { SnackbarHostState() }
 
     LaunchedEffect(repository) {
-        EnergyHistorySeeder(context.applicationContext, repository).seedIfEmpty()
+        EnergyHistorySeeder(applicationContext, repository).seedIfEmpty()
     }
 
     DisposableEffect(viewModel) {
-        onDispose { viewModel.close() }
+        onDispose(viewModel::close)
     }
 
     LaunchedEffect(state.message) {
-        val message = state.message ?: return@LaunchedEffect
-        snackbarHostState.showSnackbar(message)
-        viewModel.consumeMessage()
+        state.message?.let { message ->
+            snackbarHostState.showSnackbar(message)
+            viewModel.consumeMessage()
+        }
     }
 
-    if (state.selectedType != null) {
-        EnergyMeterDetailScreen(
-            state = state,
-            onBack = viewModel::closeMeter,
-            onPeriodSelected = viewModel::selectPeriod,
-            onAddReading = viewModel::addReading,
-            onEditReading = viewModel::editReading,
-            onDeleteReading = viewModel::requestDelete
-        )
-    } else {
-        EnergyDashboardScreen(
-            isLoading = state.isLoading,
-            summaries = state.summaries,
-            overview = state.overview,
-            analyticsPoints = analyticsPoints,
-            smartEnergy = smartEnergy,
-            onBack = onBack,
-            onMeterSelected = viewModel::openMeter
+    Box(modifier = Modifier.fillMaxSize()) {
+        if (state.selectedType != null) {
+            EnergyMeterDetailScreen(
+                state = state,
+                onBack = viewModel::closeMeter,
+                onPeriodSelected = viewModel::selectPeriod,
+                onAddReading = viewModel::addReading,
+                onEditReading = viewModel::editReading,
+                onDeleteReading = viewModel::requestDelete
+            )
+        } else {
+            EnergyDashboardScreen(
+                isLoading = state.isLoading,
+                summaries = state.summaries,
+                overview = state.overview,
+                analyticsPoints = analyticsPoints,
+                smartEnergy = smartEnergy,
+                onBack = onBack,
+                onMeterSelected = viewModel::openMeter
+            )
+        }
+
+        SnackbarHost(
+            hostState = snackbarHostState,
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .padding(horizontal = 16.dp, vertical = 20.dp)
         )
     }
-
-    SnackbarHost(
-        hostState = snackbarHostState,
-        modifier = Modifier.padding(16.dp)
-    )
 
     if (state.isEditorVisible) {
-        val type = state.selectedType
-        if (type != null) {
+        state.selectedType?.let { type ->
             ReadingEditorDialog(
                 type = type,
                 reading = state.editorReading,
@@ -141,16 +143,6 @@ private fun EnergyDashboardScreen(
     onBack: (() -> Unit)?,
     onMeterSelected: (com.onehouse.app.data.energy.MeterType) -> Unit
 ) {
-    var contentVisible by remember { mutableStateOf(false) }
-    LaunchedEffect(isLoading) {
-        if (!isLoading) {
-            delay(80)
-            contentVisible = true
-        } else {
-            contentVisible = false
-        }
-    }
-
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -178,19 +170,32 @@ private fun EnergyDashboardScreen(
         )
         Spacer(Modifier.height(18.dp))
 
+        if (isLoading) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 48.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                CircularProgressIndicator(color = EnergyBlue)
+                Spacer(Modifier.height(12.dp))
+                Text("Cargando históricos…", color = TextoSecundario)
+            }
+        }
+
         AnimatedVisibility(
-            visible = !isLoading && contentVisible,
+            visible = !isLoading,
             enter = fadeIn(tween(420)) + slideInVertically(tween(420)) { it / 10 }
         ) {
             Column {
-                EnergyOverviewCard(
-                    overview = overview,
-                    summaries = summaries
-                )
+                EnergyOverviewCard(overview = overview, summaries = summaries)
                 Spacer(Modifier.height(16.dp))
                 EnergyDistributionCard(summaries = summaries)
                 Spacer(Modifier.height(16.dp))
-                EnergyAnalyticsCard(points = analyticsPoints, projectedValue = smartEnergy.projectedMonthKwh)
+                EnergyAnalyticsCard(
+                    points = analyticsPoints,
+                    projectedValue = smartEnergy.projectedMonthKwh
+                )
                 Spacer(Modifier.height(16.dp))
                 SmartEnergyCard(state = smartEnergy)
                 Spacer(Modifier.height(24.dp))
@@ -199,34 +204,23 @@ private fun EnergyDashboardScreen(
                     subtitle = "Consulta el detalle, histórico y coste de cada suministro"
                 )
                 Spacer(Modifier.height(13.dp))
-            }
-        }
 
-        if (isLoading) {
-            Column(
-                modifier = Modifier.fillMaxWidth().padding(vertical = 48.dp),
-                horizontalAlignment = Alignment.CenterHorizontally
-            ) {
-                CircularProgressIndicator(color = EnergyBlue)
-                Spacer(Modifier.height(12.dp))
-                Text("Cargando históricos…", color = TextoSecundario)
-            }
-        } else {
-            summaries.chunked(2).forEach { rowSummaries ->
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    rowSummaries.forEach { summary ->
-                        EnergySummaryCard(
-                            summary = summary,
-                            modifier = Modifier.weight(1f),
-                            onClick = { onMeterSelected(summary.type) }
-                        )
+                summaries.chunked(2).forEach { rowSummaries ->
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        rowSummaries.forEach { summary ->
+                            EnergySummaryCard(
+                                summary = summary,
+                                modifier = Modifier.weight(1f),
+                                onClick = { onMeterSelected(summary.type) }
+                            )
+                        }
+                        if (rowSummaries.size == 1) Spacer(Modifier.weight(1f))
                     }
-                    if (rowSummaries.size == 1) Spacer(Modifier.weight(1f))
+                    Spacer(Modifier.height(12.dp))
                 }
-                Spacer(Modifier.height(12.dp))
             }
         }
 
