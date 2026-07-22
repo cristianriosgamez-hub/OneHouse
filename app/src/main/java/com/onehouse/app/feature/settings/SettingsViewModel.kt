@@ -4,9 +4,12 @@ import com.onehouse.app.data.knx.KnxConnectionStatus
 import com.onehouse.app.data.knx.KnxSettings
 import com.onehouse.app.data.knx.KnxSettingsRepository
 import com.onehouse.app.data.knx.KnxSettingsValidation
+import com.onehouse.app.knx.KnxConnectionTester
+import java.io.Closeable
 
 class SettingsViewModel(private val repository: KnxSettingsRepository) {
     private val observers = mutableSetOf<() -> Unit>()
+    private var connectionTest: Closeable? = null
 
     var settings: KnxSettings = repository.load()
         private set
@@ -42,17 +45,41 @@ class SettingsViewModel(private val repository: KnxSettingsRepository) {
             return
         }
 
+        connectionTest?.close()
         connectionStatus = KnxConnectionStatus.TESTING
-        statusMessage = "Comprobando configuración…"
+        statusMessage = "Buscando el interfaz KNX/IP…"
         notifyObservers()
 
-        // v1.4.0 configura y valida los datos. La conexión KNX real llegará en v1.4.2.
-        connectionStatus = KnxConnectionStatus.CONNECTED
-        statusMessage = "Configuración válida"
-        notifyObservers()
+        connectionTest = KnxConnectionTester.test(
+            host = settings.localIp.trim(),
+            port = settings.localPort.toInt()
+        ) { result ->
+            connectionTest = null
+            when (result) {
+                is KnxConnectionTester.Result.Success -> {
+                    connectionStatus = KnxConnectionStatus.CONNECTED
+                    statusMessage = "Respuesta KNX/IP recibida de ${result.deviceAddress}"
+                }
+                KnxConnectionTester.Result.Timeout -> {
+                    connectionStatus = KnxConnectionStatus.FAILED
+                    statusMessage = "Sin respuesta KNX/IP (tiempo agotado)"
+                }
+                KnxConnectionTester.Result.InvalidResponse -> {
+                    connectionStatus = KnxConnectionStatus.FAILED
+                    statusMessage = "El equipo respondió, pero no con KNXnet/IP"
+                }
+                is KnxConnectionTester.Result.NetworkError -> {
+                    connectionStatus = KnxConnectionStatus.FAILED
+                    statusMessage = "Error de red: ${result.detail}"
+                }
+            }
+            notifyObservers()
+        }
     }
 
     fun close() {
+        connectionTest?.close()
+        connectionTest = null
         observers.clear()
     }
 

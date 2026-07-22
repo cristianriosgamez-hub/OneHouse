@@ -252,7 +252,7 @@ fun SettingsScreen(onBack: () -> Unit) {
                             .weight(1f)
                             .padding(horizontal = 14.dp)
                     ) {
-                        Text("Probar conexión", color = TextoPrincipal, fontWeight = FontWeight.SemiBold)
+                        Text("Probar conexión KNX/IP", color = TextoPrincipal, fontWeight = FontWeight.SemiBold)
                         Text(viewModel.statusMessage, color = TextoSecundario, fontSize = 13.sp)
                     }
                     Text(text = "›", color = TextoSecundario, fontSize = 32.sp)
