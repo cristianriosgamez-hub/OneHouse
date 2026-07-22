@@ -2,6 +2,7 @@ package com.onehouse.app.feature.consumption
 
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -20,6 +21,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
@@ -50,63 +52,199 @@ internal val EnergyCardAlt = Color(0xFF0D2130)
 @Composable
 internal fun EnergyOverviewCard(
     overview: EnergyOverview,
+    summaries: List<MeterSummary>,
     modifier: Modifier = Modifier
 ) {
+    val endesa = summaries.firstOrNull { it.type == MeterType.ENDESA }
+    val climate = summaries.firstOrNull { it.type == MeterType.CLIMATIZATION }
+    val electricityMonthKwh =
+        (endesa?.monthConsumption ?: 0.0) +
+            (climate?.monthConsumption ?: 0.0) * 1_000.0
+    val yearlyVariation = endesa?.yearVariationPercent
+    val status = when {
+        overview.totalReadings == 0 -> "Sin datos"
+        yearlyVariation == null -> "Consumo estable"
+        yearlyVariation <= 0.0 -> "Consumo eficiente"
+        yearlyVariation < 10.0 -> "Consumo normal"
+        else -> "Consumo elevado"
+    }
+    val statusColor = when {
+        overview.totalReadings == 0 -> TextoSecundario
+        yearlyVariation == null -> EnergyBlue
+        yearlyVariation <= 0.0 -> EnergyGreen
+        yearlyVariation < 10.0 -> EnergyOrange
+        else -> EnergyRed
+    }
+
     Column(
         modifier = modifier
             .fillMaxWidth()
-            .background(EnergyCard, RoundedCornerShape(26.dp))
-            .border(1.dp, EnergyBlue.copy(alpha = 0.32f), RoundedCornerShape(26.dp))
-            .padding(20.dp)
+            .background(
+                brush = Brush.linearGradient(
+                    listOf(
+                        EnergyBlue.copy(alpha = 0.24f),
+                        EnergyCard,
+                        EnergyCardAlt
+                    )
+                ),
+                shape = RoundedCornerShape(28.dp)
+            )
+            .border(1.dp, EnergyBlue.copy(alpha = 0.38f), RoundedCornerShape(28.dp))
+            .padding(21.dp)
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    "Resumen anual",
-                    color = TextoSecundario,
-                    fontSize = 12.sp,
-                    fontWeight = FontWeight.Medium
+                    "CONSUMO ELÉCTRICO ANUAL",
+                    color = EnergyBlue,
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.Bold,
+                    letterSpacing = 0.8.sp
                 )
-                Spacer(Modifier.height(4.dp))
+                Spacer(Modifier.height(7.dp))
                 Text(
                     "${formatNumber(overview.electricityYearKwh)} kWh",
                     color = TextoPrincipal,
-                    fontSize = 27.sp,
+                    fontSize = 30.sp,
                     fontWeight = FontWeight.Bold
                 )
+                Spacer(Modifier.height(5.dp))
+                TrendLabel(yearlyVariation)
             }
             Box(
                 modifier = Modifier
-                    .size(48.dp)
-                    .background(EnergyBlue.copy(alpha = 0.16f), RoundedCornerShape(16.dp)),
+                    .size(56.dp)
+                    .background(EnergyBlue.copy(alpha = 0.18f), RoundedCornerShape(19.dp)),
                 contentAlignment = Alignment.Center
             ) {
-                Text("ϟ", color = EnergyBlue, fontSize = 27.sp, fontWeight = FontWeight.Bold)
+                Text("ϟ", color = EnergyBlue, fontSize = 31.sp, fontWeight = FontWeight.Bold)
             }
         }
 
-        Spacer(Modifier.height(18.dp))
+        Spacer(Modifier.height(20.dp))
         Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
             CompactMetric(
-                "Agua anual",
-                "${formatNumber(overview.waterYearM3)} m³",
+                "Este mes",
+                "${formatNumber(electricityMonthKwh)} kWh",
                 Modifier.weight(1f)
             )
             CompactMetric(
-                "Coste estimado",
+                "Coste anual",
                 "${formatNumber(overview.totalYearCost)} €",
                 Modifier.weight(1f)
             )
         }
-        Spacer(Modifier.height(10.dp))
-        val status = when {
-            overview.totalReadings == 0 -> "Todavía no hay lecturas registradas"
-            overview.lastUpdatedAt != null ->
-                "${overview.metersWithData}/${MeterType.entries.size} contadores · Actualizado ${formatDate(overview.lastUpdatedAt)}"
-            else -> "${overview.totalReadings} lecturas registradas este año"
+
+        Spacer(Modifier.height(14.dp))
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Box(
+                modifier = Modifier
+                    .size(8.dp)
+                    .background(statusColor, RoundedCornerShape(50))
+            )
+            Spacer(Modifier.width(8.dp))
+            Text(
+                status,
+                color = statusColor,
+                fontSize = 12.sp,
+                fontWeight = FontWeight.SemiBold
+            )
+            Spacer(Modifier.weight(1f))
+            overview.lastUpdatedAt?.let {
+                Text("Actualizado ${formatDate(it)}", color = TextoSecundario, fontSize = 10.sp)
+            }
         }
-        Text(status, color = TextoSecundario, fontSize = 11.sp)
     }
+}
+
+@Composable
+internal fun EnergyDistributionCard(
+    summaries: List<MeterSummary>,
+    modifier: Modifier = Modifier
+) {
+    val endesa = summaries.firstOrNull { it.type == MeterType.ENDESA }?.yearConsumption ?: 0.0
+    val climateMwh =
+        summaries.firstOrNull { it.type == MeterType.CLIMATIZATION }?.yearConsumption ?: 0.0
+    val climate = climateMwh * 1_000.0
+    val total = (endesa + climate).takeIf { it > 0.0 } ?: 1.0
+    val endesaShare = (endesa / total).toFloat().coerceIn(0f, 1f)
+    val climateShare = (climate / total).toFloat().coerceIn(0f, 1f)
+
+    Column(
+        modifier = modifier
+            .fillMaxWidth()
+            .background(EnergyCard, RoundedCornerShape(24.dp))
+            .border(1.dp, BordeTarjeta, RoundedCornerShape(24.dp))
+            .padding(18.dp)
+    ) {
+        Text(
+            "Distribución eléctrica",
+            color = TextoPrincipal,
+            fontSize = 17.sp,
+            fontWeight = FontWeight.SemiBold
+        )
+        Spacer(Modifier.height(4.dp))
+        Text(
+            "Reparto anual entre consumo general y climatización",
+            color = TextoSecundario,
+            fontSize = 11.sp
+        )
+        Spacer(Modifier.height(18.dp))
+
+        DistributionRow(
+            title = "Consumo general",
+            value = endesa,
+            share = endesaShare,
+            accent = EnergyBlue
+        )
+        Spacer(Modifier.height(14.dp))
+        DistributionRow(
+            title = "Climatización",
+            value = climate,
+            share = climateShare,
+            accent = EnergyOrange
+        )
+    }
+}
+
+@Composable
+private fun DistributionRow(
+    title: String,
+    value: Double,
+    share: Float,
+    accent: Color
+) {
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Box(
+            modifier = Modifier
+                .size(9.dp)
+                .background(accent, RoundedCornerShape(50))
+        )
+        Spacer(Modifier.width(8.dp))
+        Text(title, color = TextoPrincipal, fontSize = 13.sp, modifier = Modifier.weight(1f))
+        Text(
+            "${(share * 100).toInt()}%",
+            color = accent,
+            fontSize = 12.sp,
+            fontWeight = FontWeight.Bold
+        )
+    }
+    Spacer(Modifier.height(7.dp))
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(7.dp)
+            .background(EnergyCardAlt, RoundedCornerShape(50))
+    ) {
+        Box(
+            modifier = Modifier
+                .fillMaxHeight()
+                .fillMaxWidth(share)
+                .background(accent, RoundedCornerShape(50))
+        )
+    }
+    Spacer(Modifier.height(5.dp))
+    Text("${formatNumber(value)} kWh", color = TextoSecundario, fontSize = 10.sp)
 }
 
 @Composable

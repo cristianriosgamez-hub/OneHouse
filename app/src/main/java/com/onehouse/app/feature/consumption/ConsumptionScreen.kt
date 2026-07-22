@@ -17,6 +17,7 @@ import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -154,8 +155,26 @@ private fun EnergyDashboardScreen(
         Spacer(Modifier.height(18.dp))
 
         if (!isLoading) {
-            EnergyOverviewCard(overview = overview)
+            EnergyOverviewCard(
+                overview = overview,
+                summaries = summaries
+            )
             Spacer(Modifier.height(16.dp))
+            EnergyDistributionCard(summaries = summaries)
+            Spacer(Modifier.height(24.dp))
+            Text(
+                "Contadores",
+                color = TextoPrincipal,
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.SemiBold
+            )
+            Spacer(Modifier.height(5.dp))
+            Text(
+                "Consulta el detalle, histórico y coste de cada suministro",
+                color = TextoSecundario,
+                fontSize = 12.sp
+            )
+            Spacer(Modifier.height(13.dp))
         }
 
         if (isLoading) {
