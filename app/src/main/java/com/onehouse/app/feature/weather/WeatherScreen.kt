@@ -52,7 +52,7 @@ private val WeatherPurple = Color(0xFFB06CFF)
 
 @Composable
 fun WeatherScreen(onBack: (() -> Unit)? = null) {
-    var state by remember { mutableStateOf(WeatherUiState()) }
+    val state = rememberWeatherState()
     var contentVisible by remember { mutableStateOf(false) }
     val contentAlpha by animateFloatAsState(
         targetValue = if (contentVisible) 1f else 0f,
@@ -92,14 +92,24 @@ fun WeatherScreen(onBack: (() -> Unit)? = null) {
         }
         Spacer(Modifier.height(12.dp))
         WeatherHeroCard(state)
+        state.errorMessage?.let { message ->
+            Spacer(Modifier.height(10.dp))
+            Text(
+                text = message,
+                color = WeatherOrange,
+                fontSize = 12.sp,
+                modifier = Modifier.fillMaxWidth(),
+                textAlign = TextAlign.Center
+            )
+        }
         Spacer(Modifier.height(14.dp))
         WeatherMetricsGrid(state.metrics)
         Spacer(Modifier.height(14.dp))
         ForecastCard(state.forecast)
         Spacer(Modifier.height(14.dp))
-        SunAndMoonCards()
+        SunAndMoonCards(state)
         Spacer(Modifier.height(14.dp))
-        AdditionalDetailsCard()
+        AdditionalDetailsCard(state)
         Spacer(Modifier.height(96.dp))
     }
 }
@@ -139,7 +149,7 @@ private fun WeatherHeroCard(state: WeatherUiState) {
             }
 
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                Text("☀", color = Color(0xFFFFC52B), fontSize = 58.sp)
+                Text(state.conditionSymbol, color = Color(0xFFFFC52B), fontSize = 58.sp)
                 Spacer(Modifier.height(6.dp))
                 Box(
                     modifier = Modifier
@@ -275,18 +285,18 @@ private fun ForecastDay(day: DailyForecast) {
 }
 
 @Composable
-private fun SunAndMoonCards() {
+private fun SunAndMoonCards(state: WeatherUiState) {
     Row(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-        SunCycleCard(modifier = Modifier.weight(1f))
+        SunCycleCard(state = state, modifier = Modifier.weight(1f))
         MoonPhaseCard(modifier = Modifier.weight(1f))
     }
 }
 
 @Composable
-private fun SunCycleCard(modifier: Modifier = Modifier) {
+private fun SunCycleCard(state: WeatherUiState, modifier: Modifier = Modifier) {
     Column(
         modifier = modifier
             .height(156.dp)
@@ -318,12 +328,12 @@ private fun SunCycleCard(modifier: Modifier = Modifier) {
         }
         Spacer(Modifier.height(15.dp))
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-            TimePoint(label = "Salida", value = "06:20", accent = WeatherOrange)
+            TimePoint(label = "Salida", value = state.sunrise, accent = WeatherOrange)
             Text("—  ☀  —", color = Color(0x99FFC52B), fontSize = 13.sp)
-            TimePoint(label = "Puesta", value = "21:08", accent = WeatherPurple)
+            TimePoint(label = "Puesta", value = state.sunset, accent = WeatherPurple)
         }
         Spacer(Modifier.height(10.dp))
-        Text("14 h 48 min de luz", color = TextoSecundario, fontSize = 11.sp)
+        Text(state.daylight, color = TextoSecundario, fontSize = 11.sp)
     }
 }
 
@@ -391,7 +401,7 @@ private fun MoonPhaseCard(modifier: Modifier = Modifier) {
 }
 
 @Composable
-private fun AdditionalDetailsCard() {
+private fun AdditionalDetailsCard(state: WeatherUiState) {
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -412,13 +422,13 @@ private fun AdditionalDetailsCard() {
         )
         Spacer(Modifier.height(14.dp))
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-            DetailTile("◉", "Presión", "1016 hPa", WeatherBlue, Modifier.weight(1f))
-            DetailTile("◇", "Punto de rocío", "18.6°C", WeatherPurple, Modifier.weight(1f))
+            DetailTile("◉", "Presión", state.pressureHpa?.let { "%.0f hPa".format(it) } ?: "--", WeatherBlue, Modifier.weight(1f))
+            DetailTile("◇", "Punto de rocío", state.dewPointC?.let { "%.1f°C".format(it) } ?: "--", WeatherPurple, Modifier.weight(1f))
         }
         Spacer(Modifier.height(10.dp))
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-            DetailTile("≈", "Sensación", "27.8°C", WeatherOrange, Modifier.weight(1f))
-            DetailTile("☀", "Índice de calor", "28.3°C", WeatherGreen, Modifier.weight(1f))
+            DetailTile("≈", "Sensación", state.feelsLike, WeatherOrange, Modifier.weight(1f))
+            DetailTile("≋", "Dirección viento", windDirection(state.windDirectionDegrees), WeatherGreen, Modifier.weight(1f))
         }
     }
 }

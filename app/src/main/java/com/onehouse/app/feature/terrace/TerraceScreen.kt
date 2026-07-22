@@ -43,6 +43,8 @@ import com.onehouse.app.design.FondoSuperior
 import com.onehouse.app.design.TextoPrincipal
 import com.onehouse.app.design.TextoSecundario
 import com.onehouse.app.feature.rooms.detail.RoomHeader
+import com.onehouse.app.feature.weather.WeatherUiState
+import com.onehouse.app.feature.weather.rememberWeatherState
 
 private val TerraceBlue = Color(0xFF168EFF)
 private val TerraceGreen = Color(0xFF55C865)
@@ -51,6 +53,7 @@ private val TerraceCard = Color(0xE60A1926)
 @Composable
 fun TerraceScreen(onBack: () -> Unit) {
     var lightOn by remember { mutableStateOf(true) }
+    val weather = rememberWeatherState()
 
     Box(
         modifier = Modifier
@@ -76,7 +79,7 @@ fun TerraceScreen(onBack: () -> Unit) {
             Spacer(Modifier.height(16.dp))
             TerraceHeroImage()
             Spacer(Modifier.height(16.dp))
-            WeatherCard()
+            WeatherCard(weather)
             Spacer(Modifier.height(16.dp))
             ExteriorLightCard(lightOn = lightOn, onChange = { lightOn = it })
             Spacer(Modifier.height(64.dp))
@@ -100,7 +103,7 @@ private fun TerraceHeroImage() {
 }
 
 @Composable
-private fun WeatherCard() {
+private fun WeatherCard(weather: WeatherUiState) {
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -110,23 +113,23 @@ private fun WeatherCard() {
             .padding(22.dp)
     ) {
         Text("Clima exterior", color = TextoPrincipal, fontSize = 23.sp, fontWeight = FontWeight.SemiBold)
-        Text("Actualizado 09:30", color = TextoSecundario, fontSize = 13.sp)
+        Text("Actualizado ${weather.updatedAt}", color = TextoSecundario, fontSize = 13.sp)
         Spacer(Modifier.height(22.dp))
         Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
             Column(modifier = Modifier.weight(1f)) {
-                Text("24.7°", color = TextoPrincipal, fontSize = 58.sp, fontWeight = FontWeight.Light)
-                Text("Soleado", color = TextoPrincipal, fontSize = 20.sp, fontWeight = FontWeight.Medium)
-                Text("Hospitalet de Llobregat", color = TextoSecundario, fontSize = 14.sp)
+                Text(weather.temperature, color = TextoPrincipal, fontSize = 58.sp, fontWeight = FontWeight.Light)
+                Text(weather.condition, color = TextoPrincipal, fontSize = 20.sp, fontWeight = FontWeight.Medium)
+                Text(weather.location, color = TextoSecundario, fontSize = 14.sp)
             }
-            Text("☀", color = Color(0xFFFFC329), fontSize = 82.sp)
+            Text(weather.conditionSymbol, color = Color(0xFFFFC329), fontSize = 82.sp)
         }
         Spacer(Modifier.height(22.dp))
         Box(Modifier.fillMaxWidth().height(1.dp).background(BordeTarjeta))
         Spacer(Modifier.height(18.dp))
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-            WeatherMetric("♨", "Sensación", "25.8°")
-            WeatherMetric("◉", "Humedad", "48%")
-            WeatherMetric("≋", "Viento", "12 km/h")
+            WeatherMetric("♨", "Sensación", weather.feelsLike)
+            WeatherMetric("◉", "Humedad", weather.humidityPercent?.let { "$it%" } ?: "--")
+            WeatherMetric("≋", "Viento", weather.windSpeedKmh?.let { "%.0f km/h".format(it) } ?: "--")
         }
     }
 }

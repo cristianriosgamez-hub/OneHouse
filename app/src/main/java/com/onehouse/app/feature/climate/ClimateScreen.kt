@@ -33,6 +33,8 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.onehouse.app.feature.weather.WeatherUiState
+import com.onehouse.app.feature.weather.rememberWeatherState
 
 @Composable
 fun ClimateScreen(
@@ -65,8 +67,7 @@ fun ClimateScreen(
         mutableStateOf(FanSpeed.MEDIUM)
     }
 
-    // Valores temporales: se sustituirán por Google Weather API y KNX.
-    val exteriorTemperature = 18.5f
+    val exteriorWeather = rememberWeatherState()
     val co2Ppm = 560
 
     Column(
@@ -88,7 +89,7 @@ fun ClimateScreen(
         Spacer(modifier = Modifier.height(14.dp))
 
         ClimateHeader(
-            exteriorTemperature = exteriorTemperature,
+            exteriorWeather = exteriorWeather,
             onBack = onBack
         )
 
@@ -164,7 +165,7 @@ fun ClimateScreen(
 
 @Composable
 private fun ClimateHeader(
-    exteriorTemperature: Float,
+    exteriorWeather: WeatherUiState,
     onBack: () -> Unit
 ) {
     Row(
@@ -232,7 +233,7 @@ private fun ClimateHeader(
                         )
                 ) {
                     Text(
-                        text = "🌤  ${String.format("%.1f", exteriorTemperature)} °C",
+                        text = "${exteriorWeather.conditionSymbol}  ${exteriorWeather.temperature}",
                         color = ClimateText,
                         fontSize = 12.sp,
                         fontWeight = FontWeight.Medium

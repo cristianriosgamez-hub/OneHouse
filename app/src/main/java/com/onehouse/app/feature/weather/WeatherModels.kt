@@ -17,26 +17,81 @@ data class DailyForecast(
 
 data class WeatherUiState(
     val location: String = "L'Hospitalet de Llobregat",
-    val updatedAt: String = "09:41",
-    val temperature: String = "26.4°C",
-    val condition: String = "Soleado",
-    val feelsLike: String = "27.8°C",
-    val high: String = "29.6°",
-    val low: String = "18.7°",
+    val updatedAt: String = "--:--",
+    val temperatureC: Double? = null,
+    val condition: String = "Sin datos",
+    val conditionSymbol: String = "◌",
+    val feelsLikeC: Double? = null,
+    val highC: Double? = null,
+    val lowC: Double? = null,
+    val humidityPercent: Int? = null,
+    val precipitationMm: Double? = null,
+    val windSpeedKmh: Double? = null,
+    val windDirectionDegrees: Int? = null,
+    val airQualityIndex: Int? = null,
+    val uvIndex: Double? = null,
+    val visibilityKm: Double? = null,
+    val pressureHpa: Double? = null,
+    val dewPointC: Double? = null,
+    val sunrise: String = "--:--",
+    val sunset: String = "--:--",
+    val daylight: String = "--",
     val indoorTemperature: String = "23.5°C",
-    val metrics: List<WeatherMetric> = listOf(
-        WeatherMetric("Humedad", "61%", "Moderada", "◉"),
-        WeatherMetric("Precipitación", "0.0 mm", "Hoy", "☂"),
-        WeatherMetric("Viento", "14 km/h", "Oeste (O)", "≋"),
-        WeatherMetric("Calidad del aire", "32", "Buena", "◌"),
-        WeatherMetric("Índice UV", "6", "Alto", "☀"),
-        WeatherMetric("Visibilidad", "16 km", "Excelente", "◉")
-    ),
-    val forecast: List<DailyForecast> = listOf(
-        DailyForecast("Hoy", "☀", "29°", "18°", "0%"),
-        DailyForecast("Mañana", "⛅", "28°", "17°", "10%"),
-        DailyForecast("Sábado", "☂", "24°", "16°", "60%"),
-        DailyForecast("Domingo", "🌤", "26°", "16°", "20%"),
-        DailyForecast("Lunes", "☀", "27°", "17°", "5%")
-    )
-)
+    val forecast: List<DailyForecast> = emptyList(),
+    val isLoading: Boolean = true,
+    val errorMessage: String? = null
+) {
+    val temperature: String get() = temperatureC?.let { "%.1f°C".format(it) } ?: "--°C"
+    val feelsLike: String get() = feelsLikeC?.let { "%.1f°C".format(it) } ?: "--°C"
+    val high: String get() = highC?.let { "%.0f°".format(it) } ?: "--°"
+    val low: String get() = lowC?.let { "%.0f°".format(it) } ?: "--°"
+
+    val metrics: List<WeatherMetric>
+        get() = listOf(
+            WeatherMetric("Humedad", humidityPercent?.let { "$it%" } ?: "--", humidityStatus(humidityPercent), "◉"),
+            WeatherMetric("Precipitación", precipitationMm?.let { "%.1f mm".format(it) } ?: "--", "Ahora", "☂"),
+            WeatherMetric("Viento", windSpeedKmh?.let { "%.0f km/h".format(it) } ?: "--", windDirection(windDirectionDegrees), "≋"),
+            WeatherMetric("Calidad del aire", airQualityIndex?.toString() ?: "--", airQualityStatus(airQualityIndex), "◌"),
+            WeatherMetric("Índice UV", uvIndex?.let { "%.1f".format(it) } ?: "--", uvStatus(uvIndex), "☀"),
+            WeatherMetric("Visibilidad", visibilityKm?.let { "%.1f km".format(it) } ?: "--", visibilityStatus(visibilityKm), "◉")
+        )
+}
+
+private fun humidityStatus(value: Int?): String = when (value) {
+    null -> "Sin datos"
+    in 0..39 -> "Baja"
+    in 40..69 -> "Moderada"
+    else -> "Alta"
+}
+
+private fun airQualityStatus(value: Int?): String = when (value) {
+    null -> "Sin datos"
+    in 0..20 -> "Muy buena"
+    in 21..40 -> "Buena"
+    in 41..60 -> "Moderada"
+    in 61..80 -> "Mala"
+    else -> "Muy mala"
+}
+
+private fun uvStatus(value: Double?): String = when {
+    value == null -> "Sin datos"
+    value < 3 -> "Bajo"
+    value < 6 -> "Moderado"
+    value < 8 -> "Alto"
+    value < 11 -> "Muy alto"
+    else -> "Extremo"
+}
+
+private fun visibilityStatus(value: Double?): String = when {
+    value == null -> "Sin datos"
+    value >= 10 -> "Excelente"
+    value >= 5 -> "Buena"
+    value >= 2 -> "Moderada"
+    else -> "Reducida"
+}
+
+fun windDirection(degrees: Int?): String {
+    if (degrees == null) return "Sin datos"
+    val names = listOf("N", "NE", "E", "SE", "S", "SO", "O", "NO")
+    return names[((degrees + 22.5) / 45.0).toInt() % 8]
+}
