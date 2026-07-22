@@ -20,6 +20,7 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Fill
 import androidx.compose.ui.graphics.drawscope.Stroke
@@ -38,6 +39,7 @@ import kotlin.math.abs
 @Composable
 internal fun EnergyAnalyticsCard(
     points: List<EnergyAnalyticsPoint>,
+    projectedValue: Double = 0.0,
     modifier: Modifier = Modifier
 ) {
     val current = points.lastOrNull()?.value ?: 0.0
@@ -77,6 +79,7 @@ internal fun EnergyAnalyticsCard(
         Spacer(Modifier.height(16.dp))
         DashboardEnergyChart(
             points = points,
+            projectedValue = projectedValue,
             accent = EnergyBlue,
             modifier = Modifier.fillMaxWidth().height(180.dp)
         )
@@ -92,6 +95,7 @@ internal fun EnergyAnalyticsCard(
 @Composable
 private fun DashboardEnergyChart(
     points: List<EnergyAnalyticsPoint>,
+    projectedValue: Double,
     accent: Color,
     modifier: Modifier = Modifier
 ) {
@@ -136,6 +140,24 @@ private fun DashboardEnergyChart(
         areaPath.close()
         drawPath(areaPath, Brush.verticalGradient(listOf(accent.copy(alpha = 0.30f), Color.Transparent)), style = Fill)
         drawPath(linePath, accent, style = Stroke(3.dp.toPx(), cap = StrokeCap.Round))
+
+        if (projectedValue > 0.0 && points.isNotEmpty()) {
+            val lastValue = points.last().value
+            val projectedMax = maxOf(max, projectedValue)
+            val projectedMin = minOf(min, projectedValue)
+            val projectedRange = (projectedMax - projectedMin).takeIf { it > 0.0 } ?: 1.0
+            val startY = verticalPadding + heightAvailable * (1f - ((lastValue - projectedMin) / projectedRange).toFloat())
+            val endY = verticalPadding + heightAvailable * (1f - ((projectedValue - projectedMin) / projectedRange).toFloat())
+            drawLine(
+                color = EnergyOrange,
+                start = Offset(size.width - horizontalPadding - widthAvailable / points.lastIndex.coerceAtLeast(1), startY),
+                end = Offset(size.width - horizontalPadding, endY),
+                strokeWidth = 2.dp.toPx(),
+                cap = StrokeCap.Round,
+                pathEffect = PathEffect.dashPathEffect(floatArrayOf(10f, 8f))
+            )
+            drawCircle(EnergyOrange, 4.dp.toPx(), Offset(size.width - horizontalPadding, endY))
+        }
     }
 }
 

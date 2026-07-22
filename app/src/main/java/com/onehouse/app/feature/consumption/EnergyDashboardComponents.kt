@@ -373,3 +373,117 @@ internal fun formatNumber(value: Double): String = String.format(Locale.getDefau
 internal fun plainNumber(value: Double): String = value.toString().replace('.', ',')
 internal fun String.toNormalizedDoubleOrNull(): Double? =
     trim().takeIf { it.isNotEmpty() }?.replace(',', '.')?.toDoubleOrNull()
+
+@Composable
+internal fun SmartEnergyCard(
+    state: SmartEnergyState,
+    modifier: Modifier = Modifier
+) {
+    val statusColor = when (state.level) {
+        SmartEnergyLevel.NORMAL -> EnergyGreen
+        SmartEnergyLevel.HIGH -> EnergyOrange
+        SmartEnergyLevel.CRITICAL -> EnergyRed
+    }
+    val statusLabel = when (state.level) {
+        SmartEnergyLevel.NORMAL -> "Normal"
+        SmartEnergyLevel.HIGH -> "Alto"
+        SmartEnergyLevel.CRITICAL -> "Crítico"
+    }
+    val progress = state.goalProgress.coerceIn(0f, 1f)
+
+    Column(
+        modifier = modifier
+            .fillMaxWidth()
+            .background(
+                Brush.linearGradient(
+                    listOf(statusColor.copy(alpha = 0.18f), EnergyCard)
+                ),
+                RoundedCornerShape(24.dp)
+            )
+            .border(1.dp, statusColor.copy(alpha = 0.45f), RoundedCornerShape(24.dp))
+            .padding(18.dp)
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text("Smart Energy", color = TextoPrincipal, fontSize = 18.sp, fontWeight = FontWeight.SemiBold)
+                Text("Objetivo, alertas y recomendación mensual", color = TextoSecundario, fontSize = 11.sp)
+            }
+            Box(
+                modifier = Modifier
+                    .background(statusColor.copy(alpha = 0.17f), RoundedCornerShape(50))
+                    .padding(horizontal = 12.dp, vertical = 7.dp)
+            ) {
+                Text(statusLabel, color = statusColor, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+            }
+        }
+
+        Spacer(Modifier.height(18.dp))
+        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            SmartMetric(
+                title = "Proyección",
+                value = "${formatNumber(state.projectedMonthKwh)} kWh",
+                modifier = Modifier.weight(1f)
+            )
+            SmartMetric(
+                title = "Objetivo",
+                value = "${formatNumber(state.monthlyGoalKwh)} kWh",
+                modifier = Modifier.weight(1f)
+            )
+        }
+
+        Spacer(Modifier.height(15.dp))
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text("Progreso mensual", color = TextoSecundario, fontSize = 11.sp, modifier = Modifier.weight(1f))
+            Text(
+                "${(state.goalProgress * 100f).toInt()}%",
+                color = statusColor,
+                fontSize = 12.sp,
+                fontWeight = FontWeight.Bold
+            )
+        }
+        Spacer(Modifier.height(7.dp))
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(8.dp)
+                .background(EnergyCardAlt, RoundedCornerShape(50))
+        ) {
+            Box(
+                modifier = Modifier
+                    .fillMaxHeight()
+                    .fillMaxWidth(progress)
+                    .background(statusColor, RoundedCornerShape(50))
+            )
+        }
+
+        state.alertMessage?.let { alert ->
+            Spacer(Modifier.height(14.dp))
+            Text("⚠ $alert", color = statusColor, fontSize = 12.sp, fontWeight = FontWeight.Medium)
+        }
+
+        Spacer(Modifier.height(14.dp))
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .background(EnergyCardAlt, RoundedCornerShape(16.dp))
+                .padding(13.dp)
+        ) {
+            Text("Recomendación", color = TextoSecundario, fontSize = 10.sp)
+            Spacer(Modifier.height(4.dp))
+            Text(state.recommendation, color = TextoPrincipal, fontSize = 12.sp, fontWeight = FontWeight.Medium)
+        }
+    }
+}
+
+@Composable
+private fun SmartMetric(title: String, value: String, modifier: Modifier) {
+    Column(
+        modifier = modifier
+            .background(EnergyCardAlt, RoundedCornerShape(16.dp))
+            .padding(12.dp)
+    ) {
+        Text(title, color = TextoSecundario, fontSize = 10.sp)
+        Spacer(Modifier.height(3.dp))
+        Text(value, color = TextoPrincipal, fontSize = 15.sp, fontWeight = FontWeight.Bold)
+    }
+}

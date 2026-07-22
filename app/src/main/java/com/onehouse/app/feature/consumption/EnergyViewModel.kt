@@ -22,6 +22,18 @@ data class EnergyAnalyticsPoint(
     val value: Double
 )
 
+enum class SmartEnergyLevel { NORMAL, HIGH, CRITICAL }
+
+data class SmartEnergyState(
+    val monthlyGoalKwh: Double = 350.0,
+    val currentMonthKwh: Double = 0.0,
+    val projectedMonthKwh: Double = 0.0,
+    val goalProgress: Float = 0f,
+    val level: SmartEnergyLevel = SmartEnergyLevel.NORMAL,
+    val alertMessage: String? = null,
+    val recommendation: String = "Añade lecturas para generar recomendaciones personalizadas."
+)
+
 class EnergyViewModel(
     private val repository: EnergyRepository
 ) {
@@ -34,6 +46,9 @@ class EnergyViewModel(
 
     private val _analyticsPoints = MutableStateFlow<List<EnergyAnalyticsPoint>>(emptyList())
     val analyticsPoints: StateFlow<List<EnergyAnalyticsPoint>> = _analyticsPoints.asStateFlow()
+
+    private val _smartEnergy = MutableStateFlow(SmartEnergyState())
+    val smartEnergy: StateFlow<SmartEnergyState> = _smartEnergy.asStateFlow()
 
     init {
         observeReadings()
@@ -128,7 +143,9 @@ class EnergyViewModel(
             repository.observeAll().collect { readings ->
                 allReadings = readings
                 val summaries = repository.buildSummaries(readings)
-                _analyticsPoints.value = buildElectricityAnalytics(readings)
+                val analytics = buildElectricityAnalytics(readings)
+                _analyticsPoints.value = analytics
+                _smartEnergy.value = buildSmartEnergy(analytics)
                 _state.value = _state.value.copy(
                     isLoading = false,
                     summaries = summaries,
@@ -174,6 +191,48 @@ class EnergyViewModel(
                 }
             EnergyAnalyticsPoint(monthStart, totalKwh)
         }
+    }
+
+    private fun buildSmartEnergy(
+        analytics: List<EnergyAnalyticsPoint>,
+        now: Long = System.currentTimeMillis()
+    ): SmartEnergyState {
+        val currentMonth = analytics.lastOrNull()?.value ?: 0.0
+        val calendar = Calendar.getInstance().apply { timeInMillis = now }
+        val elapsedDays = calendar.get(Calendar.DAY_OF_MONTH).coerceAtLeast(1)
+        val totalDays = calendar.getActualMaximum(Calendar.DAY_OF_MONTH).coerceAtLeast(elapsedDays)
+        val projected = if (currentMonth > 0.0) currentMonth / elapsedDays * totalDays else 0.0
+
+        val completedMonths = analytics.dropLast(1).map { it.value }.filter { it > 0.0 }
+        val baseline = completedMonths.takeLast(6).average().takeIf { !it.isNaN() && it > 0.0 } ?: 350.0
+        val goal = (baseline * 0.95).coerceAtLeast(100.0)
+        val progress = (projected / goal).toFloat().coerceAtLeast(0f)
+        val level = when {
+            progress >= 1.15f -> SmartEnergyLevel.CRITICAL
+            progress >= 0.95f -> SmartEnergyLevel.HIGH
+            else -> SmartEnergyLevel.NORMAL
+        }
+        val alert = when (level) {
+            SmartEnergyLevel.NORMAL -> null
+            SmartEnergyLevel.HIGH -> "La proyección mensual está cerca del objetivo."
+            SmartEnergyLevel.CRITICAL -> "La proyección supera el objetivo en ${kotlin.math.round((progress - 1f) * 100).toInt()}%."
+        }
+        val recommendation = when {
+            currentMonth <= 0.0 -> "Añade lecturas para generar recomendaciones personalizadas."
+            level == SmartEnergyLevel.CRITICAL -> "Reduce climatización en horas punta y revisa consumos en espera."
+            level == SmartEnergyLevel.HIGH -> "Ajusta un grado la climatización para recuperar margen este mes."
+            projected < goal * 0.8 -> "Buen ritmo: mantén horarios y automatizaciones actuales."
+            else -> "El consumo está controlado; concentra cargas fuera de horas punta."
+        }
+        return SmartEnergyState(
+            monthlyGoalKwh = goal,
+            currentMonthKwh = currentMonth,
+            projectedMonthKwh = projected,
+            goalProgress = progress,
+            level = level,
+            alertMessage = alert,
+            recommendation = recommendation
+        )
     }
 
     private fun rebuildSelectedMeter() {

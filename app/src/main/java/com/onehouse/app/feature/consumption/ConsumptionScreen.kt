@@ -51,6 +51,7 @@ fun ConsumptionScreen(onBack: (() -> Unit)? = null) {
     val viewModel = remember(repository) { EnergyViewModel(repository) }
     val state by viewModel.state.collectAsState()
     val analyticsPoints by viewModel.analyticsPoints.collectAsState()
+    val smartEnergy by viewModel.smartEnergy.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
 
     LaunchedEffect(repository) {
@@ -82,6 +83,7 @@ fun ConsumptionScreen(onBack: (() -> Unit)? = null) {
             summaries = state.summaries,
             overview = state.overview,
             analyticsPoints = analyticsPoints,
+            smartEnergy = smartEnergy,
             onBack = onBack,
             onMeterSelected = viewModel::openMeter
         )
@@ -127,6 +129,7 @@ private fun EnergyDashboardScreen(
     summaries: List<com.onehouse.app.data.energy.MeterSummary>,
     overview: com.onehouse.app.data.energy.EnergyOverview,
     analyticsPoints: List<EnergyAnalyticsPoint>,
+    smartEnergy: SmartEnergyState,
     onBack: (() -> Unit)?,
     onMeterSelected: (com.onehouse.app.data.energy.MeterType) -> Unit
 ) {
@@ -165,7 +168,9 @@ private fun EnergyDashboardScreen(
             Spacer(Modifier.height(16.dp))
             EnergyDistributionCard(summaries = summaries)
             Spacer(Modifier.height(16.dp))
-            EnergyAnalyticsCard(points = analyticsPoints)
+            EnergyAnalyticsCard(points = analyticsPoints, projectedValue = smartEnergy.projectedMonthKwh)
+            Spacer(Modifier.height(16.dp))
+            SmartEnergyCard(state = smartEnergy)
             Spacer(Modifier.height(24.dp))
             Text(
                 "Contadores",
