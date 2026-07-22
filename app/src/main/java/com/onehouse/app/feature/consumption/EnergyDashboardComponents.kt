@@ -1,5 +1,7 @@
 package com.onehouse.app.feature.consumption
 
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.border
@@ -31,9 +33,12 @@ import com.onehouse.app.data.energy.MeterType
 import com.onehouse.app.design.BordeTarjeta
 import com.onehouse.app.design.TextoPrincipal
 import com.onehouse.app.design.TextoSecundario
+import com.onehouse.app.design.OneHouseCard
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import androidx.compose.runtime.getValue
+
 
 internal val EnergyBlue = Color(0xFF168EFF)
 internal val EnergyOrange = Color(0xFFFF9A3D)
@@ -248,13 +253,11 @@ internal fun EnergySummaryCard(
     onClick: () -> Unit
 ) {
     val accent = accentFor(summary.type)
-    Column(
-        modifier = modifier
-            .background(EnergyCard, RoundedCornerShape(24.dp))
-            .border(1.dp, BordeTarjeta, RoundedCornerShape(24.dp))
-            .clickable(onClick = onClick)
-            .padding(17.dp)
+    OneHouseCard(
+        modifier = modifier,
+        onClick = onClick
     ) {
+        Column(modifier = Modifier.padding(17.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Box(
                 modifier = Modifier
@@ -291,6 +294,7 @@ internal fun EnergySummaryCard(
         }
         Spacer(Modifier.height(10.dp))
         TrendLabel(summary.yearVariationPercent)
+        }
     }
 }
 
@@ -389,7 +393,12 @@ internal fun SmartEnergyCard(
         SmartEnergyLevel.HIGH -> "Alto"
         SmartEnergyLevel.CRITICAL -> "Crítico"
     }
-    val progress = state.goalProgress.coerceIn(0f, 1f)
+    val targetProgress = state.goalProgress.coerceIn(0f, 1f)
+    val progress by animateFloatAsState(
+        targetValue = targetProgress,
+        animationSpec = spring(stiffness = 320f, dampingRatio = 0.82f),
+        label = "smartEnergyProgress"
+    )
 
     Column(
         modifier = modifier

@@ -329,6 +329,30 @@ fun OneHouseHeader(
 }
 
 @Composable
+fun OneHouseSectionHeader(
+    title: String,
+    subtitle: String? = null,
+    modifier: Modifier = Modifier
+) {
+    Column(modifier = modifier.fillMaxWidth()) {
+        Text(
+            text = title,
+            color = TextoPrincipal,
+            style = MaterialTheme.typography.titleLarge,
+            fontWeight = FontWeight.SemiBold
+        )
+        if (!subtitle.isNullOrBlank()) {
+            Spacer(modifier = Modifier.height(4.dp))
+            Text(
+                text = subtitle,
+                color = TextoSecundario,
+                style = MaterialTheme.typography.bodySmall
+            )
+        }
+    }
+}
+
+@Composable
 fun OneHouseFingerprintRow(
     title: String,
     subtitle: String,

@@ -1,5 +1,7 @@
 package com.onehouse.app.feature.consumption
 
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -14,6 +16,11 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
@@ -105,6 +112,13 @@ private fun DashboardEnergyChart(
         }
         return
     }
+    var chartVisible by remember(points) { mutableStateOf(false) }
+    LaunchedEffect(points) { chartVisible = true }
+    val chartAlpha by animateFloatAsState(
+        targetValue = if (chartVisible) 1f else 0f,
+        animationSpec = tween(520),
+        label = "dashboardEnergyChartAlpha"
+    )
     val values = points.map { it.value }
     val min = values.minOrNull() ?: 0.0
     val max = values.maxOrNull() ?: 0.0
@@ -138,8 +152,8 @@ private fun DashboardEnergyChart(
         }
         areaPath.lineTo(size.width - horizontalPadding, size.height - verticalPadding)
         areaPath.close()
-        drawPath(areaPath, Brush.verticalGradient(listOf(accent.copy(alpha = 0.30f), Color.Transparent)), style = Fill)
-        drawPath(linePath, accent, style = Stroke(3.dp.toPx(), cap = StrokeCap.Round))
+        drawPath(areaPath, Brush.verticalGradient(listOf(accent.copy(alpha = 0.30f * chartAlpha), Color.Transparent)), style = Fill)
+        drawPath(linePath, accent.copy(alpha = chartAlpha), style = Stroke(3.dp.toPx(), cap = StrokeCap.Round))
 
         if (projectedValue > 0.0 && points.isNotEmpty()) {
             val lastValue = points.last().value
@@ -149,14 +163,14 @@ private fun DashboardEnergyChart(
             val startY = verticalPadding + heightAvailable * (1f - ((lastValue - projectedMin) / projectedRange).toFloat())
             val endY = verticalPadding + heightAvailable * (1f - ((projectedValue - projectedMin) / projectedRange).toFloat())
             drawLine(
-                color = EnergyOrange,
+                color = EnergyOrange.copy(alpha = chartAlpha),
                 start = Offset(size.width - horizontalPadding - widthAvailable / points.lastIndex.coerceAtLeast(1), startY),
                 end = Offset(size.width - horizontalPadding, endY),
                 strokeWidth = 2.dp.toPx(),
                 cap = StrokeCap.Round,
                 pathEffect = PathEffect.dashPathEffect(floatArrayOf(10f, 8f))
             )
-            drawCircle(EnergyOrange, 4.dp.toPx(), Offset(size.width - horizontalPadding, endY))
+            drawCircle(EnergyOrange.copy(alpha = chartAlpha), 4.dp.toPx(), Offset(size.width - horizontalPadding, endY))
         }
     }
 }

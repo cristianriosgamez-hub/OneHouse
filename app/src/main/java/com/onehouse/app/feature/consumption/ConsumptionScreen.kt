@@ -1,5 +1,9 @@
 package com.onehouse.app.feature.consumption
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -24,6 +28,8 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
@@ -39,7 +45,9 @@ import com.onehouse.app.design.FondoInferior
 import com.onehouse.app.design.FondoSuperior
 import com.onehouse.app.design.TextoPrincipal
 import com.onehouse.app.design.TextoSecundario
+import com.onehouse.app.design.OneHouseSectionHeader
 import com.onehouse.app.feature.rooms.detail.RoomHeader
+import kotlinx.coroutines.delay
 
 @Composable
 fun ConsumptionScreen(onBack: (() -> Unit)? = null) {
@@ -133,6 +141,16 @@ private fun EnergyDashboardScreen(
     onBack: (() -> Unit)?,
     onMeterSelected: (com.onehouse.app.data.energy.MeterType) -> Unit
 ) {
+    var contentVisible by remember { mutableStateOf(false) }
+    LaunchedEffect(isLoading) {
+        if (!isLoading) {
+            delay(80)
+            contentVisible = true
+        } else {
+            contentVisible = false
+        }
+    }
+
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -160,31 +178,28 @@ private fun EnergyDashboardScreen(
         )
         Spacer(Modifier.height(18.dp))
 
-        if (!isLoading) {
-            EnergyOverviewCard(
-                overview = overview,
-                summaries = summaries
-            )
-            Spacer(Modifier.height(16.dp))
-            EnergyDistributionCard(summaries = summaries)
-            Spacer(Modifier.height(16.dp))
-            EnergyAnalyticsCard(points = analyticsPoints, projectedValue = smartEnergy.projectedMonthKwh)
-            Spacer(Modifier.height(16.dp))
-            SmartEnergyCard(state = smartEnergy)
-            Spacer(Modifier.height(24.dp))
-            Text(
-                "Contadores",
-                color = TextoPrincipal,
-                style = MaterialTheme.typography.titleLarge,
-                fontWeight = FontWeight.SemiBold
-            )
-            Spacer(Modifier.height(5.dp))
-            Text(
-                "Consulta el detalle, histórico y coste de cada suministro",
-                color = TextoSecundario,
-                fontSize = 12.sp
-            )
-            Spacer(Modifier.height(13.dp))
+        AnimatedVisibility(
+            visible = !isLoading && contentVisible,
+            enter = fadeIn(tween(420)) + slideInVertically(tween(420)) { it / 10 }
+        ) {
+            Column {
+                EnergyOverviewCard(
+                    overview = overview,
+                    summaries = summaries
+                )
+                Spacer(Modifier.height(16.dp))
+                EnergyDistributionCard(summaries = summaries)
+                Spacer(Modifier.height(16.dp))
+                EnergyAnalyticsCard(points = analyticsPoints, projectedValue = smartEnergy.projectedMonthKwh)
+                Spacer(Modifier.height(16.dp))
+                SmartEnergyCard(state = smartEnergy)
+                Spacer(Modifier.height(24.dp))
+                OneHouseSectionHeader(
+                    title = "Contadores",
+                    subtitle = "Consulta el detalle, histórico y coste de cada suministro"
+                )
+                Spacer(Modifier.height(13.dp))
+            }
         }
 
         if (isLoading) {
