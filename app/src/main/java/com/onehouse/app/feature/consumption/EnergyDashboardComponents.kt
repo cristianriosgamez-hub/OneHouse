@@ -1,6 +1,5 @@
 package com.onehouse.app.feature.consumption
 
-import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.border
@@ -20,16 +19,11 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.Path
-import androidx.compose.ui.graphics.StrokeCap
-import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.onehouse.app.data.energy.EnergyChartPoint
 import com.onehouse.app.data.energy.EnergyOverview
 import com.onehouse.app.data.energy.EnergyPeriod
 import com.onehouse.app.data.energy.MeterSummary
@@ -358,61 +352,6 @@ internal fun PeriodSelector(
                     fontWeight = if (active) FontWeight.SemiBold else FontWeight.Normal
                 )
             }
-        }
-    }
-}
-
-@Composable
-internal fun EnergyLineChart(
-    points: List<EnergyChartPoint>,
-    accent: Color,
-    modifier: Modifier = Modifier
-) {
-    if (points.isEmpty()) {
-        Box(modifier = modifier, contentAlignment = Alignment.Center) {
-            Text("No hay datos en este periodo", color = TextoSecundario, fontSize = 13.sp)
-        }
-        return
-    }
-
-    val values = points.map { it.value }
-    val min = values.minOrNull() ?: 0.0
-    val max = values.maxOrNull() ?: 0.0
-    val range = (max - min).takeIf { it > 0.0 } ?: 1.0
-
-    Canvas(modifier = modifier) {
-        val horizontalPadding = 8.dp.toPx()
-        val verticalPadding = 12.dp.toPx()
-        val widthAvailable = size.width - horizontalPadding * 2
-        val heightAvailable = size.height - verticalPadding * 2
-
-        for (index in 0..3) {
-            val y = verticalPadding + heightAvailable * index / 3f
-            drawLine(
-                color = BordeTarjeta.copy(alpha = 0.5f),
-                start = Offset(horizontalPadding, y),
-                end = Offset(size.width - horizontalPadding, y),
-                strokeWidth = 1.dp.toPx()
-            )
-        }
-
-        val path = Path()
-        points.forEachIndexed { index, point ->
-            val x = if (points.size == 1) size.width / 2f
-            else horizontalPadding + widthAvailable * index / (points.lastIndex.toFloat())
-            val normalized = ((point.value - min) / range).toFloat()
-            val y = verticalPadding + heightAvailable * (1f - normalized)
-            if (index == 0) path.moveTo(x, y) else path.lineTo(x, y)
-        }
-
-        drawPath(path, color = accent, style = Stroke(width = 3.dp.toPx(), cap = StrokeCap.Round))
-
-        points.forEachIndexed { index, point ->
-            val x = if (points.size == 1) size.width / 2f
-            else horizontalPadding + widthAvailable * index / (points.lastIndex.toFloat())
-            val normalized = ((point.value - min) / range).toFloat()
-            val y = verticalPadding + heightAvailable * (1f - normalized)
-            drawCircle(color = accent, radius = 3.5.dp.toPx(), center = Offset(x, y))
         }
     }
 }

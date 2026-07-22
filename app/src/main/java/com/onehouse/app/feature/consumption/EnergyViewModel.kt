@@ -13,8 +13,14 @@ import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import java.util.Calendar
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.launch
+
+data class EnergyAnalyticsPoint(
+    val timestamp: Long,
+    val value: Double
+)
 
 class EnergyViewModel(
     private val repository: EnergyRepository
@@ -25,6 +31,9 @@ class EnergyViewModel(
 
     private val _state = MutableStateFlow(EnergyDashboardState())
     val state: StateFlow<EnergyDashboardState> = _state.asStateFlow()
+
+    private val _analyticsPoints = MutableStateFlow<List<EnergyAnalyticsPoint>>(emptyList())
+    val analyticsPoints: StateFlow<List<EnergyAnalyticsPoint>> = _analyticsPoints.asStateFlow()
 
     init {
         observeReadings()
@@ -119,6 +128,7 @@ class EnergyViewModel(
             repository.observeAll().collect { readings ->
                 allReadings = readings
                 val summaries = repository.buildSummaries(readings)
+                _analyticsPoints.value = buildElectricityAnalytics(readings)
                 _state.value = _state.value.copy(
                     isLoading = false,
                     summaries = summaries,
@@ -126,6 +136,43 @@ class EnergyViewModel(
                 )
                 rebuildSelectedMeter()
             }
+        }
+    }
+
+    private fun buildElectricityAnalytics(
+        readings: List<EnergyReadingEntity>,
+        now: Long = System.currentTimeMillis()
+    ): List<EnergyAnalyticsPoint> {
+        val monthStarts = (11 downTo 0).map { offset ->
+            Calendar.getInstance().apply {
+                timeInMillis = now
+                set(Calendar.DAY_OF_MONTH, 1)
+                set(Calendar.HOUR_OF_DAY, 0)
+                set(Calendar.MINUTE, 0)
+                set(Calendar.SECOND, 0)
+                set(Calendar.MILLISECOND, 0)
+                add(Calendar.MONTH, -offset)
+            }.timeInMillis
+        }
+
+        return monthStarts.map { monthStart ->
+            val month = Calendar.getInstance().apply { timeInMillis = monthStart }
+            val yearValue = month.get(Calendar.YEAR)
+            val monthValue = month.get(Calendar.MONTH)
+            val totalKwh = readings.asSequence()
+                .filter { reading ->
+                    val calendar = Calendar.getInstance().apply { timeInMillis = reading.timestamp }
+                    calendar.get(Calendar.YEAR) == yearValue &&
+                        calendar.get(Calendar.MONTH) == monthValue
+                }
+                .sumOf { reading ->
+                    when (MeterType.fromStorage(reading.meterType)) {
+                        MeterType.ENDESA -> reading.consumption ?: 0.0
+                        MeterType.CLIMATIZATION -> (reading.consumption ?: 0.0) * 1_000.0
+                        else -> 0.0
+                    }
+                }
+            EnergyAnalyticsPoint(monthStart, totalKwh)
         }
     }
 
