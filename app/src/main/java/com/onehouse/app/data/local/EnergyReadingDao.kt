@@ -5,6 +5,7 @@ import androidx.room.Delete
 import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
+import androidx.room.Transaction
 import androidx.room.Update
 import kotlinx.coroutines.flow.Flow
 
@@ -21,6 +22,15 @@ interface EnergyReadingDao {
 
     @Insert(onConflict = OnConflictStrategy.IGNORE)
     suspend fun insertAll(readings: List<EnergyReadingEntity>)
+
+    @Query("DELETE FROM energy_readings WHERE source = :source")
+    suspend fun deleteBySource(source: String)
+
+    @Transaction
+    suspend fun replaceBySource(source: String, readings: List<EnergyReadingEntity>) {
+        deleteBySource(source)
+        insertAll(readings)
+    }
 
     @Update
     suspend fun update(reading: EnergyReadingEntity)

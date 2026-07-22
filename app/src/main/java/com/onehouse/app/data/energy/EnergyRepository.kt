@@ -20,7 +20,8 @@ class EnergyRepository(private val dao: EnergyReadingDao) {
 
     suspend fun count(): Int = dao.count()
 
-    suspend fun insertImported(readings: List<EnergyReadingEntity>) = dao.insertAll(readings)
+    suspend fun replaceImported(readings: List<EnergyReadingEntity>) =
+        dao.replaceBySource(ReadingSource.EXCEL.storageValue, readings)
 
     fun buildSummaries(
         readings: List<EnergyReadingEntity>,

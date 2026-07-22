@@ -8,8 +8,10 @@ class EnergyHistorySeeder(
     private val context: Context,
     private val repository: EnergyRepository
 ) {
-    suspend fun seedIfEmpty() {
-        if (repository.count() > 0) return
+    suspend fun seedIfNeeded() {
+        val preferences = context.getSharedPreferences(PREFERENCES_NAME, Context.MODE_PRIVATE)
+        if (preferences.getInt(KEY_DATASET_VERSION, 0) >= DATASET_VERSION) return
+
         val json = context.assets.open("energy_history.json").bufferedReader().use { it.readText() }
         val array = JSONArray(json)
         val readings = buildList {
@@ -29,7 +31,15 @@ class EnergyHistorySeeder(
                 )
             }
         }
-        repository.insertImported(readings)
+
+        repository.replaceImported(readings)
+        preferences.edit().putInt(KEY_DATASET_VERSION, DATASET_VERSION).apply()
+    }
+
+    companion object {
+        private const val PREFERENCES_NAME = "energy_history_seed"
+        private const val KEY_DATASET_VERSION = "dataset_version"
+        private const val DATASET_VERSION = 2
     }
 }
 

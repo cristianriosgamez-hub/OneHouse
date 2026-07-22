@@ -61,7 +61,7 @@ fun ConsumptionScreen(onBack: (() -> Unit)? = null) {
     val snackbarHostState = remember { SnackbarHostState() }
 
     LaunchedEffect(repository) {
-        EnergyHistorySeeder(applicationContext, repository).seedIfEmpty()
+        EnergyHistorySeeder(applicationContext, repository).seedIfNeeded()
     }
 
     DisposableEffect(viewModel) {
