@@ -72,8 +72,11 @@ fun SettingsScreen(onBack: () -> Unit) {
     var revision by remember { mutableIntStateOf(0) }
 
     DisposableEffect(viewModel) {
-        viewModel.observe { revision++ }
-        onDispose { viewModel.close() }
+        val observation = viewModel.observe { revision++ }
+        onDispose {
+            observation.close()
+            viewModel.close()
+        }
     }
 
     // Fuerza la lectura de los datos tras cada modificación.
@@ -158,6 +161,11 @@ fun SettingsScreen(onBack: () -> Unit) {
                     label = "Estado KNX",
                     value = connectionLabel(viewModel.connectionStatus),
                     valueColor = connectionColor(viewModel.connectionStatus)
+                )
+                Text(
+                    text = viewModel.statusMessage,
+                    color = TextoSecundario,
+                    fontSize = 13.sp
                 )
                 SettingsDivider()
                 StatusRow(

@@ -1,23 +1,33 @@
-# OneHouse v1.4.2 — Entrega 2
+# OneHouse v1.4.2 — Entrega 3
 
-## Selección automática de conexión KNX/IP
+## Persistencia completa de la configuración KNX/IP
 
-- La pantalla de configuración detecta la red activa del teléfono.
-- WiFi y Ethernet seleccionan automáticamente la dirección KNX/IP local.
-- Los datos móviles y otras redes seleccionan automáticamente la dirección remota.
-- Cuando no existe conexión de red, la prueba queda bloqueada con un mensaje claro.
-- Se muestran la red actual, la ruta elegida, el destino activo y la hora de la última prueba.
+- Se mantienen la IP y el puerto local, la IP y el puerto remoto y el modo de selección automática.
+- Se guarda también el resultado de la última prueba, su mensaje y la fecha y hora en la que se realizó.
+- Al volver a abrir la aplicación, la pantalla recupera el último estado conocido sin marcar una prueba interrumpida como conectada.
 
-## Prueba KNXnet/IP real
+## Gestión de cambios de red
 
-- La prueba de conexión ya no se limita a solicitar la descripción del dispositivo.
-- Se abre un canal KNXnet/IP Tunnelling mediante Connect Request.
-- El canal se cierra inmediatamente después de validar la respuesta.
-- Se distinguen los errores de red, tiempo agotado, respuesta inválida y rechazo del túnel.
-- La prueba no envía telegramas ni órdenes al bus KNX.
+- El ViewModel observa continuamente la red activa.
+- Un cambio entre WiFi, Ethernet, datos móviles o ausencia de red cancela de forma segura una prueba en curso.
+- Al cambiar la ruta activa, el estado queda pendiente de comprobar para evitar mostrar como válida una conexión realizada por otra ruta.
+
+## Motor de prueba preparado para reutilización
+
+- Se introduce `KnxEndpoint`, un modelo común de host y puerto reutilizable por el futuro motor de telegramas KNX.
+- `KnxConnectionTester` permite configurar el tiempo de espera y mantiene compatibilidad con la llamada anterior por host y puerto.
+- La prueba sigue abriendo y cerrando un túnel KNXnet/IP real sin enviar telegramas al bus.
+
+## Pantalla de configuración
+
+- El estado KNX incluye el mensaje detallado de la última prueba.
+- La fecha de la última prueba permanece disponible después de cerrar y volver a abrir la aplicación.
+- La suscripción al ViewModel se libera correctamente al abandonar la pantalla.
 
 ## Archivos modificados
 
+- `app/src/main/java/com/onehouse/app/data/knx/KnxSettings.kt`
+- `app/src/main/java/com/onehouse/app/data/knx/SettingsDataStore.kt`
 - `app/src/main/java/com/onehouse/app/knx/KnxConnectionTester.kt`
 - `app/src/main/java/com/onehouse/app/feature/settings/SettingsViewModel.kt`
 - `app/src/main/java/com/onehouse/app/feature/settings/SettingsScreen.kt`

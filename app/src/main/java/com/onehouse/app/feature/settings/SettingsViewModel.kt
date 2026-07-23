@@ -7,6 +7,7 @@ import com.onehouse.app.data.knx.KnxSettings
 import com.onehouse.app.data.knx.KnxSettingsRepository
 import com.onehouse.app.data.knx.KnxSettingsValidation
 import com.onehouse.app.knx.KnxConnectionTester
+import com.onehouse.app.knx.KnxEndpoint
 import com.onehouse.app.knx.NetworkConnectionDetector
 import java.io.Closeable
 
@@ -31,13 +32,13 @@ class SettingsViewModel(
     var validation: KnxSettingsValidation = validate(settings)
         private set
 
-    var connectionStatus: KnxConnectionStatus = KnxConnectionStatus.NOT_TESTED
-        private set
-
-    var statusMessage: String = "Sin comprobar"
-        private set
-
     var networkState: NetworkConnectionDetector.State = networkDetector.currentState()
+        private set
+
+    var connectionStatus: KnxConnectionStatus = settings.lastConnectionStatus
+        private set
+
+    var statusMessage: String = settings.lastStatusMessage
         private set
 
     val selectedRoute: ConnectionRoute
@@ -50,38 +51,55 @@ class SettingsViewModel(
         }
 
     val selectedEndpoint: String
-        get() = when (selectedRoute) {
-            ConnectionRoute.LOCAL -> endpointLabel(settings.localIp, settings.localPort)
-            ConnectionRoute.REMOTE -> endpointLabel(settings.remoteIp, settings.remotePort)
-            ConnectionRoute.NONE -> "No disponible"
-        }
+        get() = selectedKnxEndpoint()?.let { "${it.host}:${it.port}" } ?: "No disponible"
 
-    var lastTestEpochMillis: Long = 0L
-        private set
+    val lastTestEpochMillis: Long
+        get() = settings.lastTestEpochMillis
 
     init {
+        if (settings.lastTestEndpoint.isNotBlank() && settings.lastTestEndpoint != selectedEndpoint) {
+            connectionStatus = KnxConnectionStatus.NOT_TESTED
+            statusMessage = "La ruta actual todavía no se ha comprobado"
+        }
+
         networkObservation = networkDetector.observe { newState ->
             mainHandler.post {
                 val previousRoute = selectedRoute
                 networkState = newState
-                if (previousRoute != selectedRoute && connectionStatus != KnxConnectionStatus.TESTING) {
-                    connectionStatus = KnxConnectionStatus.NOT_TESTED
-                    statusMessage = "La red ha cambiado. Conexión pendiente de comprobar"
+                val newRoute = selectedRoute
+
+                if (previousRoute != newRoute) {
+                    connectionTest?.close()
+                    connectionTest = null
+                    updateTestState(
+                        status = KnxConnectionStatus.NOT_TESTED,
+                        message = "La red ha cambiado. Conexión pendiente de comprobar",
+                        updateTimestamp = false,
+                        testedEndpoint = ""
+                    )
+                } else {
+                    notifyObservers()
                 }
-                notifyObservers()
             }
         }
     }
 
-    fun observe(observer: () -> Unit) {
+    fun observe(observer: () -> Unit): Closeable {
         observers += observer
+        observer()
+        return Closeable { observers -= observer }
     }
 
     fun update(change: (KnxSettings) -> KnxSettings) {
-        settings = change(settings).copy(lastUpdatedEpochMillis = System.currentTimeMillis())
+        settings = change(settings).copy(
+            lastUpdatedEpochMillis = System.currentTimeMillis(),
+            lastConnectionStatus = KnxConnectionStatus.NOT_TESTED,
+            lastStatusMessage = "Cambios guardados. Conexión pendiente de comprobar",
+            lastTestEndpoint = ""
+        )
         validation = validate(settings)
         connectionStatus = KnxConnectionStatus.NOT_TESTED
-        statusMessage = "Cambios guardados. Conexión pendiente de comprobar"
+        statusMessage = settings.lastStatusMessage
         repository.save(settings)
         notifyObservers()
     }
@@ -90,70 +108,67 @@ class SettingsViewModel(
         networkState = networkDetector.currentState()
         validation = validate(settings)
 
-        val route = selectedRoute
-        if (route == ConnectionRoute.NONE || !networkState.isConnected) {
+        if (!networkState.isConnected || selectedRoute == ConnectionRoute.NONE) {
             failTest("El dispositivo no tiene conexión de red")
             return
         }
 
-        val host = when (route) {
-            ConnectionRoute.LOCAL -> settings.localIp.trim()
-            ConnectionRoute.REMOTE -> settings.remoteIp.trim()
-            ConnectionRoute.NONE -> ""
-        }
-        val portText = when (route) {
-            ConnectionRoute.LOCAL -> settings.localPort
-            ConnectionRoute.REMOTE -> settings.remotePort
-            ConnectionRoute.NONE -> ""
-        }
-
-        val routeError = when (route) {
-            ConnectionRoute.LOCAL -> validation.localIpError ?: validation.localPortError
-            ConnectionRoute.REMOTE -> {
-                if (host.isBlank()) "Introduce la dirección IP remota" else {
-                    ipError(host, required = true) ?: validation.remotePortError
-                }
+        val endpoint = selectedKnxEndpoint()
+        if (endpoint == null) {
+            val message = when (selectedRoute) {
+                ConnectionRoute.LOCAL -> validation.localIpError ?: validation.localPortError
+                ConnectionRoute.REMOTE -> validation.remoteIpError
+                    ?: validation.remotePortError
+                    ?: "Introduce la dirección IP remota"
+                ConnectionRoute.NONE -> "No hay una ruta disponible"
             }
-            ConnectionRoute.NONE -> "No hay una ruta disponible"
-        }
-
-        val port = portText.toIntOrNull()
-        if (routeError != null || port == null) {
-            failTest(routeError ?: "Revisa los datos de conexión")
+            failTest(message ?: "Revisa los datos de conexión")
             return
         }
 
         connectionTest?.close()
-        connectionStatus = KnxConnectionStatus.TESTING
-        statusMessage = "Abriendo túnel KNX/IP por la ruta ${routeLabel(route).lowercase()}…"
-        notifyObservers()
+        updateTestState(
+            status = KnxConnectionStatus.TESTING,
+            message = "Abriendo túnel KNX/IP por la ruta ${routeLabel(selectedRoute).lowercase()}…",
+            updateTimestamp = false,
+            persist = false
+        )
 
-        connectionTest = KnxConnectionTester.test(host = host, port = port) { result ->
+        val testedRoute = selectedRoute
+        connectionTest = KnxConnectionTester.test(endpoint) { result ->
             connectionTest = null
-            lastTestEpochMillis = System.currentTimeMillis()
+            val finalStatus: KnxConnectionStatus
+            val finalMessage: String
+
             when (result) {
                 is KnxConnectionTester.Result.Success -> {
-                    connectionStatus = KnxConnectionStatus.CONNECTED
-                    statusMessage = "Túnel KNX/IP correcto por ${routeLabel(route).lowercase()} (${result.deviceAddress})"
+                    finalStatus = KnxConnectionStatus.CONNECTED
+                    finalMessage = "Túnel KNX/IP correcto por ${routeLabel(testedRoute).lowercase()} (${result.deviceAddress})"
                 }
                 KnxConnectionTester.Result.Timeout -> {
-                    connectionStatus = KnxConnectionStatus.FAILED
-                    statusMessage = "Sin respuesta KNX/IP en ${endpointLabel(host, portText)}"
+                    finalStatus = KnxConnectionStatus.FAILED
+                    finalMessage = "Sin respuesta KNX/IP en ${endpoint.host}:${endpoint.port}"
                 }
                 is KnxConnectionTester.Result.Rejected -> {
-                    connectionStatus = KnxConnectionStatus.FAILED
-                    statusMessage = "El interfaz KNX/IP rechazó el túnel (código ${result.status})"
+                    finalStatus = KnxConnectionStatus.FAILED
+                    finalMessage = "El interfaz KNX/IP rechazó el túnel (código ${result.status})"
                 }
                 KnxConnectionTester.Result.InvalidResponse -> {
-                    connectionStatus = KnxConnectionStatus.FAILED
-                    statusMessage = "El equipo respondió, pero no aceptó KNXnet/IP Tunnelling"
+                    finalStatus = KnxConnectionStatus.FAILED
+                    finalMessage = "El equipo respondió, pero no aceptó KNXnet/IP Tunnelling"
                 }
                 is KnxConnectionTester.Result.NetworkError -> {
-                    connectionStatus = KnxConnectionStatus.FAILED
-                    statusMessage = "Error de red: ${result.detail}"
+                    finalStatus = KnxConnectionStatus.FAILED
+                    finalMessage = "Error de red: ${result.detail}"
                 }
             }
-            notifyObservers()
+
+            updateTestState(
+                status = finalStatus,
+                message = finalMessage,
+                updateTimestamp = true,
+                testedEndpoint = "${endpoint.host}:${endpoint.port}"
+            )
         }
     }
 
@@ -166,10 +181,58 @@ class SettingsViewModel(
         observers.clear()
     }
 
+    private fun selectedKnxEndpoint(): KnxEndpoint? {
+        val host: String
+        val portText: String
+        val error: String?
+
+        when (selectedRoute) {
+            ConnectionRoute.LOCAL -> {
+                host = settings.localIp.trim()
+                portText = settings.localPort.trim()
+                error = validation.localIpError ?: validation.localPortError
+            }
+            ConnectionRoute.REMOTE -> {
+                host = settings.remoteIp.trim()
+                portText = settings.remotePort.trim()
+                error = if (host.isBlank()) {
+                    "Introduce la dirección IP remota"
+                } else {
+                    ipError(host, required = true) ?: validation.remotePortError
+                }
+            }
+            ConnectionRoute.NONE -> return null
+        }
+
+        val port = portText.toIntOrNull()
+        return if (error == null && port != null) KnxEndpoint(host, port) else null
+    }
+
     private fun failTest(message: String) {
-        connectionStatus = KnxConnectionStatus.FAILED
+        updateTestState(
+            status = KnxConnectionStatus.FAILED,
+            message = message,
+            updateTimestamp = true,
+            testedEndpoint = selectedEndpoint.takeUnless { it == "No disponible" }.orEmpty()
+        )
+    }
+
+    private fun updateTestState(
+        status: KnxConnectionStatus,
+        message: String,
+        updateTimestamp: Boolean,
+        persist: Boolean = true,
+        testedEndpoint: String = settings.lastTestEndpoint
+    ) {
+        connectionStatus = status
         statusMessage = message
-        lastTestEpochMillis = System.currentTimeMillis()
+        settings = settings.copy(
+            lastTestEpochMillis = if (updateTimestamp) System.currentTimeMillis() else settings.lastTestEpochMillis,
+            lastConnectionStatus = status,
+            lastStatusMessage = message,
+            lastTestEndpoint = testedEndpoint
+        )
+        if (persist) repository.save(settings)
         notifyObservers()
     }
 
@@ -185,9 +248,6 @@ class SettingsViewModel(
         ConnectionRoute.REMOTE -> "Remota"
         ConnectionRoute.NONE -> "Sin ruta"
     }
-
-    private fun endpointLabel(host: String, port: String): String =
-        if (host.isBlank()) "Sin configurar" else "$host:$port"
 
     private fun notifyObservers() = observers.toList().forEach { it() }
 

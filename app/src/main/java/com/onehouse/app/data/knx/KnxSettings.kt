@@ -6,7 +6,11 @@ data class KnxSettings(
     val remoteIp: String = "",
     val remotePort: String = "3671",
     val autoReconnect: Boolean = true,
-    val lastUpdatedEpochMillis: Long = 0L
+    val lastUpdatedEpochMillis: Long = 0L,
+    val lastTestEpochMillis: Long = 0L,
+    val lastConnectionStatus: KnxConnectionStatus = KnxConnectionStatus.NOT_TESTED,
+    val lastStatusMessage: String = "Sin comprobar",
+    val lastTestEndpoint: String = ""
 )
 
 enum class KnxConnectionStatus {

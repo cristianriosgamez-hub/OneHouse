@@ -11,7 +11,16 @@ class SettingsDataStore(context: Context) {
         remoteIp = preferences.getString(KEY_REMOTE_IP, "").orEmpty(),
         remotePort = preferences.getString(KEY_REMOTE_PORT, "3671").orEmpty(),
         autoReconnect = preferences.getBoolean(KEY_AUTO_RECONNECT, true),
-        lastUpdatedEpochMillis = preferences.getLong(KEY_LAST_UPDATED, 0L)
+        lastUpdatedEpochMillis = preferences.getLong(KEY_LAST_UPDATED, 0L),
+        lastTestEpochMillis = preferences.getLong(KEY_LAST_TEST, 0L),
+        lastConnectionStatus = preferences.getString(KEY_LAST_CONNECTION_STATUS, null)
+            ?.let { stored -> runCatching { KnxConnectionStatus.valueOf(stored) }.getOrNull() }
+            ?.takeUnless { it == KnxConnectionStatus.TESTING }
+            ?: KnxConnectionStatus.NOT_TESTED,
+        lastStatusMessage = preferences.getString(KEY_LAST_STATUS_MESSAGE, "Sin comprobar")
+            .orEmpty()
+            .ifBlank { "Sin comprobar" },
+        lastTestEndpoint = preferences.getString(KEY_LAST_TEST_ENDPOINT, "").orEmpty()
     )
 
     fun write(settings: KnxSettings) {
@@ -22,6 +31,10 @@ class SettingsDataStore(context: Context) {
             .putString(KEY_REMOTE_PORT, settings.remotePort)
             .putBoolean(KEY_AUTO_RECONNECT, settings.autoReconnect)
             .putLong(KEY_LAST_UPDATED, settings.lastUpdatedEpochMillis)
+            .putLong(KEY_LAST_TEST, settings.lastTestEpochMillis)
+            .putString(KEY_LAST_CONNECTION_STATUS, settings.lastConnectionStatus.name)
+            .putString(KEY_LAST_STATUS_MESSAGE, settings.lastStatusMessage)
+            .putString(KEY_LAST_TEST_ENDPOINT, settings.lastTestEndpoint)
             .apply()
     }
 
@@ -33,5 +46,9 @@ class SettingsDataStore(context: Context) {
         const val KEY_REMOTE_PORT = "remote_port"
         const val KEY_AUTO_RECONNECT = "auto_reconnect"
         const val KEY_LAST_UPDATED = "last_updated"
+        const val KEY_LAST_TEST = "last_test"
+        const val KEY_LAST_CONNECTION_STATUS = "last_connection_status"
+        const val KEY_LAST_STATUS_MESSAGE = "last_status_message"
+        const val KEY_LAST_TEST_ENDPOINT = "last_test_endpoint"
     }
 }

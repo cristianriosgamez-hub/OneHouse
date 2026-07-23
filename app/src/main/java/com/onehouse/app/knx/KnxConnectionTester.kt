@@ -12,6 +12,14 @@ import java.net.SocketTimeoutException
 import java.util.concurrent.atomic.AtomicBoolean
 
 /**
+ * Punto de conexión KNXnet/IP reutilizable por las futuras órdenes del bus.
+ */
+data class KnxEndpoint(
+    val host: String,
+    val port: Int
+)
+
+/**
  * Comprueba que un interfaz KNXnet/IP permite abrir un túnel real.
  *
  * La prueba envía un Connect Request de tipo Tunnelling y, cuando recibe una
@@ -19,7 +27,7 @@ import java.util.concurrent.atomic.AtomicBoolean
  * Request. No transmite telegramas al bus KNX.
  */
 object KnxConnectionTester {
-    private const val TIMEOUT_MILLIS = 4_000
+    private const val DEFAULT_TIMEOUT_MILLIS = 4_000
     private const val KNXNET_IP_CONNECT_RESPONSE = 0x0206
     private const val KNXNET_IP_DISCONNECT_REQUEST = 0x0209
 
@@ -36,24 +44,27 @@ object KnxConnectionTester {
     }
 
     fun test(
-        host: String,
-        port: Int,
+        endpoint: KnxEndpoint,
+        timeoutMillis: Int = DEFAULT_TIMEOUT_MILLIS,
         onResult: (Result) -> Unit
     ): Closeable {
+        require(endpoint.port in 1..65535) { "Puerto KNX/IP fuera de rango" }
+        require(timeoutMillis > 0) { "El tiempo de espera debe ser mayor que cero" }
+
         val cancelled = AtomicBoolean(false)
         var socket: DatagramSocket? = null
         val mainHandler = Handler(Looper.getMainLooper())
 
         val worker = Thread {
             val result = try {
-                val targetAddress = InetAddress.getByName(host)
+                val targetAddress = InetAddress.getByName(endpoint.host)
                 if (targetAddress !is Inet4Address) {
                     Result.NetworkError("La dirección debe ser IPv4")
                 } else {
                     DatagramSocket().use { udpSocket ->
                         socket = udpSocket
-                        udpSocket.soTimeout = TIMEOUT_MILLIS
-                        udpSocket.connect(InetSocketAddress(targetAddress, port))
+                        udpSocket.soTimeout = timeoutMillis
+                        udpSocket.connect(InetSocketAddress(targetAddress, endpoint.port))
 
                         val localAddress = udpSocket.localAddress as? Inet4Address
                             ?: return@use Result.NetworkError("No se pudo obtener la dirección IPv4 local")
@@ -65,8 +76,7 @@ object KnxConnectionTester {
                         val response = DatagramPacket(responseBuffer, responseBuffer.size)
                         udpSocket.receive(response)
 
-                        val parsed = parseConnectResponse(response.data, response.length)
-                        when (parsed) {
+                        when (val parsed = parseConnectResponse(response.data, response.length)) {
                             is ConnectResponse.Accepted -> {
                                 runCatching {
                                     val disconnect = buildDisconnectRequest(
@@ -77,7 +87,7 @@ object KnxConnectionTester {
                                     udpSocket.send(DatagramPacket(disconnect, disconnect.size))
                                 }
                                 Result.Success(
-                                    deviceAddress = response.address.hostAddress ?: host,
+                                    deviceAddress = response.address.hostAddress ?: endpoint.host,
                                     channelId = parsed.channelId
                                 )
                             }
@@ -112,16 +122,22 @@ object KnxConnectionTester {
         }
     }
 
+    fun test(
+        host: String,
+        port: Int,
+        onResult: (Result) -> Unit
+    ): Closeable = test(KnxEndpoint(host.trim(), port), onResult = onResult)
+
     private fun buildConnectRequest(localAddress: Inet4Address, localPort: Int): ByteArray {
         val hpai = buildHpai(localAddress, localPort)
         return byteArrayOf(
-            0x06, 0x10,             // Cabecera KNXnet/IP
-            0x02, 0x05,             // Connect Request
-            0x00, 0x1A,             // Longitud total: 26 bytes
-            *hpai,                   // Endpoint de control
-            *hpai,                   // Endpoint de datos
-            0x04, 0x04,             // CRI: longitud y tipo de conexión
-            0x02, 0x00              // Tunnelling, capa de enlace KNX
+            0x06, 0x10,
+            0x02, 0x05,
+            0x00, 0x1A,
+            *hpai,
+            *hpai,
+            0x04, 0x04,
+            0x02, 0x00
         )
     }
 
@@ -142,7 +158,7 @@ object KnxConnectionTester {
     private fun buildHpai(localAddress: Inet4Address, localPort: Int): ByteArray {
         val ip = localAddress.address
         return byteArrayOf(
-            0x08, 0x01,             // HPAI, UDP/IPv4
+            0x08, 0x01,
             ip[0], ip[1], ip[2], ip[3],
             ((localPort ushr 8) and 0xFF).toByte(),
             (localPort and 0xFF).toByte()
