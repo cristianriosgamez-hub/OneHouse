@@ -63,6 +63,7 @@ fun ImportProjectScreen(onBack: () -> Unit) {
     var selectedCategory by remember { mutableStateOf<ImportedKnxCategory?>(null) }
     var query by remember { mutableStateOf("") }
     var expandedDeviceId by remember { mutableStateOf<String?>(null) }
+    var selectedControlDevice by remember { mutableStateOf<ImportedKnxDevice?>(null) }
 
     DisposableEffect(viewModel) {
         val observation = viewModel.observe { snapshot = it }
@@ -92,6 +93,11 @@ fun ImportProjectScreen(onBack: () -> Unit) {
         else -> null
     }
     val isBusy = state is ImportState.SelectingFile || state is ImportState.Importing
+
+    selectedControlDevice?.let { device ->
+        DeviceControlScreen(device = device, onBack = { selectedControlDevice = null })
+        return
+    }
 
     Box(
         modifier = Modifier
@@ -130,6 +136,7 @@ fun ImportProjectScreen(onBack: () -> Unit) {
                     onDeviceSelected = {
                         expandedDeviceId = if (expandedDeviceId == it) null else it
                     },
+                    onOpenControl = { selectedControlDevice = it },
                     onReplaceProject = launchFilePicker,
                     onDeleteProject = {
                         viewModel.clearProject()
@@ -254,6 +261,7 @@ private fun ProjectContent(
     onQueryChanged: (String) -> Unit,
     onCategorySelected: (ImportedKnxCategory) -> Unit,
     onDeviceSelected: (String) -> Unit,
+    onOpenControl: (ImportedKnxDevice) -> Unit,
     onReplaceProject: () -> Unit,
     onDeleteProject: () -> Unit
 ) {
@@ -326,7 +334,8 @@ private fun ProjectContent(
                 DeviceCard(
                     device = device,
                     expanded = expandedDeviceId == device.id,
-                    onClick = { onDeviceSelected(device.id) }
+                    onClick = { onDeviceSelected(device.id) },
+                    onOpenControl = { onOpenControl(device) }
                 )
             }
         }
@@ -449,7 +458,12 @@ private fun RoomHeader(roomName: String, count: Int) {
 }
 
 @Composable
-private fun DeviceCard(device: ImportedKnxDevice, expanded: Boolean, onClick: () -> Unit) {
+private fun DeviceCard(
+    device: ImportedKnxDevice,
+    expanded: Boolean,
+    onClick: () -> Unit,
+    onOpenControl: () -> Unit
+) {
     Surface(
         color = FondoTarjeta,
         shape = RoundedCornerShape(16.dp),
@@ -501,6 +515,16 @@ private fun DeviceCard(device: ImportedKnxDevice, expanded: Boolean, onClick: ()
                 DetailLine("Unidad", device.unit ?: "—")
                 DetailLine("Favorito", if (device.isFavourite) "Sí" else "No")
                 DetailLine("Tipo InsideControl", device.source.insideControlType.toString())
+                if (device.commands.isNotEmpty()) {
+                    Spacer(modifier = Modifier.height(10.dp))
+                    Button(
+                        onClick = onOpenControl,
+                        colors = ButtonDefaults.buttonColors(containerColor = AzulOneHouse),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text(if (device.canWrite) "Abrir control KNX" else "Abrir lectura KNX")
+                    }
+                }
             }
         }
     }

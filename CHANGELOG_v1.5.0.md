@@ -55,3 +55,13 @@ Esta entrega convierte la configuración importada en un catálogo normalizado y
 - Añadida una versión moderna y explícita de AndroidX Fragment (`fragment-ktx 1.8.5`) para hacer compatible `FragmentActivity` con Activity Result API.
 - Se mantiene `ActivityResultContracts.OpenDocument`, sin códigos de petición manuales ni APIs obsoletas.
 - Conservada la compatibilidad con la autenticación biométrica basada en `FragmentActivity`.
+
+## Entrega 6 — Control de dispositivos importados
+
+- Añadida pantalla de control KNX accesible desde cada objeto importado.
+- Habilitado el envío real de `GroupValueWrite` para luces e interruptores DPT 1.x.
+- Habilitada la solicitud `GroupValueRead` para objetos con dirección de lectura.
+- Añadido `KnxCommandExecutor`, que selecciona automáticamente la ruta KNX/IP local o remota configurada.
+- Añadidos estados visibles de conexión, envío, confirmación y error.
+- Los DPT todavía no codificados se bloquean de forma segura para evitar telegramas incorrectos.
+- Eliminado de la pantalla principal el cuadro temporal **Primer control KNX** y su dirección de prueba fija.
