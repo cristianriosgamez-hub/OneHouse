@@ -12,18 +12,25 @@ import java.net.SocketTimeoutException
 import java.util.concurrent.atomic.AtomicBoolean
 
 /**
- * Realiza una comprobación no intrusiva de un interfaz KNXnet/IP.
+ * Comprueba que un interfaz KNXnet/IP permite abrir un túnel real.
  *
- * Envía un KNXnet/IP Description Request por UDP y espera la respuesta del
- * dispositivo. No abre un túnel KNX ni transmite telegramas al bus.
+ * La prueba envía un Connect Request de tipo Tunnelling y, cuando recibe una
+ * respuesta correcta, cierra inmediatamente el canal mediante Disconnect
+ * Request. No transmite telegramas al bus KNX.
  */
 object KnxConnectionTester {
-    private const val TIMEOUT_MILLIS = 3_000
-    private const val KNXNET_IP_DESCRIPTION_RESPONSE = 0x0204
+    private const val TIMEOUT_MILLIS = 4_000
+    private const val KNXNET_IP_CONNECT_RESPONSE = 0x0206
+    private const val KNXNET_IP_DISCONNECT_REQUEST = 0x0209
 
     sealed interface Result {
-        data class Success(val deviceAddress: String) : Result
+        data class Success(
+            val deviceAddress: String,
+            val channelId: Int
+        ) : Result
+
         data object Timeout : Result
+        data class Rejected(val status: Int) : Result
         data class NetworkError(val detail: String) : Result
         data object InvalidResponse : Result
     }
@@ -48,20 +55,35 @@ object KnxConnectionTester {
                         udpSocket.soTimeout = TIMEOUT_MILLIS
                         udpSocket.connect(InetSocketAddress(targetAddress, port))
 
-                        val request = buildDescriptionRequest(
-                            localAddress = udpSocket.localAddress,
-                            localPort = udpSocket.localPort
-                        )
+                        val localAddress = udpSocket.localAddress as? Inet4Address
+                            ?: return@use Result.NetworkError("No se pudo obtener la dirección IPv4 local")
+
+                        val request = buildConnectRequest(localAddress, udpSocket.localPort)
                         udpSocket.send(DatagramPacket(request, request.size))
 
                         val responseBuffer = ByteArray(512)
                         val response = DatagramPacket(responseBuffer, responseBuffer.size)
                         udpSocket.receive(response)
 
-                        if (isDescriptionResponse(response.data, response.length)) {
-                            Result.Success(response.address.hostAddress ?: host)
-                        } else {
-                            Result.InvalidResponse
+                        val parsed = parseConnectResponse(response.data, response.length)
+                        when (parsed) {
+                            is ConnectResponse.Accepted -> {
+                                runCatching {
+                                    val disconnect = buildDisconnectRequest(
+                                        channelId = parsed.channelId,
+                                        localAddress = localAddress,
+                                        localPort = udpSocket.localPort
+                                    )
+                                    udpSocket.send(DatagramPacket(disconnect, disconnect.size))
+                                }
+                                Result.Success(
+                                    deviceAddress = response.address.hostAddress ?: host,
+                                    channelId = parsed.channelId
+                                )
+                            }
+
+                            is ConnectResponse.Rejected -> Result.Rejected(parsed.status)
+                            ConnectResponse.Invalid -> Result.InvalidResponse
                         }
                     }
                 }
@@ -90,30 +112,72 @@ object KnxConnectionTester {
         }
     }
 
-    private fun buildDescriptionRequest(localAddress: InetAddress, localPort: Int): ByteArray {
-        val ip = (localAddress as? Inet4Address)?.address ?: byteArrayOf(0, 0, 0, 0)
-
+    private fun buildConnectRequest(localAddress: Inet4Address, localPort: Int): ByteArray {
+        val hpai = buildHpai(localAddress, localPort)
         return byteArrayOf(
-            0x06, 0x10,             // KNXnet/IP header length and protocol version
-            0x02, 0x03,             // Description Request (0x0203)
-            0x00, 0x0E,             // Total length: 14 bytes
-            0x08, 0x01,             // HPAI length and UDP protocol code
+            0x06, 0x10,             // Cabecera KNXnet/IP
+            0x02, 0x05,             // Connect Request
+            0x00, 0x1A,             // Longitud total: 26 bytes
+            *hpai,                   // Endpoint de control
+            *hpai,                   // Endpoint de datos
+            0x04, 0x04,             // CRI: longitud y tipo de conexión
+            0x02, 0x00              // Tunnelling, capa de enlace KNX
+        )
+    }
+
+    private fun buildDisconnectRequest(
+        channelId: Int,
+        localAddress: Inet4Address,
+        localPort: Int
+    ): ByteArray = byteArrayOf(
+        0x06, 0x10,
+        ((KNXNET_IP_DISCONNECT_REQUEST ushr 8) and 0xFF).toByte(),
+        (KNXNET_IP_DISCONNECT_REQUEST and 0xFF).toByte(),
+        0x00, 0x10,
+        (channelId and 0xFF).toByte(),
+        0x00,
+        *buildHpai(localAddress, localPort)
+    )
+
+    private fun buildHpai(localAddress: Inet4Address, localPort: Int): ByteArray {
+        val ip = localAddress.address
+        return byteArrayOf(
+            0x08, 0x01,             // HPAI, UDP/IPv4
             ip[0], ip[1], ip[2], ip[3],
             ((localPort ushr 8) and 0xFF).toByte(),
             (localPort and 0xFF).toByte()
         )
     }
 
-    private fun isDescriptionResponse(data: ByteArray, length: Int): Boolean {
-        if (length < 6) return false
+    private fun parseConnectResponse(data: ByteArray, length: Int): ConnectResponse {
+        if (length < 8) return ConnectResponse.Invalid
+
         val headerLength = data[0].toInt() and 0xFF
         val protocolVersion = data[1].toInt() and 0xFF
         val serviceType = ((data[2].toInt() and 0xFF) shl 8) or (data[3].toInt() and 0xFF)
         val totalLength = ((data[4].toInt() and 0xFF) shl 8) or (data[5].toInt() and 0xFF)
 
-        return headerLength == 6 &&
-            protocolVersion == 0x10 &&
-            serviceType == KNXNET_IP_DESCRIPTION_RESPONSE &&
-            totalLength in 6..length
+        if (
+            headerLength != 6 ||
+            protocolVersion != 0x10 ||
+            serviceType != KNXNET_IP_CONNECT_RESPONSE ||
+            totalLength !in 8..length
+        ) {
+            return ConnectResponse.Invalid
+        }
+
+        val channelId = data[6].toInt() and 0xFF
+        val status = data[7].toInt() and 0xFF
+        return if (status == 0) {
+            ConnectResponse.Accepted(channelId)
+        } else {
+            ConnectResponse.Rejected(status)
+        }
+    }
+
+    private sealed interface ConnectResponse {
+        data class Accepted(val channelId: Int) : ConnectResponse
+        data class Rejected(val status: Int) : ConnectResponse
+        data object Invalid : ConnectResponse
     }
 }

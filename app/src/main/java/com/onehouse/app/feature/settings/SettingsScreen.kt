@@ -42,6 +42,7 @@ import androidx.compose.ui.unit.sp
 import com.onehouse.app.data.knx.KnxConnectionStatus
 import com.onehouse.app.data.knx.KnxSettingsRepository
 import com.onehouse.app.data.knx.SettingsDataStore
+import com.onehouse.app.knx.NetworkConnectionDetector
 import com.onehouse.app.design.AzulClaro
 import com.onehouse.app.design.AzulOneHouse
 import com.onehouse.app.design.BordeTarjeta
@@ -64,7 +65,8 @@ fun SettingsScreen(onBack: () -> Unit) {
     val context = LocalContext.current
     val viewModel = remember {
         SettingsViewModel(
-            KnxSettingsRepository(SettingsDataStore(context.applicationContext))
+            repository = KnxSettingsRepository(SettingsDataStore(context.applicationContext)),
+            networkDetector = NetworkConnectionDetector(context.applicationContext)
         )
     }
     var revision by remember { mutableIntStateOf(0) }
@@ -153,9 +155,30 @@ fun SettingsScreen(onBack: () -> Unit) {
                 subtitle = "Información general del sistema"
             ) {
                 StatusRow(
-                    label = "Estado",
+                    label = "Estado KNX",
                     value = connectionLabel(viewModel.connectionStatus),
                     valueColor = connectionColor(viewModel.connectionStatus)
+                )
+                SettingsDivider()
+                StatusRow(
+                    label = "Red actual",
+                    value = networkLabel(viewModel.networkState),
+                    valueColor = networkColor(viewModel.networkState)
+                )
+                SettingsDivider()
+                StatusRow(
+                    label = "Ruta seleccionada",
+                    value = routeLabel(viewModel.selectedRoute)
+                )
+                SettingsDivider()
+                StatusRow(
+                    label = "Destino activo",
+                    value = viewModel.selectedEndpoint
+                )
+                SettingsDivider()
+                StatusRow(
+                    label = "Última prueba",
+                    value = formatTestDate(viewModel.lastTestEpochMillis)
                 )
                 SettingsDivider()
                 StatusRow(label = "Versión de la aplicación", value = appVersionName(context))
@@ -207,8 +230,8 @@ fun SettingsScreen(onBack: () -> Unit) {
                             .weight(1f)
                             .padding(horizontal = 14.dp)
                     ) {
-                        Text("Reconexión automática", color = TextoPrincipal, fontWeight = FontWeight.SemiBold)
-                        Text("Reintentar si la conexión se pierde", color = TextoSecundario, fontSize = 13.sp)
+                        Text("Selección automática", color = TextoPrincipal, fontWeight = FontWeight.SemiBold)
+                        Text("Desactívala para usar siempre la conexión local", color = TextoSecundario, fontSize = 13.sp)
                     }
                     Switch(
                         checked = settings.autoReconnect,
@@ -376,6 +399,31 @@ private fun connectionColor(status: KnxConnectionStatus): Color = when (status) 
     KnxConnectionStatus.FAILED -> RojoEstado
     KnxConnectionStatus.TESTING -> AzulClaro
     KnxConnectionStatus.NOT_TESTED -> TextoDesactivado
+}
+
+private fun networkLabel(state: NetworkConnectionDetector.State): String = when (state.type) {
+    NetworkConnectionDetector.NetworkType.WIFI -> "WiFi"
+    NetworkConnectionDetector.NetworkType.MOBILE -> "Datos móviles"
+    NetworkConnectionDetector.NetworkType.ETHERNET -> "Ethernet"
+    NetworkConnectionDetector.NetworkType.OTHER -> "Otra red"
+    NetworkConnectionDetector.NetworkType.OFFLINE -> "Sin conexión"
+}
+
+private fun networkColor(state: NetworkConnectionDetector.State): Color = when {
+    !state.isConnected -> RojoEstado
+    state.isValidated -> VerdeEstado
+    else -> AzulClaro
+}
+
+private fun routeLabel(route: SettingsViewModel.ConnectionRoute): String = when (route) {
+    SettingsViewModel.ConnectionRoute.LOCAL -> "Local"
+    SettingsViewModel.ConnectionRoute.REMOTE -> "Remota"
+    SettingsViewModel.ConnectionRoute.NONE -> "No disponible"
+}
+
+private fun formatTestDate(epochMillis: Long): String {
+    if (epochMillis <= 0L) return "Sin pruebas"
+    return SimpleDateFormat("dd/MM/yyyy HH:mm", Locale.getDefault()).format(Date(epochMillis))
 }
 
 private fun formatDate(epochMillis: Long): String {
