@@ -15,12 +15,19 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.Button
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
@@ -46,7 +53,13 @@ import com.onehouse.app.design.TextoDesactivado
 import com.onehouse.app.design.TextoPrincipal
 import com.onehouse.app.design.TextoSecundario
 import com.onehouse.app.design.VerdeEstado
+import com.onehouse.app.data.knx.SettingsDataStore
+import com.onehouse.app.device.LightDevice
 import com.onehouse.app.feature.rooms.RoomItem
+import com.onehouse.app.knx.KnxConnectionManager
+import com.onehouse.app.knx.KnxEndpoint
+import com.onehouse.app.knx.KnxGroupAddress
+import com.onehouse.app.knx.NetworkConnectionDetector
 import com.onehouse.app.feature.weather.WeatherUiState
 import com.onehouse.app.feature.weather.rememberWeatherState
 import java.util.Locale
@@ -95,6 +108,9 @@ fun HomeScreen(
 
             Spacer(modifier = Modifier.height(16.dp))
             QuickStatusGrid(exteriorWeather)
+
+            Spacer(modifier = Modifier.height(16.dp))
+            KnxTestLightCard()
 
             Spacer(modifier = Modifier.height(26.dp))
             Row(
@@ -319,3 +335,113 @@ private fun ConnectionStatus() {
         )
     }
 }
+
+@Composable
+private fun KnxTestLightCard() {
+    val context = LocalContext.current
+    val connectionManager = remember { KnxConnectionManager() }
+    val light = remember {
+        LightDevice(
+            connectionManager = connectionManager,
+            name = "Luz KNX de prueba",
+            writeAddress = KnxGroupAddress.parse(TEST_LIGHT_GROUP_ADDRESS)
+        )
+    }
+    var isOn by remember { mutableStateOf(false) }
+    var isBusy by remember { mutableStateOf(false) }
+    var statusText by remember { mutableStateOf("Dirección $TEST_LIGHT_GROUP_ADDRESS · DPT 1.001") }
+
+    DisposableEffect(connectionManager) {
+        onDispose { connectionManager.close() }
+    }
+
+    OneHouseCard(modifier = Modifier.fillMaxWidth()) {
+        Column(modifier = Modifier.padding(18.dp)) {
+            Text(
+                text = "PRIMER CONTROL KNX",
+                color = AzulClaro,
+                style = MaterialTheme.typography.labelMedium,
+                fontWeight = FontWeight.Bold
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = light.name,
+                        color = TextoPrincipal,
+                        style = MaterialTheme.typography.titleMedium
+                    )
+                    Text(
+                        text = statusText,
+                        color = TextoSecundario,
+                        style = MaterialTheme.typography.bodySmall
+                    )
+                }
+                Button(
+                    enabled = !isBusy,
+                    onClick = {
+                        val targetState = !isOn
+                        val settings = SettingsDataStore(context).read()
+                        val network = NetworkConnectionDetector(context).currentState()
+                        val host = if (network.usesLocalRoute) settings.localIp else settings.remoteIp
+                        val port = (if (network.usesLocalRoute) settings.localPort else settings.remotePort)
+                            .toIntOrNull()
+
+                        if (!network.isConnected) {
+                            statusText = "Sin conexión de red"
+                        } else if (host.isBlank() || port == null) {
+                            statusText = "Configura la conexión KNX ${if (network.usesLocalRoute) "local" else "remota"}"
+                        } else {
+                            isBusy = true
+                            statusText = "Conectando con $host:$port…"
+                            connectionManager.connect(KnxEndpoint(host, port)) { connectResult ->
+                                when (connectResult) {
+                                    is KnxConnectionManager.ConnectResult.Success -> {
+                                        light.setOn(targetState) { operation ->
+                                            isBusy = false
+                                            when (operation) {
+                                                KnxConnectionManager.OperationResult.Success -> {
+                                                    isOn = targetState
+                                                    statusText = if (targetState) "Encendida · telegrama confirmado" else "Apagada · telegrama confirmado"
+                                                }
+                                                is KnxConnectionManager.OperationResult.Failure -> statusText = operation.detail
+                                                is KnxConnectionManager.OperationResult.NotAvailable -> statusText = operation.detail
+                                            }
+                                        }
+                                    }
+                                    KnxConnectionManager.ConnectResult.Timeout -> {
+                                        isBusy = false
+                                        statusText = "Tiempo de espera agotado"
+                                    }
+                                    is KnxConnectionManager.ConnectResult.Rejected -> {
+                                        isBusy = false
+                                        statusText = "Conexión KNX rechazada (${connectResult.status})"
+                                    }
+                                    is KnxConnectionManager.ConnectResult.NetworkError -> {
+                                        isBusy = false
+                                        statusText = connectResult.detail
+                                    }
+                                    KnxConnectionManager.ConnectResult.InvalidResponse -> {
+                                        isBusy = false
+                                        statusText = "Respuesta KNX/IP no válida"
+                                    }
+                                    KnxConnectionManager.ConnectResult.Cancelled -> {
+                                        isBusy = false
+                                    }
+                                }
+                            }
+                        }
+                    }
+                ) {
+                    Text(if (isBusy) "Enviando…" else if (isOn) "Apagar" else "Encender")
+                }
+            }
+        }
+    }
+}
+
+private const val TEST_LIGHT_GROUP_ADDRESS = "1/0/1"
+

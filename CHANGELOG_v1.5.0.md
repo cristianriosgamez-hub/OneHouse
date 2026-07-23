@@ -29,3 +29,16 @@
 - Corregida la comprobación de disponibilidad mediante `BiometricManager.from(context)`.
 - Corregidas las constantes de error y la construcción de `BiometricPrompt`.
 - Eliminado el uso manual de `CancellationSignal`; AndroidX gestiona el ciclo de vida del diálogo.
+
+## Entrega 2 — Primer control KNX real
+
+- Añadida la representación validada de direcciones de grupo KNX de tres niveles (`KnxGroupAddress`).
+- Añadidos telegramas `GroupValueRead` y `GroupValueWrite` booleano para DPT 1.xxx.
+- Implementado el encapsulado cEMI dentro de `KNXnet/IP Tunnelling Request`.
+- Implementada la validación de `KNXnet/IP Tunnelling ACK`, incluyendo canal, secuencia y estado.
+- Añadido `LightDevice` para actuadores DPT 1.001 (Switch).
+- La pantalla Inicio incorpora un primer control de prueba para la dirección `1/0/1`.
+- El control selecciona automáticamente el endpoint local o remoto guardado según la red activa.
+- El estado visual solo cambia cuando el servidor KNX/IP confirma la recepción del telegrama.
+
+> Importante: `1/0/1` es una dirección inicial de prueba. Debe coincidir con la dirección de grupo de escritura configurada en ETS antes de accionar una carga real.
