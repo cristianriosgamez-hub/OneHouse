@@ -48,3 +48,10 @@ Esta entrega convierte la configuración importada en un catálogo normalizado y
 - Añadidos estados de selección, importación, éxito y error.
 - Añadido indicador de progreso y nombre del archivo durante la importación.
 - El botón de selección queda deshabilitado mientras existe una operación en curso.
+
+## Entrega 5 Rev.3
+
+- Corregido el error `Can only use lower 16 bits for requestCode` al abrir el selector de archivos `.knx`.
+- Añadida una versión moderna y explícita de AndroidX Fragment (`fragment-ktx 1.8.5`) para hacer compatible `FragmentActivity` con Activity Result API.
+- Se mantiene `ActivityResultContracts.OpenDocument`, sin códigos de petición manuales ni APIs obsoletas.
+- Conservada la compatibilidad con la autenticación biométrica basada en `FragmentActivity`.
