@@ -21,6 +21,7 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -43,11 +44,12 @@ import com.onehouse.app.design.FondoSuperior
 import com.onehouse.app.design.FondoTarjeta
 import com.onehouse.app.design.TextoPrincipal
 import com.onehouse.app.design.TextoSecundario
+import com.onehouse.app.device.ImportedKnxDevice
 import com.onehouse.app.importer.ImportedKnxCategory
-import com.onehouse.app.importer.ImportedKnxObject
 import com.onehouse.app.importer.ImportedKnxProject
 import com.onehouse.app.importer.InsideControlImporter
 import com.onehouse.app.importer.InsideControlProjectRepository
+import com.onehouse.app.knx.KnxDeviceFactory
 
 @Composable
 fun ImportProjectScreen(onBack: () -> Unit) {
@@ -56,7 +58,8 @@ fun ImportProjectScreen(onBack: () -> Unit) {
     var project by remember { mutableStateOf(repository.load()) }
     var message by remember { mutableStateOf<String?>(null) }
     var selectedCategory by remember { mutableStateOf<ImportedKnxCategory?>(null) }
-    var expandedDevice by remember { mutableStateOf<ImportedKnxObject?>(null) }
+    var query by remember { mutableStateOf("") }
+    var expandedDeviceId by remember { mutableStateOf<String?>(null) }
 
     val launcher = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
         if (uri != null) {
@@ -71,6 +74,8 @@ fun ImportProjectScreen(onBack: () -> Unit) {
                     repository.save(result.project)
                     project = result.project
                     selectedCategory = null
+                    query = ""
+                    expandedDeviceId = null
                     message = "Proyecto importado correctamente"
                 }
                 is InsideControlImporter.Result.Failure -> message = result.message
@@ -92,23 +97,34 @@ fun ImportProjectScreen(onBack: () -> Unit) {
             Header(onBack = onBack)
             Spacer(modifier = Modifier.height(12.dp))
 
-            if (project == null) {
+            val currentProject = project
+            if (currentProject == null) {
                 EmptyImportState(
                     message = message,
                     onSelectFile = { launcher.launch(arrayOf("*/*")) }
                 )
             } else {
                 ProjectContent(
-                    project = requireNotNull(project),
+                    project = currentProject,
                     message = message,
                     selectedCategory = selectedCategory,
-                    onCategorySelected = { selectedCategory = if (selectedCategory == it) null else it },
-                    expandedDevice = expandedDevice,
-                    onDeviceSelected = { expandedDevice = if (expandedDevice == it) null else it },
+                    query = query,
+                    expandedDeviceId = expandedDeviceId,
+                    onQueryChanged = { query = it },
+                    onCategorySelected = {
+                        selectedCategory = if (selectedCategory == it) null else it
+                        expandedDeviceId = null
+                    },
+                    onDeviceSelected = {
+                        expandedDeviceId = if (expandedDeviceId == it) null else it
+                    },
                     onReplaceProject = { launcher.launch(arrayOf("*/*")) },
                     onDeleteProject = {
                         repository.clear()
                         project = null
+                        selectedCategory = null
+                        query = ""
+                        expandedDeviceId = null
                         message = "Importación eliminada"
                     }
                 )
@@ -133,13 +149,13 @@ private fun Header(onBack: () -> Unit) {
         )
         Column {
             Text(
-                text = "Importar InsideControl",
+                text = "Objetos KNX importados",
                 color = TextoPrincipal,
                 style = MaterialTheme.typography.headlineSmall,
                 fontWeight = FontWeight.Bold
             )
             Text(
-                text = "Direcciones y objetos del proyecto .knx",
+                text = "Habitaciones, funciones y direcciones de InsideControl",
                 color = TextoSecundario,
                 fontSize = 13.sp
             )
@@ -184,14 +200,34 @@ private fun ProjectContent(
     project: ImportedKnxProject,
     message: String?,
     selectedCategory: ImportedKnxCategory?,
+    query: String,
+    expandedDeviceId: String?,
+    onQueryChanged: (String) -> Unit,
     onCategorySelected: (ImportedKnxCategory) -> Unit,
-    expandedDevice: ImportedKnxObject?,
-    onDeviceSelected: (ImportedKnxObject) -> Unit,
+    onDeviceSelected: (String) -> Unit,
     onReplaceProject: () -> Unit,
     onDeleteProject: () -> Unit
 ) {
-    val visibleDevices = remember(project, selectedCategory) {
-        project.devices.filter { selectedCategory == null || it.category == selectedCategory }
+    val allDevices = remember(project) { KnxDeviceFactory.create(project) }
+    val filteredDevices = remember(allDevices, selectedCategory, query) {
+        val normalizedQuery = query.trim()
+        allDevices.filter { device ->
+            val categoryMatches = selectedCategory == null || device.category == selectedCategory
+            val queryMatches = normalizedQuery.isBlank() || listOf(
+                device.name,
+                device.roomName,
+                device.category.displayName,
+                device.controlKind.displayName,
+                device.dataPointType.orEmpty(),
+                device.unit.orEmpty(),
+                device.source.readAddresses.joinToString(" "),
+                device.source.writeAddresses.joinToString(" ")
+            ).any { it.contains(normalizedQuery, ignoreCase = true) }
+            categoryMatches && queryMatches
+        }
+    }
+    val groupedDevices = remember(filteredDevices) {
+        filteredDevices.groupBy { it.roomName }.toSortedMap(String.CASE_INSENSITIVE_ORDER)
     }
 
     LazyColumn(
@@ -199,7 +235,7 @@ private fun ProjectContent(
         verticalArrangement = Arrangement.spacedBy(10.dp)
     ) {
         item {
-            ProjectSummary(project)
+            ProjectSummary(project, allDevices)
             message?.let {
                 Text(
                     text = it,
@@ -211,15 +247,51 @@ private fun ProjectContent(
         }
 
         item {
+            OutlinedTextField(
+                value = query,
+                onValueChange = onQueryChanged,
+                modifier = Modifier.fillMaxWidth(),
+                singleLine = true,
+                label = { Text("Buscar objeto o dirección") },
+                placeholder = { Text("Ej.: Luz salón o 1/1/1") }
+            )
+        }
+
+        item {
             CategoryFilters(project, selectedCategory, onCategorySelected)
         }
 
-        items(visibleDevices, key = { "${it.roomName}:${it.name}:${it.insideControlType}" }) { device ->
-            DeviceCard(
-                device = device,
-                expanded = expandedDevice == device,
-                onClick = { onDeviceSelected(device) }
+        item {
+            Text(
+                text = "${filteredDevices.size} objetos encontrados",
+                color = TextoSecundario,
+                fontSize = 12.sp
             )
+        }
+
+        groupedDevices.forEach { (roomName, devices) ->
+            item(key = "room:$roomName") {
+                RoomHeader(roomName = roomName, count = devices.size)
+            }
+            items(devices, key = { it.id }) { device ->
+                DeviceCard(
+                    device = device,
+                    expanded = expandedDeviceId == device.id,
+                    onClick = { onDeviceSelected(device.id) }
+                )
+            }
+        }
+
+        if (filteredDevices.isEmpty()) {
+            item {
+                Surface(color = FondoTarjeta, shape = RoundedCornerShape(16.dp)) {
+                    Text(
+                        text = "No hay objetos que coincidan con la búsqueda y el filtro seleccionados.",
+                        color = TextoSecundario,
+                        modifier = Modifier.padding(18.dp)
+                    )
+                }
+            }
         }
 
         item {
@@ -241,7 +313,7 @@ private fun ProjectContent(
 }
 
 @Composable
-private fun ProjectSummary(project: ImportedKnxProject) {
+private fun ProjectSummary(project: ImportedKnxProject, devices: List<ImportedKnxDevice>) {
     Surface(color = FondoTarjeta, shape = RoundedCornerShape(18.dp)) {
         Column(modifier = Modifier.padding(16.dp)) {
             Text(
@@ -256,9 +328,10 @@ private fun ProjectSummary(project: ImportedKnxProject) {
                 fontSize = 13.sp
             )
             Spacer(modifier = Modifier.height(10.dp))
-            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                StatChip("${project.devices.size}", "objetos")
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                StatChip("${devices.size}", "objetos")
                 StatChip("${project.uniqueGroupAddresses.size}", "direcciones")
+                StatChip("${devices.count { it.canWrite }}", "controlables")
             }
         }
     }
@@ -267,9 +340,9 @@ private fun ProjectSummary(project: ImportedKnxProject) {
 @Composable
 private fun StatChip(value: String, label: String) {
     Surface(color = AzulOneHouse.copy(alpha = 0.16f), shape = RoundedCornerShape(12.dp)) {
-        Column(modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp)) {
-            Text(value, color = AzulClaro, fontWeight = FontWeight.Bold, fontSize = 18.sp)
-            Text(label, color = TextoSecundario, fontSize = 11.sp)
+        Column(modifier = Modifier.padding(horizontal = 11.dp, vertical = 8.dp)) {
+            Text(value, color = AzulClaro, fontWeight = FontWeight.Bold, fontSize = 17.sp)
+            Text(label, color = TextoSecundario, fontSize = 10.sp)
         }
     }
 }
@@ -280,19 +353,22 @@ private fun CategoryFilters(
     selected: ImportedKnxCategory?,
     onSelected: (ImportedKnxCategory) -> Unit
 ) {
-    val categories = remember(project) { project.devices.map { it.category }.distinct() }
+    val categories = remember(project) {
+        project.devices.map { it.category }.distinct().sortedBy { it.displayName }
+    }
     Column(verticalArrangement = Arrangement.spacedBy(7.dp)) {
         Text("Filtrar por tipo", color = TextoSecundario, fontSize = 12.sp)
         categories.chunked(3).forEach { rowCategories ->
             Row(horizontalArrangement = Arrangement.spacedBy(7.dp)) {
                 rowCategories.forEach { category ->
+                    val count = project.devices.count { it.category == category }
                     Surface(
                         color = if (selected == category) AzulOneHouse else FondoTarjeta,
                         shape = RoundedCornerShape(10.dp),
                         modifier = Modifier.clickable { onSelected(category) }
                     ) {
                         Text(
-                            text = category.displayName,
+                            text = "${category.displayName} ($count)",
                             color = if (selected == category) TextoPrincipal else TextoSecundario,
                             fontSize = 11.sp,
                             modifier = Modifier.padding(horizontal = 10.dp, vertical = 7.dp)
@@ -305,7 +381,26 @@ private fun CategoryFilters(
 }
 
 @Composable
-private fun DeviceCard(device: ImportedKnxObject, expanded: Boolean, onClick: () -> Unit) {
+private fun RoomHeader(roomName: String, count: Int) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(top = 8.dp, bottom = 2.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(
+            text = roomName,
+            color = AzulClaro,
+            fontWeight = FontWeight.Bold,
+            fontSize = 17.sp,
+            modifier = Modifier.weight(1f)
+        )
+        Text(text = "$count objetos", color = TextoSecundario, fontSize = 11.sp)
+    }
+}
+
+@Composable
+private fun DeviceCard(device: ImportedKnxDevice, expanded: Boolean, onClick: () -> Unit) {
     Surface(
         color = FondoTarjeta,
         shape = RoundedCornerShape(16.dp),
@@ -325,26 +420,38 @@ private fun DeviceCard(device: ImportedKnxObject, expanded: Boolean, onClick: ()
                         overflow = TextOverflow.Ellipsis
                     )
                     Text(
-                        text = "${device.roomName} · ${device.category.displayName}",
+                        text = "${device.category.displayName} · ${device.controlKind.displayName}",
                         color = TextoSecundario,
                         fontSize = 12.sp
                     )
                 }
-                Text(
-                    text = device.groupAddresses.firstOrNull() ?: "Sin dirección",
-                    color = AzulClaro,
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 14.sp
-                )
+                Column(horizontalAlignment = Alignment.End) {
+                    Text(
+                        text = device.primaryWriteAddress?.toString()
+                            ?: device.primaryReadAddress?.toString()
+                            ?: "Sin dirección",
+                        color = AzulClaro,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 14.sp
+                    )
+                    Text(
+                        text = if (device.canWrite) "Escritura disponible" else "Solo lectura",
+                        color = TextoSecundario,
+                        fontSize = 10.sp
+                    )
+                }
             }
 
             if (expanded) {
                 Spacer(modifier = Modifier.height(10.dp))
-                DetailLine("Lectura", device.readAddresses.joinToString().ifBlank { "—" })
-                DetailLine("Escritura", device.writeAddresses.joinToString().ifBlank { "—" })
+                DetailLine("Habitación", device.roomName)
+                DetailLine("Control OneHouse", device.controlKind.displayName)
+                DetailLine("Lectura", device.source.readAddresses.joinToString().ifBlank { "—" })
+                DetailLine("Escritura", device.source.writeAddresses.joinToString().ifBlank { "—" })
                 DetailLine("DPT", device.dataPointType ?: "No determinado")
                 DetailLine("Unidad", device.unit ?: "—")
-                DetailLine("Tipo InsideControl", device.insideControlType.toString())
+                DetailLine("Favorito", if (device.isFavourite) "Sí" else "No")
+                DetailLine("Tipo InsideControl", device.source.insideControlType.toString())
             }
         }
     }
@@ -353,7 +460,7 @@ private fun DeviceCard(device: ImportedKnxObject, expanded: Boolean, onClick: ()
 @Composable
 private fun DetailLine(label: String, value: String) {
     Row(modifier = Modifier.fillMaxWidth().padding(vertical = 2.dp)) {
-        Text(label, color = TextoSecundario, fontSize = 12.sp, modifier = Modifier.weight(0.35f))
-        Text(value, color = TextoPrincipal, fontSize = 12.sp, modifier = Modifier.weight(0.65f))
+        Text(label, color = TextoSecundario, fontSize = 12.sp, modifier = Modifier.weight(0.38f))
+        Text(value, color = TextoPrincipal, fontSize = 12.sp, modifier = Modifier.weight(0.62f))
     }
 }

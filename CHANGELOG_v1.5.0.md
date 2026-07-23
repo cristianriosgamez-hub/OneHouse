@@ -23,3 +23,18 @@ Esta entrega permite visualizar y conservar la configuración importada. La acti
 - Sustituidas referencias ambiguas a funciones de `String` por lambdas explícitas en el parser.
 - Añadidas validaciones para archivos vacíos y contenido Base64 sin datos.
 - Mejorados los mensajes de error al abrir, descifrar o interpretar proyectos InsideControl.
+
+## Entrega 4 — Catálogo de dispositivos importados
+
+- Añadido `ImportedKnxDevice`, modelo normalizado para utilizar los objetos de InsideControl en OneHouse.
+- Añadido `KnxDeviceFactory`, que valida las direcciones y determina el control adecuado para cada objeto.
+- Clasificación de controles como interruptor, persiana, climatización, escena, sensor, alarma, medición o solo lectura.
+- Añadido buscador por nombre, habitación, categoría, DPT o dirección KNX.
+- Agrupación de todos los objetos importados por habitación.
+- Añadidos contadores de objetos, direcciones y elementos controlables.
+- Los filtros muestran el número de objetos de cada categoría.
+- La ficha desplegable muestra habitación, control OneHouse previsto, lectura, escritura, DPT, unidad, favorito y tipo original.
+
+### Alcance
+
+Esta entrega convierte la configuración importada en un catálogo normalizado y preparado para generar controles KNX. El envío de telegramas desde estos controles se incorporará en la siguiente entrega.
