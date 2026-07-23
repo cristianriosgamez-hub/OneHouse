@@ -2,14 +2,11 @@ package com.onehouse.app.device
 
 import com.onehouse.app.importer.ImportedKnxCategory
 import com.onehouse.app.importer.ImportedKnxObject
+import com.onehouse.app.knx.KnxCommand
+import com.onehouse.app.knx.KnxCommandType
 import com.onehouse.app.knx.KnxGroupAddress
 
-/**
- * Representación normalizada de un objeto procedente de InsideControl.
- *
- * Esta clase no abre una conexión KNX: describe qué control podrá construir
- * OneHouse y deja las direcciones ya validadas para las siguientes entregas.
- */
+/** Representación normalizada de un objeto procedente de InsideControl. */
 data class ImportedKnxDevice(
     val id: String,
     val roomName: String,
@@ -19,8 +16,10 @@ data class ImportedKnxDevice(
     val writeAddresses: List<KnxGroupAddress>,
     val readAddresses: List<KnxGroupAddress>,
     val dataPointType: String?,
+    val resolvedDpt: String,
     val unit: String?,
     val isFavourite: Boolean,
+    val commands: List<KnxCommand>,
     val source: ImportedKnxObject
 ) {
     val primaryWriteAddress: KnxGroupAddress?
@@ -30,10 +29,10 @@ data class ImportedKnxDevice(
         get() = readAddresses.firstOrNull()
 
     val canWrite: Boolean
-        get() = writeAddresses.isNotEmpty()
+        get() = commands.any { it.type != KnxCommandType.READ }
 
     val canRead: Boolean
-        get() = readAddresses.isNotEmpty()
+        get() = commands.any { it.type == KnxCommandType.READ }
 }
 
 enum class ControlKind(val displayName: String) {

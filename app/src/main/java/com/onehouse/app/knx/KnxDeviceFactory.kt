@@ -6,7 +6,7 @@ import com.onehouse.app.importer.ImportedKnxCategory
 import com.onehouse.app.importer.ImportedKnxObject
 import com.onehouse.app.importer.ImportedKnxProject
 
-/** Convierte objetos importados en descriptores de dispositivo utilizables por OneHouse. */
+/** Convierte objetos importados en descriptores KNX listos para construir comandos. */
 object KnxDeviceFactory {
     fun create(project: ImportedKnxProject): List<ImportedKnxDevice> =
         project.devices.mapIndexed { index, source -> create(index, source) }
@@ -15,9 +15,10 @@ object KnxDeviceFactory {
         val writeAddresses = source.writeAddresses.mapNotNull(::parseAddress)
         val readAddresses = source.readAddresses.mapNotNull(::parseAddress)
         val kind = controlKindFor(source, writeAddresses.isNotEmpty())
+        val resolvedDpt = KnxDptResolver.resolve(source, kind)
         val stableAddress = (source.writeAddresses + source.readAddresses).firstOrNull().orEmpty()
 
-        return ImportedKnxDevice(
+        val provisional = ImportedKnxDevice(
             id = listOf(source.roomName, source.name, source.insideControlType, stableAddress, index)
                 .joinToString("|"),
             roomName = source.roomName,
@@ -27,10 +28,13 @@ object KnxDeviceFactory {
             writeAddresses = writeAddresses,
             readAddresses = readAddresses,
             dataPointType = source.dataPointType,
+            resolvedDpt = resolvedDpt,
             unit = source.unit,
             isFavourite = source.isFavourite,
+            commands = emptyList(),
             source = source
         )
+        return provisional.copy(commands = KnxCommandBuilder.build(provisional))
     }
 
     private fun parseAddress(raw: String): KnxGroupAddress? =
@@ -41,6 +45,7 @@ object KnxDeviceFactory {
             ImportedKnxCategory.TEMPERATURE -> ControlKind.TEMPERATURE
             ImportedKnxCategory.METER -> ControlKind.METER
             ImportedKnxCategory.ALARM -> ControlKind.ALARM
+            ImportedKnxCategory.SENSOR -> ControlKind.SENSOR
             else -> ControlKind.READ_ONLY
         }
 

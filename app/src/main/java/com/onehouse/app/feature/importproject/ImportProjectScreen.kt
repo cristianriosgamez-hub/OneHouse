@@ -219,6 +219,8 @@ private fun ProjectContent(
                 device.category.displayName,
                 device.controlKind.displayName,
                 device.dataPointType.orEmpty(),
+                device.resolvedDpt,
+                device.commands.joinToString(" ") { it.type.displayName },
                 device.unit.orEmpty(),
                 device.source.readAddresses.joinToString(" "),
                 device.source.writeAddresses.joinToString(" ")
@@ -448,7 +450,18 @@ private fun DeviceCard(device: ImportedKnxDevice, expanded: Boolean, onClick: ()
                 DetailLine("Control OneHouse", device.controlKind.displayName)
                 DetailLine("Lectura", device.source.readAddresses.joinToString().ifBlank { "—" })
                 DetailLine("Escritura", device.source.writeAddresses.joinToString().ifBlank { "—" })
-                DetailLine("DPT", device.dataPointType ?: "No determinado")
+                DetailLine("DPT original", device.dataPointType ?: "No determinado")
+                DetailLine("DPT resuelto", device.resolvedDpt)
+                DetailLine(
+                    "Comandos",
+                    device.commands.joinToString { command ->
+                        if (command.requiresValue && command.valueHint != null) {
+                            "${command.type.displayName} (${command.valueHint})"
+                        } else {
+                            command.type.displayName
+                        }
+                    }.ifBlank { "Ninguno" }
+                )
                 DetailLine("Unidad", device.unit ?: "—")
                 DetailLine("Favorito", if (device.isFavourite) "Sí" else "No")
                 DetailLine("Tipo InsideControl", device.source.insideControlType.toString())
