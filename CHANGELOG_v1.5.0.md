@@ -39,19 +39,12 @@ Esta entrega permite visualizar y conservar la configuración importada. La acti
 
 Esta entrega convierte la configuración importada en un catálogo normalizado y preparado para generar controles KNX. El envío de telegramas desde estos controles se incorporará en la siguiente entrega.
 
-## Entrega 5 — Modelo de comandos KNX
+## Entrega 5 Rev.2
 
-- Añadido `KnxCommand`, modelo normalizado de acciones KNX independientes del transporte.
-- Añadido `KnxDptResolver`, que normaliza el DPT original y propone uno compatible cuando InsideControl no lo guardó.
-- Añadido `KnxCommandBuilder`, que genera automáticamente los comandos disponibles para cada dispositivo.
-- Luces preparadas para lectura, encendido, apagado y alternancia.
-- Persianas preparadas para subir, bajar, parar y posición porcentual.
-- Climatización preparada para escritura de valor y escenas para ejecución numerada.
-- Sensores y objetos de solo lectura conservan el comando de lectura cuando existe dirección válida.
-- `ImportedKnxDevice` incorpora DPT resuelto y lista de comandos.
-- La ficha desplegable muestra DPT original, DPT resuelto y comandos disponibles.
-- El buscador también localiza objetos por DPT resuelto o nombre de comando.
-
-### Alcance
-
-Esta entrega prepara todos los objetos importados para su conexión con `KnxConnectionManager`. Los controles aún no envían telegramas desde la pantalla de importación; el envío real se incorporará en la Entrega 6.
+- Corregido el cierre al abrir el selector de archivos en determinados dispositivos Xiaomi/HyperOS.
+- El permiso persistente del proveedor de documentos ahora es opcional y está protegido frente a excepciones.
+- La selección cancelada vuelve de forma segura al estado inicial.
+- La lectura, descifrado y parseo se ejecutan fuera del hilo principal.
+- Añadidos estados de selección, importación, éxito y error.
+- Añadido indicador de progreso y nombre del archivo durante la importación.
+- El botón de selección queda deshabilitado mientras existe una operación en curso.

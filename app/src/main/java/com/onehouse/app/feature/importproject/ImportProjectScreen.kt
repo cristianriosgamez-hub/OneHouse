@@ -19,12 +19,14 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -47,41 +49,49 @@ import com.onehouse.app.design.TextoSecundario
 import com.onehouse.app.device.ImportedKnxDevice
 import com.onehouse.app.importer.ImportedKnxCategory
 import com.onehouse.app.importer.ImportedKnxProject
-import com.onehouse.app.importer.InsideControlImporter
-import com.onehouse.app.importer.InsideControlProjectRepository
 import com.onehouse.app.knx.KnxDeviceFactory
 
 @Composable
 fun ImportProjectScreen(onBack: () -> Unit) {
     val context = LocalContext.current
-    val repository = remember(context) { InsideControlProjectRepository(context.applicationContext) }
-    var project by remember { mutableStateOf(repository.load()) }
-    var message by remember { mutableStateOf<String?>(null) }
+    val viewModel = remember(context.applicationContext) {
+        ImportProjectViewModel(context.applicationContext)
+    }
+    var snapshot by remember { mutableStateOf(
+        ImportProjectViewModel.Snapshot(project = null, state = ImportState.Idle)
+    ) }
     var selectedCategory by remember { mutableStateOf<ImportedKnxCategory?>(null) }
     var query by remember { mutableStateOf("") }
     var expandedDeviceId by remember { mutableStateOf<String?>(null) }
 
-    val launcher = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
-        if (uri != null) {
-            runCatching {
-                context.contentResolver.takePersistableUriPermission(
-                    uri,
-                    android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION
-                )
-            }
-            when (val result = InsideControlImporter.import(context.contentResolver, uri)) {
-                is InsideControlImporter.Result.Success -> {
-                    repository.save(result.project)
-                    project = result.project
-                    selectedCategory = null
-                    query = ""
-                    expandedDeviceId = null
-                    message = "Proyecto importado correctamente"
-                }
-                is InsideControlImporter.Result.Failure -> message = result.message
-            }
+    DisposableEffect(viewModel) {
+        val observation = viewModel.observe { snapshot = it }
+        onDispose {
+            observation.close()
+            viewModel.close()
         }
     }
+
+    val launcher = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+        viewModel.onFileSelected(context.contentResolver, uri)
+    }
+
+    val launchFilePicker = {
+        viewModel.beginSelection()
+        try {
+            launcher.launch(arrayOf("application/octet-stream", "text/plain", "*/*"))
+        } catch (error: Exception) {
+            viewModel.selectionFailed(error)
+        }
+    }
+
+    val state = snapshot.state
+    val message = when (state) {
+        is ImportState.Success -> state.message
+        is ImportState.Error -> state.message
+        else -> null
+    }
+    val isBusy = state is ImportState.SelectingFile || state is ImportState.Importing
 
     Box(
         modifier = Modifier
@@ -97,11 +107,13 @@ fun ImportProjectScreen(onBack: () -> Unit) {
             Header(onBack = onBack)
             Spacer(modifier = Modifier.height(12.dp))
 
-            val currentProject = project
+            val currentProject = snapshot.project
             if (currentProject == null) {
                 EmptyImportState(
                     message = message,
-                    onSelectFile = { launcher.launch(arrayOf("*/*")) }
+                    isBusy = isBusy,
+                    importingFileName = (state as? ImportState.Importing)?.fileName,
+                    onSelectFile = launchFilePicker
                 )
             } else {
                 ProjectContent(
@@ -118,16 +130,40 @@ fun ImportProjectScreen(onBack: () -> Unit) {
                     onDeviceSelected = {
                         expandedDeviceId = if (expandedDeviceId == it) null else it
                     },
-                    onReplaceProject = { launcher.launch(arrayOf("*/*")) },
+                    onReplaceProject = launchFilePicker,
                     onDeleteProject = {
-                        repository.clear()
-                        project = null
+                        viewModel.clearProject()
                         selectedCategory = null
                         query = ""
                         expandedDeviceId = null
-                        message = "Importación eliminada"
                     }
                 )
+            }
+        }
+
+        if (isBusy) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(FondoInferior.copy(alpha = 0.68f)),
+                contentAlignment = Alignment.Center
+            ) {
+                Surface(color = FondoTarjeta, shape = RoundedCornerShape(18.dp)) {
+                    Column(
+                        modifier = Modifier.padding(horizontal = 28.dp, vertical = 22.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        CircularProgressIndicator(color = AzulClaro)
+                        Text(
+                            text = when (state) {
+                                is ImportState.Importing -> "Importando ${state.fileName}…"
+                                else -> "Abriendo selector de archivos…"
+                            },
+                            color = TextoPrincipal
+                        )
+                    }
+                }
             }
         }
     }
@@ -164,7 +200,12 @@ private fun Header(onBack: () -> Unit) {
 }
 
 @Composable
-private fun EmptyImportState(message: String?, onSelectFile: () -> Unit) {
+private fun EmptyImportState(
+    message: String?,
+    isBusy: Boolean,
+    importingFileName: String?,
+    onSelectFile: () -> Unit
+) {
     Column(
         modifier = Modifier.fillMaxSize(),
         verticalArrangement = Arrangement.Center,
@@ -185,9 +226,17 @@ private fun EmptyImportState(message: String?, onSelectFile: () -> Unit) {
         )
         Button(
             onClick = onSelectFile,
+            enabled = !isBusy,
             colors = ButtonDefaults.buttonColors(containerColor = AzulOneHouse)
         ) {
             Text("Seleccionar archivo .knx")
+        }
+        importingFileName?.let {
+            Text(
+                text = "Archivo: $it",
+                color = AzulClaro,
+                modifier = Modifier.padding(top = 14.dp)
+            )
         }
         message?.let {
             Text(text = it, color = TextoSecundario, modifier = Modifier.padding(top = 16.dp))
@@ -219,8 +268,6 @@ private fun ProjectContent(
                 device.category.displayName,
                 device.controlKind.displayName,
                 device.dataPointType.orEmpty(),
-                device.resolvedDpt,
-                device.commands.joinToString(" ") { it.type.displayName },
                 device.unit.orEmpty(),
                 device.source.readAddresses.joinToString(" "),
                 device.source.writeAddresses.joinToString(" ")
@@ -450,18 +497,7 @@ private fun DeviceCard(device: ImportedKnxDevice, expanded: Boolean, onClick: ()
                 DetailLine("Control OneHouse", device.controlKind.displayName)
                 DetailLine("Lectura", device.source.readAddresses.joinToString().ifBlank { "—" })
                 DetailLine("Escritura", device.source.writeAddresses.joinToString().ifBlank { "—" })
-                DetailLine("DPT original", device.dataPointType ?: "No determinado")
-                DetailLine("DPT resuelto", device.resolvedDpt)
-                DetailLine(
-                    "Comandos",
-                    device.commands.joinToString { command ->
-                        if (command.requiresValue && command.valueHint != null) {
-                            "${command.type.displayName} (${command.valueHint})"
-                        } else {
-                            command.type.displayName
-                        }
-                    }.ifBlank { "Ninguno" }
-                )
+                DetailLine("DPT", device.dataPointType ?: "No determinado")
                 DetailLine("Unidad", device.unit ?: "—")
                 DetailLine("Favorito", if (device.isFavourite) "Sí" else "No")
                 DetailLine("Tipo InsideControl", device.source.insideControlType.toString())
