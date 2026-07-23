@@ -1,34 +1,38 @@
-# OneHouse v1.4.2 — Entrega 3
+# OneHouse v1.4.2 — Entrega 4 (cierre)
 
-## Persistencia completa de la configuración KNX/IP
+## Motor KNXnet/IP reutilizable
 
-- Se mantienen la IP y el puerto local, la IP y el puerto remoto y el modo de selección automática.
-- Se guarda también el resultado de la última prueba, su mensaje y la fecha y hora en la que se realizó.
-- Al volver a abrir la aplicación, la pantalla recupera el último estado conocido sin marcar una prueba interrumpida como conectada.
+- Se añade `KnxConnectionManager`, responsable de abrir, mantener y cerrar un túnel KNXnet/IP.
+- La conexión conserva el socket UDP y el identificador de canal mientras permanece activa.
+- El cierre intenta enviar `Disconnect Request` antes de liberar el socket.
+- Se centralizan en `KnxProtocol` los tiempos de espera, tamaños de paquete y construcción/validación de mensajes de conexión.
 
-## Gestión de cambios de red
+## Compatibilidad de la prueba de conexión
 
-- El ViewModel observa continuamente la red activa.
-- Un cambio entre WiFi, Ethernet, datos móviles o ausencia de red cancela de forma segura una prueba en curso.
-- Al cambiar la ruta activa, el estado queda pendiente de comprobar para evitar mostrar como válida una conexión realizada por otra ruta.
+- `KnxConnectionTester` pasa a utilizar internamente `KnxConnectionManager`.
+- La pantalla de configuración mantiene el mismo comportamiento y API.
+- Una prueba correcta abre un túnel real y lo cierra inmediatamente después.
 
-## Motor de prueba preparado para reutilización
+## API preparada para OneHouse v1.5.0
 
-- Se introduce `KnxEndpoint`, un modelo común de host y puerto reutilizable por el futuro motor de telegramas KNX.
-- `KnxConnectionTester` permite configurar el tiempo de espera y mantiene compatibilidad con la llamada anterior por host y puerto.
-- La prueba sigue abriendo y cerrando un túnel KNXnet/IP real sin enviar telegramas al bus.
+`KnxConnectionManager` deja definidos los puntos de entrada:
 
-## Pantalla de configuración
+- `connect()`
+- `disconnect()`
+- `isConnected`
+- `sendTelegram()`
+- `readGroupValue()`
 
-- El estado KNX incluye el mensaje detallado de la última prueba.
-- La fecha de la última prueba permanece disponible después de cerrar y volver a abrir la aplicación.
-- La suscripción al ViewModel se libera correctamente al abandonar la pantalla.
+En v1.4.2 solo queda habilitado el ciclo de vida del túnel. El envío cEMI, la codificación DPT y las lecturas de direcciones de grupo se implementarán en v1.5.0; hasta entonces esos dos métodos devuelven un resultado explícito `NotAvailable` y nunca simulan una escritura en el bus.
+
+## Versión de la aplicación
+
+- `versionName`: `1.4.2`
+- `versionCode`: `23`
 
 ## Archivos modificados
 
-- `app/src/main/java/com/onehouse/app/data/knx/KnxSettings.kt`
-- `app/src/main/java/com/onehouse/app/data/knx/SettingsDataStore.kt`
+- `app/src/main/java/com/onehouse/app/knx/KnxConnectionManager.kt` (nuevo)
 - `app/src/main/java/com/onehouse/app/knx/KnxConnectionTester.kt`
-- `app/src/main/java/com/onehouse/app/feature/settings/SettingsViewModel.kt`
-- `app/src/main/java/com/onehouse/app/feature/settings/SettingsScreen.kt`
+- `app/build.gradle.kts`
 - `CHANGELOG_v1.4.2.md`
