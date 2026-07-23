@@ -33,7 +33,10 @@ import com.onehouse.app.design.TextoPrincipal
 import com.onehouse.app.design.TextoSecundario
 
 @Composable
-fun MoreScreen(onConfigurationSelected: () -> Unit) {
+fun MoreScreen(
+    onConfigurationSelected: () -> Unit,
+    onImportProjectSelected: () -> Unit
+) {
     Box(
         modifier = Modifier
             .fillMaxSize()
@@ -63,6 +66,12 @@ fun MoreScreen(onConfigurationSelected: () -> Unit) {
                 title = "Configuración",
                 subtitle = "Conexión KNX y preferencias de la aplicación",
                 onClick = onConfigurationSelected
+            )
+            MoreOptionCard(
+                symbol = "⇩",
+                title = "Importar InsideControl",
+                subtitle = "Leer habitaciones y direcciones de un proyecto .knx",
+                onClick = onImportProjectSelected
             )
             MoreOptionCard(
                 symbol = "ⓘ",

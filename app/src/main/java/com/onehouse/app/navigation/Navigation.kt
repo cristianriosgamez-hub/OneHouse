@@ -13,6 +13,7 @@ import androidx.compose.ui.Modifier
 import com.onehouse.app.feature.climate.ClimateScreen
 import com.onehouse.app.feature.consumption.ConsumptionScreen
 import com.onehouse.app.feature.home.HomeScreen
+import com.onehouse.app.feature.importproject.ImportProjectScreen
 import com.onehouse.app.feature.maintenance.MaintenanceScreen
 import com.onehouse.app.feature.more.MoreScreen
 import com.onehouse.app.feature.rooms.RoomsScreen
@@ -38,7 +39,8 @@ private enum class InternalScreen {
     TERRACE,
     CONSUMPTION,
     MAINTENANCE,
-    SETTINGS
+    SETTINGS,
+    IMPORT_PROJECT
 }
 
 @Composable
@@ -109,6 +111,16 @@ fun OneHouseNavigation() {
 
         InternalScreen.SETTINGS -> {
             SettingsScreen(
+                onBack = {
+                    internalScreen = InternalScreen.MAIN
+                    selectedSection = OneHouseSection.MORE
+                }
+            )
+            return
+        }
+
+        InternalScreen.IMPORT_PROJECT -> {
+            ImportProjectScreen(
                 onBack = {
                     internalScreen = InternalScreen.MAIN
                     selectedSection = OneHouseSection.MORE
@@ -194,7 +206,8 @@ fun OneHouseNavigation() {
                 OneHouseSection.WEATHER -> WeatherScreen()
                 OneHouseSection.CONSUMPTION -> ConsumptionScreen()
                 OneHouseSection.MORE -> MoreScreen(
-                    onConfigurationSelected = { internalScreen = InternalScreen.SETTINGS }
+                    onConfigurationSelected = { internalScreen = InternalScreen.SETTINGS },
+                    onImportProjectSelected = { internalScreen = InternalScreen.IMPORT_PROJECT }
                 )
             }
         }
