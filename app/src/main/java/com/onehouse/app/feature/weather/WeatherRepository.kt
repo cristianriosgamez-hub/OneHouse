@@ -7,6 +7,8 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.withContext
 import org.json.JSONObject
 import java.net.HttpURLConnection
@@ -65,7 +67,7 @@ object OpenMeteoWeatherRepository : WeatherRepository {
             connectTimeout = 8_000
             readTimeout = 8_000
             setRequestProperty("Accept", "application/json")
-            setRequestProperty("User-Agent", "OneHouse-Android/1.3.0")
+            setRequestProperty("User-Agent", "OneHouse-Android/1.5.0")
         }
         return try {
             if (connection.responseCode !in 200..299) {
@@ -145,9 +147,16 @@ object OpenMeteoWeatherRepository : WeatherRepository {
 @Composable
 fun rememberWeatherState(forceRefreshKey: Any? = Unit): WeatherUiState {
     var state by remember { mutableStateOf(WeatherUiState()) }
+
     LaunchedEffect(forceRefreshKey) {
-        state = OpenMeteoWeatherRepository.loadWeather(forceRefresh = false)
+        var firstLoad = true
+        while (isActive) {
+            state = OpenMeteoWeatherRepository.loadWeather(forceRefresh = !firstLoad)
+            firstLoad = false
+            delay(15 * 60 * 1000L)
+        }
     }
+
     return state
 }
 

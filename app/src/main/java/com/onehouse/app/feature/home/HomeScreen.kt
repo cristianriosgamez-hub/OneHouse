@@ -47,12 +47,17 @@ import com.onehouse.app.design.TextoPrincipal
 import com.onehouse.app.design.TextoSecundario
 import com.onehouse.app.design.VerdeEstado
 import com.onehouse.app.feature.rooms.RoomItem
+import com.onehouse.app.feature.weather.WeatherUiState
+import com.onehouse.app.feature.weather.rememberWeatherState
+import java.util.Locale
 
 @Composable
 fun HomeScreen(
     favoriteRooms: List<RoomItem>,
     onFavoriteSelected: (String) -> Unit
 ) {
+    val exteriorWeather = rememberWeatherState()
+
     Box(
         modifier = Modifier
             .fillMaxSize()
@@ -89,7 +94,7 @@ fun HomeScreen(
             ClimateHeroCard()
 
             Spacer(modifier = Modifier.height(16.dp))
-            QuickStatusGrid()
+            QuickStatusGrid(exteriorWeather)
 
             Spacer(modifier = Modifier.height(26.dp))
             Row(
@@ -203,7 +208,7 @@ private fun ClimateHeroCard() {
 }
 
 @Composable
-private fun QuickStatusGrid() {
+private fun QuickStatusGrid(weather: WeatherUiState) {
     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
         OneHouseInfoCard(
             title = "Persianas",
@@ -213,10 +218,17 @@ private fun QuickStatusGrid() {
             modifier = Modifier.weight(1f).height(146.dp)
         )
         OneHouseInfoCard(
-            title = "Terraza",
-            value = "18 °C",
-            detail = "Sin lluvia",
-            symbol = "☁",
+            title = "Terraza de estancia",
+            value = weather.temperatureC?.let {
+                String.format(Locale("es", "ES"), "%.1f °C", it)
+            } ?: "-- °C",
+            detail = when {
+                weather.isLoading -> "Actualizando temperatura exterior…"
+                weather.temperatureC != null -> weather.condition
+                weather.errorMessage != null -> "Último dato no disponible"
+                else -> "Temperatura exterior"
+            },
+            symbol = weather.conditionSymbol.ifBlank { "◌" },
             modifier = Modifier.weight(1f).height(146.dp)
         )
     }

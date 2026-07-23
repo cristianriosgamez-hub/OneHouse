@@ -29,6 +29,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -37,6 +38,10 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalContext
+import androidx.biometric.BiometricManager
+import androidx.biometric.BiometricPrompt
+import androidx.core.content.ContextCompat
+import androidx.fragment.app.FragmentActivity
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
@@ -68,6 +73,20 @@ fun LoginScreen(
     var recordarCredenciales by rememberSaveable { mutableStateOf(true) }
     var mostrarContrasena by rememberSaveable { mutableStateOf(false) }
     var visible by rememberSaveable { mutableStateOf(false) }
+    val activity = context as? FragmentActivity
+    val authenticators = BiometricManager.Authenticators.BIOMETRIC_STRONG
+    val biometricStatus = remember(context) {
+        BiometricManager.from(context).canAuthenticate(authenticators)
+    }
+    val biometricAvailable = biometricStatus == BiometricManager.BIOMETRIC_SUCCESS
+    val biometricSubtitle = when (biometricStatus) {
+        BiometricManager.BIOMETRIC_SUCCESS -> "Toca para identificarte"
+        BiometricManager.BIOMETRIC_ERROR_NONE_ENROLLED -> "Configura una huella en Ajustes del dispositivo"
+        BiometricManager.BIOMETRIC_ERROR_NO_HARDWARE -> "Este dispositivo no dispone de biometría"
+        BiometricManager.BIOMETRIC_ERROR_HW_UNAVAILABLE -> "El sensor biométrico no está disponible"
+        else -> "Biometría no disponible"
+    }
+
 
     val contentAlpha by animateFloatAsState(
         targetValue = if (visible) 1f else 0f,
@@ -259,20 +278,85 @@ fun LoginScreen(
 
             OneHouseFingerprintRow(
                 title = "Iniciar sesión con huella",
-                subtitle = "Disponible próximamente",
+                subtitle = biometricSubtitle,
                 onClick = {
-                    Toast.makeText(
-                        context,
-                        "La huella se activará próximamente",
-                        Toast.LENGTH_SHORT
-                    ).show()
+                    if (!biometricAvailable) {
+                        Toast.makeText(context, biometricSubtitle, Toast.LENGTH_LONG).show()
+                        return@OneHouseFingerprintRow
+                    }
+
+                    if (activity == null) {
+                        Toast.makeText(
+                            context,
+                            "No se ha podido iniciar la autenticación biométrica",
+                            Toast.LENGTH_LONG
+                        ).show()
+                        return@OneHouseFingerprintRow
+                    }
+
+                    val executor = ContextCompat.getMainExecutor(context)
+                    val biometricPrompt = BiometricPrompt(
+                        activity,
+                        executor,
+                        object : BiometricPrompt.AuthenticationCallback() {
+                            override fun onAuthenticationSucceeded(
+                                result: BiometricPrompt.AuthenticationResult
+                            ) {
+                                super.onAuthenticationSucceeded(result)
+                                Toast.makeText(
+                                    context,
+                                    "Identidad verificada",
+                                    Toast.LENGTH_SHORT
+                                ).show()
+                                onLoginCorrecto()
+                            }
+
+                            override fun onAuthenticationFailed() {
+                                super.onAuthenticationFailed()
+                                Toast.makeText(
+                                    context,
+                                    "Huella no reconocida. Inténtalo de nuevo.",
+                                    Toast.LENGTH_SHORT
+                                ).show()
+                            }
+
+                            override fun onAuthenticationError(
+                                errorCode: Int,
+                                errString: CharSequence
+                            ) {
+                                super.onAuthenticationError(errorCode, errString)
+                                if (errorCode != BiometricPrompt.ERROR_USER_CANCELED &&
+                                    errorCode != BiometricPrompt.ERROR_NEGATIVE_BUTTON &&
+                                    errorCode != BiometricPrompt.ERROR_CANCELED
+                                ) {
+                                    Toast.makeText(
+                                        context,
+                                        errString,
+                                        Toast.LENGTH_SHORT
+                                    ).show()
+                                }
+                            }
+                        }
+                    )
+
+                    val promptInfo = BiometricPrompt.PromptInfo.Builder()
+                        .setTitle("Acceso a OneHouse")
+                        .setSubtitle("Confirma tu identidad con la huella")
+                        .setDescription(
+                            "También puedes cancelar e iniciar sesión con usuario y contraseña."
+                        )
+                        .setAllowedAuthenticators(authenticators)
+                        .setNegativeButtonText("Usar contraseña")
+                        .build()
+
+                    biometricPrompt.authenticate(promptInfo)
                 }
             )
 
             Spacer(modifier = Modifier.height(18.dp))
 
             Text(
-                text = "OneHouse v1.1.9 · Final",
+                text = "OneHouse v1.5.0 · Entrega 1 Rev.2",
                 color = TextoDesactivado,
                 style = MaterialTheme.typography.labelSmall
             )
