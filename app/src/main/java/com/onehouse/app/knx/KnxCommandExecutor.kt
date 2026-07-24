@@ -119,9 +119,20 @@ class KnxCommandExecutor(context: Context) : Closeable {
                                 status = if (result is Result.Success) KnxTelegramEvent.Status.CONFIRMED else KnxTelegramEvent.Status.ERROR,
                                 detail = when (result) {
                                     is Result.Success -> result.diagnostic?.let { diagnostic ->
-                                        "ACK gateway · canal ${diagnostic.channelId} · secuencia ${diagnostic.sequence}\n" +
-                                            "cEMI: ${diagnostic.cemiHex}\n" +
-                                            "KNXnet/IP: ${diagnostic.knxNetIpHex}"
+                                        buildString {
+                                            append("TX validado · canal ${diagnostic.channelId} · secuencia ${diagnostic.sequence}\n")
+                                            append("cEMI TX: ${diagnostic.cemiHex}\n")
+                                            append("KNXnet/IP TX: ${diagnostic.knxNetIpHex}")
+                                            diagnostic.gatewayAckHex?.let { ackHex ->
+                                                append("\nACK gateway: $ackHex")
+                                            }
+                                            diagnostic.gatewayRoundTripMillis?.let { elapsed ->
+                                                append("\nTiempo TX→ACK: ${elapsed} ms")
+                                            }
+                                            diagnostic.incomingKnxNetIpHex?.let { incomingHex ->
+                                                append("\nTelegrama bus RX: $incomingHex")
+                                            }
+                                        }
                                     }
                                     is Result.Failure -> result.message
                                 }

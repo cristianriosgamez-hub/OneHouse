@@ -131,3 +131,13 @@ Esta entrega convierte la configuración importada en un catálogo normalizado y
 - Cada operación confirmada conserva canal, número de secuencia, trama cEMI y paquete KNXnet/IP completo.
 - El monitor KNX muestra ahora el ACK del gateway y las tramas hexadecimales realmente enviadas.
 - Se mantiene el control ON/OFF DPT 1.x y la lectura de grupo existentes, sin alterar la navegación ni el importador.
+
+## Entrega 12.2 — Validación KNXnet/IP y diagnóstico de bus
+
+- Validación interna de cada `TUNNELLING_REQUEST` antes de enviarlo.
+- Comprobación de cabecera, servicio, longitud, canal, secuencia y tamaño cEMI.
+- Captura hexadecimal del `TUNNELLING_ACK` real recibido del gateway.
+- Medición del tiempo entre el envío y el ACK del gateway.
+- Ventana breve de escucha tras escrituras para detectar `GroupValueWrite` o `GroupValueResponse` del bus.
+- Captura hexadecimal del telegrama entrante asociado al mismo destino.
+- Monitor KNX ampliado para distinguir claramente TX, ACK del gateway y RX del bus.
