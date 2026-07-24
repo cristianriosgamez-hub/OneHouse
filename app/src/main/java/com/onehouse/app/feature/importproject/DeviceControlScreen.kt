@@ -3,6 +3,8 @@ package com.onehouse.app.feature.importproject
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
+import android.os.Handler
+import android.os.Looper
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.rememberScrollState
@@ -55,6 +57,7 @@ import com.onehouse.app.knx.KnxDeviceStateRepository
 import com.onehouse.app.knx.KnxTelegramEvent
 import com.onehouse.app.knx.KnxTelegramMonitorRepository
 import com.onehouse.app.knx.KnxSessionStatisticsRepository
+import com.onehouse.app.knx.KnxStateRepository
 import com.onehouse.app.knx.communicationStatus
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -67,6 +70,10 @@ fun DeviceControlScreen(device: ImportedKnxDevice, onBack: () -> Unit) {
     val stateRepository = remember(context.applicationContext) {
         KnxDeviceStateRepository(context.applicationContext)
     }
+    val busStateRepository = remember(context.applicationContext) {
+        KnxStateRepository(context.applicationContext)
+    }
+    val mainHandler = remember { Handler(Looper.getMainLooper()) }
     val monitorRepository = remember(context.applicationContext) {
         KnxTelegramMonitorRepository(context.applicationContext)
     }
@@ -79,14 +86,65 @@ fun DeviceControlScreen(device: ImportedKnxDevice, onBack: () -> Unit) {
     var status by remember { mutableStateOf("Preparado para enviar al bus KNX") }
     var statistics by remember { mutableStateOf(statisticsRepository.snapshot()) }
 
-    DisposableEffect(executor, stateRepository, monitorRepository, device.id) {
-        val stateObservation = stateRepository.observe(device.id) { deviceState = it }
-        val monitorObservation = monitorRepository.observe { events ->
-            val addresses = (device.writeAddresses + device.readAddresses).map { it.toString() }.toSet()
-            telegramEvents = events.filter { it.groupAddress in addresses }.take(8)
+    DisposableEffect(
+        executor,
+        stateRepository,
+        busStateRepository,
+        monitorRepository,
+        device.id
+    ) {
+        val addresses = (device.writeAddresses + device.readAddresses)
+            .map { it.toString() }
+            .toSet()
+
+        val stateObservation = stateRepository.observe(device.id) { newState ->
+            mainHandler.post {
+                deviceState = newState
+            }
         }
+
+        val busStateObservation = busStateRepository.observe { states ->
+            val latestBusState = addresses
+                .mapNotNull(states::get)
+                .maxByOrNull { it.timestampMillis }
+                ?: return@observe
+
+            val displayValue = latestBusState.booleanValue?.let { value ->
+                if (value) "Encendido" else "Apagado"
+            } ?: latestBusState.rawValue
+            ?: return@observe
+
+            mainHandler.post {
+                if (
+                    latestBusState.timestampMillis > deviceState.updatedAtMillis ||
+                    deviceState.value != displayValue ||
+                    deviceState.source != KnxDeviceState.Source.BUS_RESPONSE
+                ) {
+                    stateRepository.updateFromBus(device.id, displayValue)
+                    status = buildString {
+                        append("Estado actualizado desde el bus: ")
+                        append(displayValue)
+                        if (latestBusState.sourceAddress.isNotBlank()) {
+                            append(" · origen ")
+                            append(latestBusState.sourceAddress)
+                        }
+                    }
+                    statistics = statisticsRepository.snapshot()
+                }
+            }
+        }
+
+        val monitorObservation = monitorRepository.observe { events ->
+            mainHandler.post {
+                telegramEvents = events
+                    .filter { it.groupAddress in addresses }
+                    .take(8)
+            }
+        }
+
         onDispose {
             stateObservation.close()
+            busStateObservation.close()
             monitorObservation.close()
             executor.close()
         }
@@ -101,9 +159,6 @@ fun DeviceControlScreen(device: ImportedKnxDevice, onBack: () -> Unit) {
             statistics = statisticsRepository.snapshot()
             when (result) {
                 is KnxCommandExecutor.Result.Success -> {
-                    if (result.busValue != null) {
-                        stateRepository.updateFromBus(device.id, result.busValue)
-                    }
                     when (command.type) {
                         KnxCommandType.ON -> if (result.busValue == null) stateRepository.updateFromLocalCommand(device.id, "Encendido")
                         KnxCommandType.OFF -> if (result.busValue == null) stateRepository.updateFromLocalCommand(device.id, "Apagado")
