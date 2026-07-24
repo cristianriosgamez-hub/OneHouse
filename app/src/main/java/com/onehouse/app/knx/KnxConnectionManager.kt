@@ -45,10 +45,22 @@ class KnxConnectionManager(
     }
 
     sealed interface OperationResult {
-        data class Success(val incoming: IncomingGroupTelegram? = null) : OperationResult
+        data class Success(
+            val incoming: IncomingGroupTelegram? = null,
+            val diagnostic: TelegramDiagnostic? = null
+        ) : OperationResult
         data class Failure(val detail: String) : OperationResult
         data class NotAvailable(val detail: String) : OperationResult
     }
+
+
+    data class TelegramDiagnostic(
+        val channelId: Int,
+        val sequence: Int,
+        val cemiHex: String,
+        val knxNetIpHex: String,
+        val gatewayAcknowledged: Boolean
+    )
 
     data class IncomingGroupTelegram(
         val kind: Kind,
@@ -223,7 +235,16 @@ class KnxConnectionManager(
             if (!acknowledged) {
                 OperationResult.Failure("No se recibió confirmación KNX/IP del telegrama")
             } else {
-                OperationResult.Success(incoming)
+                OperationResult.Success(
+                    incoming = incoming,
+                    diagnostic = TelegramDiagnostic(
+                        channelId = currentChannel,
+                        sequence = sequence,
+                        cemiHex = KnxHex.format(cemi),
+                        knxNetIpHex = KnxHex.format(request),
+                        gatewayAcknowledged = true
+                    )
+                )
             }
         } catch (_: SocketTimeoutException) {
             OperationResult.Failure("Tiempo de espera agotado al enviar o recibir el telegrama KNX")

@@ -15,7 +15,8 @@ class KnxCommandExecutor(context: Context) : Closeable {
     sealed interface Result {
         data class Success(
             val busValue: String? = null,
-            val sourceAddress: String? = null
+            val sourceAddress: String? = null,
+            val diagnostic: KnxConnectionManager.TelegramDiagnostic? = null
         ) : Result
         data class Failure(val message: String) : Result
     }
@@ -116,7 +117,14 @@ class KnxCommandExecutor(context: Context) : Closeable {
                                 groupAddress = command.destination.toString(),
                                 value = eventValue,
                                 status = if (result is Result.Success) KnxTelegramEvent.Status.CONFIRMED else KnxTelegramEvent.Status.ERROR,
-                                detail = (result as? Result.Failure)?.message
+                                detail = when (result) {
+                                    is Result.Success -> result.diagnostic?.let { diagnostic ->
+                                        "ACK gateway · canal ${diagnostic.channelId} · secuencia ${diagnostic.sequence}\n" +
+                                            "cEMI: ${diagnostic.cemiHex}\n" +
+                                            "KNXnet/IP: ${diagnostic.knxNetIpHex}"
+                                    }
+                                    is Result.Failure -> result.message
+                                }
                             )
                             onResult(result)
                         }
@@ -150,9 +158,13 @@ class KnxCommandExecutor(context: Context) : Closeable {
                     status = KnxTelegramEvent.Status.RECEIVED,
                     detail = "Origen ${incoming.sourceAddress}"
                 )
-                Result.Success(value, incoming.sourceAddress)
+                Result.Success(
+                    busValue = value,
+                    sourceAddress = incoming.sourceAddress,
+                    diagnostic = diagnostic
+                )
             } else {
-                Result.Success()
+                Result.Success(diagnostic = diagnostic)
             }
         }
         is KnxConnectionManager.OperationResult.Failure -> Result.Failure(detail)

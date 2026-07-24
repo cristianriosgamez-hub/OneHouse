@@ -123,3 +123,11 @@ Esta entrega convierte la configuración importada en un catálogo normalizado y
 - Incorporados indicadores de calidad del estado: nunca consultado, pendiente, confirmado por el bus y estado antiguo.
 - La pantalla de dispositivo muestra la hora de la última actualización confirmada o asumida.
 - El monitor KNX registra también los reintentos de lectura para facilitar el diagnóstico.
+
+## Entrega 12.1 — Primer dispositivo real: diagnóstico hexadecimal
+
+- Separada la codificación cEMI en `KnxTelegramEncoder.kt` para poder validarla y evolucionarla sin mezclarla con el modelo de telegramas.
+- Añadido formato hexadecimal estable para comparar los paquetes con ETS o Wireshark.
+- Cada operación confirmada conserva canal, número de secuencia, trama cEMI y paquete KNXnet/IP completo.
+- El monitor KNX muestra ahora el ACK del gateway y las tramas hexadecimales realmente enviadas.
+- Se mantiene el control ON/OFF DPT 1.x y la lectura de grupo existentes, sin alterar la navegación ni el importador.
