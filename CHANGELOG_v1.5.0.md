@@ -84,3 +84,12 @@ Esta entrega convierte la configuración importada en un catálogo normalizado y
 - Filtrado del monitor por las direcciones de grupo del dispositivo.
 - Preparada la misma canalización para futuros GroupValueWrite y GroupValueResponse entrantes.
 - La pantalla de control ahora admite desplazamiento vertical en dispositivos pequeños.
+
+## Entrega 9
+
+- Lectura masiva y secuencial de todas las direcciones de estado del proyecto.
+- Progreso visible y resumen de errores durante la actualización KNX.
+- Ordenación de objetos por habitación, nombre o dirección de grupo.
+- Persistencia de las habitaciones plegadas entre aperturas de la pantalla.
+- Deduplicación de direcciones para evitar lecturas repetidas y saturación del túnel KNX/IP.
+- Base de sincronización preparada para asociar futuras respuestas del bus con el repositorio de estados.

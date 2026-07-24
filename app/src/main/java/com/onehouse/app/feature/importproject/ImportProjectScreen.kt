@@ -49,6 +49,7 @@ import com.onehouse.app.design.TextoSecundario
 import com.onehouse.app.device.ImportedKnxDevice
 import com.onehouse.app.importer.ImportedKnxCategory
 import com.onehouse.app.importer.ImportedKnxProject
+import com.onehouse.app.knx.KnxBulkStateReader
 import com.onehouse.app.knx.KnxDeviceFactory
 
 @Composable
@@ -64,13 +65,23 @@ fun ImportProjectScreen(onBack: () -> Unit) {
     var query by remember { mutableStateOf("") }
     var expandedDeviceId by remember { mutableStateOf<String?>(null) }
     var selectedControlDevice by remember { mutableStateOf<ImportedKnxDevice?>(null) }
-    var collapsedRooms by remember { mutableStateOf(emptySet<String>()) }
+    val uiPreferences = remember(context.applicationContext) {
+        context.applicationContext.getSharedPreferences("import_project_ui", android.content.Context.MODE_PRIVATE)
+    }
+    var collapsedRooms by remember {
+        mutableStateOf(uiPreferences.getStringSet("collapsed_rooms", emptySet()).orEmpty().toSet())
+    }
+    var sortMode by remember { mutableStateOf(DeviceSortMode.ROOM) }
+    var bulkProgress by remember { mutableStateOf<KnxBulkStateReader.Progress?>(null) }
+    var bulkMessage by remember { mutableStateOf<String?>(null) }
+    val bulkReader = remember(context.applicationContext) { KnxBulkStateReader(context.applicationContext) }
 
     DisposableEffect(viewModel) {
         val observation = viewModel.observe { snapshot = it }
         onDispose {
             observation.close()
             viewModel.close()
+            bulkReader.close()
         }
     }
 
@@ -139,13 +150,35 @@ fun ImportProjectScreen(onBack: () -> Unit) {
                     },
                     onOpenControl = { selectedControlDevice = it },
                     collapsedRooms = collapsedRooms,
+                    sortMode = sortMode,
+                    bulkProgress = bulkProgress,
+                    bulkMessage = bulkMessage,
                     onRoomToggle = { roomName ->
                         collapsedRooms = if (roomName in collapsedRooms) {
                             collapsedRooms - roomName
                         } else {
                             collapsedRooms + roomName
                         }
+                        uiPreferences.edit().putStringSet("collapsed_rooms", collapsedRooms).apply()
                         expandedDeviceId = null
+                    },
+                    onSortModeChanged = { sortMode = it },
+                    onRefreshStates = { devices ->
+                        bulkMessage = null
+                        bulkReader.read(
+                            devices = devices,
+                            onProgress = { bulkProgress = it },
+                            onComplete = { result ->
+                                bulkProgress = null
+                                bulkMessage = if (result.total == 0) {
+                                    "No hay direcciones de lectura disponibles"
+                                } else if (result.failures == 0) {
+                                    "Lectura solicitada para ${result.total} direcciones"
+                                } else {
+                                    "Lectura terminada: ${result.total - result.failures} correctas y ${result.failures} con error"
+                                }
+                            }
+                        )
                     },
                     onReplaceProject = launchFilePicker,
                     onDeleteProject = {
@@ -274,7 +307,12 @@ private fun ProjectContent(
     onDeviceSelected: (String) -> Unit,
     onOpenControl: (ImportedKnxDevice) -> Unit,
     collapsedRooms: Set<String>,
+    sortMode: DeviceSortMode,
+    bulkProgress: KnxBulkStateReader.Progress?,
+    bulkMessage: String?,
     onRoomToggle: (String) -> Unit,
+    onSortModeChanged: (DeviceSortMode) -> Unit,
+    onRefreshStates: (List<ImportedKnxDevice>) -> Unit,
     onReplaceProject: () -> Unit,
     onDeleteProject: () -> Unit
 ) {
@@ -296,8 +334,19 @@ private fun ProjectContent(
             categoryMatches && queryMatches
         }
     }
-    val groupedDevices = remember(filteredDevices) {
-        filteredDevices.groupBy { it.roomName }.toSortedMap(String.CASE_INSENSITIVE_ORDER)
+    val sortedDevices = remember(filteredDevices, sortMode) {
+        when (sortMode) {
+            DeviceSortMode.ROOM -> filteredDevices.sortedWith(compareBy<ImportedKnxDevice>(String.CASE_INSENSITIVE_ORDER) { it.roomName }.thenBy(String.CASE_INSENSITIVE_ORDER) { it.name })
+            DeviceSortMode.NAME -> filteredDevices.sortedWith(compareBy<ImportedKnxDevice>(String.CASE_INSENSITIVE_ORDER) { it.name })
+            DeviceSortMode.ADDRESS -> filteredDevices.sortedBy { it.primaryWriteAddress?.toString() ?: it.primaryReadAddress?.toString().orEmpty() }
+        }
+    }
+    val groupedDevices = remember(sortedDevices, sortMode) {
+        if (sortMode == DeviceSortMode.ROOM) {
+            sortedDevices.groupBy { it.roomName }.toSortedMap(String.CASE_INSENSITIVE_ORDER)
+        } else {
+            linkedMapOf("Todos los objetos" to sortedDevices)
+        }
     }
 
     LazyColumn(
@@ -329,6 +378,17 @@ private fun ProjectContent(
 
         item {
             CategoryFilters(project, selectedCategory, onCategorySelected)
+        }
+
+        item {
+            ProjectActions(
+                sortMode = sortMode,
+                progress = bulkProgress,
+                message = bulkMessage,
+                canRead = allDevices.any { it.canRead },
+                onSortModeChanged = onSortModeChanged,
+                onRefreshStates = { onRefreshStates(allDevices) }
+            )
         }
 
         item {
@@ -387,6 +447,63 @@ private fun ProjectContent(
                     Text("Eliminar")
                 }
             }
+        }
+    }
+}
+
+private enum class DeviceSortMode(val label: String) {
+    ROOM("Habitación"),
+    NAME("Nombre"),
+    ADDRESS("Dirección")
+}
+
+@Composable
+private fun ProjectActions(
+    sortMode: DeviceSortMode,
+    progress: KnxBulkStateReader.Progress?,
+    message: String?,
+    canRead: Boolean,
+    onSortModeChanged: (DeviceSortMode) -> Unit,
+    onRefreshStates: () -> Unit
+) {
+    Surface(color = FondoTarjeta, shape = RoundedCornerShape(16.dp)) {
+        Column(
+            modifier = Modifier.padding(14.dp),
+            verticalArrangement = Arrangement.spacedBy(9.dp)
+        ) {
+            Text("Ordenar objetos", color = TextoSecundario, fontSize = 12.sp)
+            Row(horizontalArrangement = Arrangement.spacedBy(7.dp)) {
+                DeviceSortMode.values().forEach { mode ->
+                    Surface(
+                        color = if (sortMode == mode) AzulOneHouse else FondoInferior,
+                        shape = RoundedCornerShape(10.dp),
+                        modifier = Modifier.clickable { onSortModeChanged(mode) }
+                    ) {
+                        Text(
+                            mode.label,
+                            color = if (sortMode == mode) TextoPrincipal else TextoSecundario,
+                            fontSize = 11.sp,
+                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 7.dp)
+                        )
+                    }
+                }
+            }
+            Button(
+                onClick = onRefreshStates,
+                enabled = canRead && progress == null,
+                colors = ButtonDefaults.buttonColors(containerColor = AzulOneHouse),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text(if (progress == null) "Actualizar estados KNX" else "Leyendo ${progress.completed}/${progress.total}…")
+            }
+            progress?.let {
+                Text(
+                    text = "Dirección ${it.currentAddress ?: "—"} · errores ${it.failures}",
+                    color = TextoSecundario,
+                    fontSize = 11.sp
+                )
+            }
+            message?.let { Text(it, color = AzulClaro, fontSize = 12.sp) }
         }
     }
 }
