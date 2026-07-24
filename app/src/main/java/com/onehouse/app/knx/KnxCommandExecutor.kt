@@ -23,10 +23,25 @@ class KnxCommandExecutor(context: Context) : Closeable {
     private val appContext = context.applicationContext
     private val connectionManager = KnxConnectionManager()
     private val monitorRepository = KnxTelegramMonitorRepository(appContext)
+    private var queuedOperation: Closeable? = null
 
     fun execute(
         command: KnxCommand,
         toggleValue: Boolean? = null,
+        onResult: (Result) -> Unit
+    ) {
+        queuedOperation?.close()
+        queuedOperation = KnxTelegramQueue.enqueue { done ->
+            executeQueued(command, toggleValue) { result ->
+                onResult(result)
+                done()
+            }
+        }
+    }
+
+    private fun executeQueued(
+        command: KnxCommand,
+        toggleValue: Boolean?,
         onResult: (Result) -> Unit
     ) {
         val telegram = telegramFor(command, toggleValue)
@@ -41,87 +56,107 @@ class KnxCommandExecutor(context: Context) : Closeable {
             return
         }
 
-        monitorRepository.record(
-            direction = KnxTelegramEvent.Direction.SYSTEM,
-            kind = KnxTelegramEvent.Kind.CONNECT,
-            groupAddress = command.destination.toString(),
-            status = KnxTelegramEvent.Status.PENDING,
-            detail = "Conectando con ${endpoint.host}:${endpoint.port}"
-        )
+        val eventKind = if (command.type == KnxCommandType.READ) {
+            KnxTelegramEvent.Kind.GROUP_VALUE_READ
+        } else {
+            KnxTelegramEvent.Kind.GROUP_VALUE_WRITE
+        }
+        val eventValue = when (command.type) {
+            KnxCommandType.ON -> "1"
+            KnxCommandType.OFF -> "0"
+            KnxCommandType.TOGGLE -> if (toggleValue == true) "1" else "0"
+            else -> null
+        }
 
-        connectionManager.connect(endpoint) { connectResult ->
-            when (connectResult) {
-                is KnxConnectionManager.ConnectResult.Success -> {
-                    monitorRepository.record(
-                        direction = KnxTelegramEvent.Direction.SYSTEM,
-                        kind = KnxTelegramEvent.Kind.CONNECT,
-                        groupAddress = command.destination.toString(),
-                        status = KnxTelegramEvent.Status.CONFIRMED,
-                        detail = "Túnel KNX/IP conectado (canal ${connectResult.channelId})"
-                    )
-                    val eventKind = if (command.type == KnxCommandType.READ) {
-                        KnxTelegramEvent.Kind.GROUP_VALUE_READ
-                    } else {
-                        KnxTelegramEvent.Kind.GROUP_VALUE_WRITE
-                    }
-                    val eventValue = when (command.type) {
-                        KnxCommandType.ON -> "1"
-                        KnxCommandType.OFF -> "0"
-                        KnxCommandType.TOGGLE -> if (toggleValue == true) "1" else "0"
-                        else -> null
-                    }
-                    monitorRepository.record(
-                        direction = KnxTelegramEvent.Direction.OUTGOING,
-                        kind = eventKind,
-                        groupAddress = command.destination.toString(),
-                        value = eventValue,
-                        status = KnxTelegramEvent.Status.PENDING
-                    )
-                    connectionManager.sendTelegram(telegram) { operation ->
-                        connectionManager.disconnect()
-                        val result = when (operation) {
-                            is KnxConnectionManager.OperationResult.Success -> {
-                                val incoming = operation.incoming
-                                if (incoming != null) {
-                                    val value = incoming.booleanValue?.let { if (it) "Encendido" else "Apagado" }
-                                    monitorRepository.record(
-                                        direction = KnxTelegramEvent.Direction.INCOMING,
-                                        kind = if (incoming.kind == KnxConnectionManager.IncomingGroupTelegram.Kind.RESPONSE) {
-                                            KnxTelegramEvent.Kind.GROUP_VALUE_RESPONSE
-                                        } else {
-                                            KnxTelegramEvent.Kind.GROUP_VALUE_WRITE
-                                        },
-                                        groupAddress = incoming.destination.toString(),
-                                        value = incoming.booleanValue?.let { if (it) "1" else "0" },
-                                        status = KnxTelegramEvent.Status.RECEIVED,
-                                        detail = "Origen ${incoming.sourceAddress}"
-                                    )
-                                    Result.Success(value, incoming.sourceAddress)
-                                } else {
-                                    Result.Success()
-                                }
-                            }
-                            is KnxConnectionManager.OperationResult.Failure -> Result.Failure(operation.detail)
-                            is KnxConnectionManager.OperationResult.NotAvailable -> Result.Failure(operation.detail)
-                        }
+        fun attempt(number: Int) {
+            monitorRepository.record(
+                direction = KnxTelegramEvent.Direction.SYSTEM,
+                kind = KnxTelegramEvent.Kind.CONNECT,
+                groupAddress = command.destination.toString(),
+                status = KnxTelegramEvent.Status.PENDING,
+                detail = if (number == 1) {
+                    "Conectando con ${endpoint.host}:${endpoint.port}"
+                } else {
+                    "Reintento de lectura ${number - 1}/1"
+                }
+            )
+
+            connectionManager.connect(endpoint) { connectResult ->
+                when (connectResult) {
+                    is KnxConnectionManager.ConnectResult.Success -> {
+                        monitorRepository.record(
+                            direction = KnxTelegramEvent.Direction.SYSTEM,
+                            kind = KnxTelegramEvent.Kind.CONNECT,
+                            groupAddress = command.destination.toString(),
+                            status = KnxTelegramEvent.Status.CONFIRMED,
+                            detail = "Túnel KNX/IP conectado (canal ${connectResult.channelId})"
+                        )
                         monitorRepository.record(
                             direction = KnxTelegramEvent.Direction.OUTGOING,
                             kind = eventKind,
                             groupAddress = command.destination.toString(),
                             value = eventValue,
-                            status = if (result is Result.Success) KnxTelegramEvent.Status.CONFIRMED else KnxTelegramEvent.Status.ERROR,
-                            detail = (result as? Result.Failure)?.message
+                            status = KnxTelegramEvent.Status.PENDING
                         )
-                        onResult(result)
+                        connectionManager.sendTelegram(telegram) { operation ->
+                            connectionManager.disconnect()
+                            if (command.type == KnxCommandType.READ &&
+                                operation is KnxConnectionManager.OperationResult.Success &&
+                                operation.incoming == null &&
+                                number == 1
+                            ) {
+                                attempt(2)
+                                return@sendTelegram
+                            }
+
+                            val result = operation.toExecutorResult()
+                            monitorRepository.record(
+                                direction = KnxTelegramEvent.Direction.OUTGOING,
+                                kind = eventKind,
+                                groupAddress = command.destination.toString(),
+                                value = eventValue,
+                                status = if (result is Result.Success) KnxTelegramEvent.Status.CONFIRMED else KnxTelegramEvent.Status.ERROR,
+                                detail = (result as? Result.Failure)?.message
+                            )
+                            onResult(result)
+                        }
                     }
+                    KnxConnectionManager.ConnectResult.Timeout -> onResult(Result.Failure("Tiempo de espera agotado al conectar con KNX/IP"))
+                    is KnxConnectionManager.ConnectResult.Rejected -> onResult(Result.Failure("El interfaz KNX/IP rechazó el túnel (${connectResult.status})"))
+                    is KnxConnectionManager.ConnectResult.NetworkError -> onResult(Result.Failure(connectResult.detail))
+                    KnxConnectionManager.ConnectResult.InvalidResponse -> onResult(Result.Failure("Respuesta KNX/IP no válida"))
+                    KnxConnectionManager.ConnectResult.Cancelled -> onResult(Result.Failure("Operación cancelada"))
                 }
-                KnxConnectionManager.ConnectResult.Timeout -> onResult(Result.Failure("Tiempo de espera agotado al conectar con KNX/IP"))
-                is KnxConnectionManager.ConnectResult.Rejected -> onResult(Result.Failure("El interfaz KNX/IP rechazó el túnel (${connectResult.status})"))
-                is KnxConnectionManager.ConnectResult.NetworkError -> onResult(Result.Failure(connectResult.detail))
-                KnxConnectionManager.ConnectResult.InvalidResponse -> onResult(Result.Failure("Respuesta KNX/IP no válida"))
-                KnxConnectionManager.ConnectResult.Cancelled -> onResult(Result.Failure("Operación cancelada"))
             }
         }
+
+        attempt(1)
+    }
+
+    private fun KnxConnectionManager.OperationResult.toExecutorResult(): Result = when (this) {
+        is KnxConnectionManager.OperationResult.Success -> {
+            val incoming = incoming
+            if (incoming != null) {
+                val value = incoming.booleanValue?.let { if (it) "Encendido" else "Apagado" }
+                monitorRepository.record(
+                    direction = KnxTelegramEvent.Direction.INCOMING,
+                    kind = if (incoming.kind == KnxConnectionManager.IncomingGroupTelegram.Kind.RESPONSE) {
+                        KnxTelegramEvent.Kind.GROUP_VALUE_RESPONSE
+                    } else {
+                        KnxTelegramEvent.Kind.GROUP_VALUE_WRITE
+                    },
+                    groupAddress = incoming.destination.toString(),
+                    value = incoming.booleanValue?.let { if (it) "1" else "0" },
+                    status = KnxTelegramEvent.Status.RECEIVED,
+                    detail = "Origen ${incoming.sourceAddress}"
+                )
+                Result.Success(value, incoming.sourceAddress)
+            } else {
+                Result.Success()
+            }
+        }
+        is KnxConnectionManager.OperationResult.Failure -> Result.Failure(detail)
+        is KnxConnectionManager.OperationResult.NotAvailable -> Result.Failure(detail)
     }
 
     private fun telegramFor(command: KnxCommand, toggleValue: Boolean?): KnxTelegram? = when (command.type) {
@@ -155,6 +190,8 @@ class KnxCommandExecutor(context: Context) : Closeable {
     }
 
     override fun close() {
+        queuedOperation?.close()
+        queuedOperation = null
         connectionManager.close()
     }
 }

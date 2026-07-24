@@ -115,3 +115,11 @@ Esta entrega convierte la configuración importada en un catálogo normalizado y
 - Registro de telegramas entrantes en el monitor KNX con dirección de origen y destino.
 - Las lecturas masivas actualizan todos los dispositivos asociados a la dirección recibida.
 - Mensaje diferenciado cuando la petición se confirma pero el dispositivo no responde.
+
+## Entrega 11
+
+- Añadida una cola global de operaciones KNX/IP para impedir aperturas y telegramas simultáneos desde distintas pantallas.
+- Añadido un reintento controlado para lecturas `GroupValueRead` confirmadas por KNX/IP que no reciben respuesta del bus en el primer intento.
+- Incorporados indicadores de calidad del estado: nunca consultado, pendiente, confirmado por el bus y estado antiguo.
+- La pantalla de dispositivo muestra la hora de la última actualización confirmada o asumida.
+- El monitor KNX registra también los reintentos de lectura para facilitar el diagnóstico.

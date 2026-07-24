@@ -46,10 +46,12 @@ import com.onehouse.app.device.ImportedKnxDevice
 import com.onehouse.app.knx.KnxCommand
 import com.onehouse.app.knx.KnxCommandExecutor
 import com.onehouse.app.knx.KnxCommandType
+import com.onehouse.app.knx.KnxCommunicationStatus
 import com.onehouse.app.knx.KnxDeviceState
 import com.onehouse.app.knx.KnxDeviceStateRepository
 import com.onehouse.app.knx.KnxTelegramEvent
 import com.onehouse.app.knx.KnxTelegramMonitorRepository
+import com.onehouse.app.knx.communicationStatus
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -167,15 +169,27 @@ fun DeviceControlScreen(device: ImportedKnxDevice, onBack: () -> Unit) {
                         fontSize = 24.sp,
                         fontWeight = FontWeight.Bold
                     )
+                    val communicationStatus = deviceState.communicationStatus()
                     Text(
-                        when (deviceState.source) {
-                            KnxDeviceState.Source.BUS_RESPONSE -> "Confirmado por el bus KNX"
-                            KnxDeviceState.Source.LOCAL_COMMAND -> "Estado asumido tras el último comando"
-                            KnxDeviceState.Source.UNKNOWN -> "Pendiente de lectura del bus"
+                        when (communicationStatus) {
+                            KnxCommunicationStatus.ONLINE -> "● ${communicationStatus.displayName}"
+                            KnxCommunicationStatus.PENDING -> "● ${communicationStatus.displayName}"
+                            KnxCommunicationStatus.STALE -> "● ${communicationStatus.displayName}; solicita una lectura"
+                            KnxCommunicationStatus.NEVER_READ -> "○ ${communicationStatus.displayName}"
                         },
-                        color = TextoSecundario,
+                        color = when (communicationStatus) {
+                            KnxCommunicationStatus.ONLINE -> AzulClaro
+                            KnxCommunicationStatus.PENDING, KnxCommunicationStatus.STALE -> TextoSecundario
+                            KnxCommunicationStatus.NEVER_READ -> TextoSecundario
+                        },
                         fontSize = 12.sp
                     )
+                    if (deviceState.updatedAtMillis > 0L) {
+                        val updatedAt = remember(deviceState.updatedAtMillis) {
+                            SimpleDateFormat("HH:mm:ss", Locale.getDefault()).format(Date(deviceState.updatedAtMillis))
+                        }
+                        Text("Última actualización: $updatedAt", color = TextoSecundario, fontSize = 11.sp)
+                    }
                 }
             }
 
