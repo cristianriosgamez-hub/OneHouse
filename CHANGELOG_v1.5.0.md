@@ -188,3 +188,12 @@ Esta entrega convierte la configuración importada en un catálogo normalizado y
 - Si el actuador responde, la interfaz recibe el estado real confirmado por el bus y la dirección física de origen.
 - Si la lectura de verificación no obtiene respuesta, la escritura sigue considerándose aceptada cuando el gateway confirmó su ACK.
 - Las estadísticas contabilizan por separado el telegrama de escritura y el telegrama de lectura de verificación.
+
+## Entrega 18.1 - Caché persistente de estados KNX
+
+- Añadido `KnxStateRepository` para conservar el último estado conocido por dirección de grupo.
+- Persistencia en `SharedPreferences` de valor DPT 1.x, origen físico, APCI, tipo de telegrama y marca temporal.
+- API de observación preparada para que la interfaz se actualice automáticamente en la Entrega 18.2.
+- Integración en `KnxConnectionManager`: cada `GroupValueWrite` o `GroupValueResponse` válido actualiza la caché.
+- Filtrado adicional de telegramas repetidos dentro de una ventana de 175 ms.
+- `KnxCommandExecutor` comparte el repositorio de estados con el gestor de conexión.

@@ -21,7 +21,8 @@ import java.util.concurrent.atomic.AtomicInteger
  * incorpore la codificación cEMI/DPT en la siguiente versión.
  */
 class KnxConnectionManager(
-    private val timeoutMillis: Int = KnxProtocol.DEFAULT_TIMEOUT_MILLIS
+    private val timeoutMillis: Int = KnxProtocol.DEFAULT_TIMEOUT_MILLIS,
+    private val stateRepository: KnxStateRepository? = null
 ) : Closeable {
 
     enum class State {
@@ -298,6 +299,10 @@ class KnxConnectionManager(
                                 duplicateIncomingCount += 1
                             } else {
                                 lastIncomingSequence = parsed.sequence
+                                val acceptedByStateCache = stateRepository?.record(parsed.telegram) ?: true
+                                if (!acceptedByStateCache) {
+                                    duplicateIncomingCount += 1
+                                }
                                 if (parsed.telegram.destination == telegram.destination) {
                                     incoming = parsed.telegram
                                     incomingPacketHex = KnxHex.format(response.data.copyOf(response.length))

@@ -22,7 +22,8 @@ class KnxCommandExecutor(context: Context) : Closeable {
     }
 
     private val appContext = context.applicationContext
-    private val connectionManager = KnxConnectionManager()
+    private val stateRepository = KnxStateRepository(appContext)
+    private val connectionManager = KnxConnectionManager(stateRepository = stateRepository)
     private val monitorRepository = KnxTelegramMonitorRepository(appContext)
     private val statisticsRepository = KnxSessionStatisticsRepository(appContext)
     private var queuedOperation: Closeable? = null
