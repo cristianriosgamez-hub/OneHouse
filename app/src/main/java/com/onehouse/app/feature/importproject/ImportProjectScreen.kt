@@ -64,6 +64,7 @@ fun ImportProjectScreen(onBack: () -> Unit) {
     var query by remember { mutableStateOf("") }
     var expandedDeviceId by remember { mutableStateOf<String?>(null) }
     var selectedControlDevice by remember { mutableStateOf<ImportedKnxDevice?>(null) }
+    var collapsedRooms by remember { mutableStateOf(emptySet<String>()) }
 
     DisposableEffect(viewModel) {
         val observation = viewModel.observe { snapshot = it }
@@ -137,12 +138,22 @@ fun ImportProjectScreen(onBack: () -> Unit) {
                         expandedDeviceId = if (expandedDeviceId == it) null else it
                     },
                     onOpenControl = { selectedControlDevice = it },
+                    collapsedRooms = collapsedRooms,
+                    onRoomToggle = { roomName ->
+                        collapsedRooms = if (roomName in collapsedRooms) {
+                            collapsedRooms - roomName
+                        } else {
+                            collapsedRooms + roomName
+                        }
+                        expandedDeviceId = null
+                    },
                     onReplaceProject = launchFilePicker,
                     onDeleteProject = {
                         viewModel.clearProject()
                         selectedCategory = null
                         query = ""
                         expandedDeviceId = null
+                        collapsedRooms = emptySet()
                     }
                 )
             }
@@ -262,6 +273,8 @@ private fun ProjectContent(
     onCategorySelected: (ImportedKnxCategory) -> Unit,
     onDeviceSelected: (String) -> Unit,
     onOpenControl: (ImportedKnxDevice) -> Unit,
+    collapsedRooms: Set<String>,
+    onRoomToggle: (String) -> Unit,
     onReplaceProject: () -> Unit,
     onDeleteProject: () -> Unit
 ) {
@@ -327,16 +340,24 @@ private fun ProjectContent(
         }
 
         groupedDevices.forEach { (roomName, devices) ->
+            val collapsed = roomName in collapsedRooms
             item(key = "room:$roomName") {
-                RoomHeader(roomName = roomName, count = devices.size)
-            }
-            items(devices, key = { it.id }) { device ->
-                DeviceCard(
-                    device = device,
-                    expanded = expandedDeviceId == device.id,
-                    onClick = { onDeviceSelected(device.id) },
-                    onOpenControl = { onOpenControl(device) }
+                RoomHeader(
+                    roomName = roomName,
+                    count = devices.size,
+                    collapsed = collapsed,
+                    onClick = { onRoomToggle(roomName) }
                 )
+            }
+            if (!collapsed) {
+                items(devices, key = { it.id }) { device ->
+                    DeviceCard(
+                        device = device,
+                        expanded = expandedDeviceId == device.id,
+                        onClick = { onDeviceSelected(device.id) },
+                        onOpenControl = { onOpenControl(device) }
+                    )
+                }
             }
         }
 
@@ -439,21 +460,38 @@ private fun CategoryFilters(
 }
 
 @Composable
-private fun RoomHeader(roomName: String, count: Int) {
-    Row(
+private fun RoomHeader(
+    roomName: String,
+    count: Int,
+    collapsed: Boolean,
+    onClick: () -> Unit
+) {
+    Surface(
+        color = FondoTarjeta.copy(alpha = 0.72f),
+        shape = RoundedCornerShape(12.dp),
         modifier = Modifier
             .fillMaxWidth()
-            .padding(top = 8.dp, bottom = 2.dp),
-        verticalAlignment = Alignment.CenterVertically
+            .clickable(onClick = onClick)
     ) {
-        Text(
-            text = roomName,
-            color = AzulClaro,
-            fontWeight = FontWeight.Bold,
-            fontSize = 17.sp,
-            modifier = Modifier.weight(1f)
-        )
-        Text(text = "$count objetos", color = TextoSecundario, fontSize = 11.sp)
+        Row(
+            modifier = Modifier.padding(horizontal = 14.dp, vertical = 11.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = if (collapsed) "▸" else "▾",
+                color = AzulClaro,
+                fontSize = 18.sp,
+                modifier = Modifier.padding(end = 9.dp)
+            )
+            Text(
+                text = roomName,
+                color = AzulClaro,
+                fontWeight = FontWeight.Bold,
+                fontSize = 17.sp,
+                modifier = Modifier.weight(1f)
+            )
+            Text(text = "$count objetos", color = TextoSecundario, fontSize = 11.sp)
+        }
     }
 }
 
@@ -473,6 +511,17 @@ private fun DeviceCard(
     ) {
         Column(modifier = Modifier.padding(14.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
+                Surface(
+                    color = AzulOneHouse.copy(alpha = 0.18f),
+                    shape = RoundedCornerShape(12.dp),
+                    modifier = Modifier.padding(end = 12.dp)
+                ) {
+                    Text(
+                        text = device.iconGlyph,
+                        fontSize = 22.sp,
+                        modifier = Modifier.padding(10.dp)
+                    )
+                }
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
                         text = device.name,

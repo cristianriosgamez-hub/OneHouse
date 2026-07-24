@@ -11,12 +11,14 @@ import android.provider.OpenableColumns
 import com.onehouse.app.importer.ImportedKnxProject
 import com.onehouse.app.importer.InsideControlImporter
 import com.onehouse.app.importer.InsideControlProjectRepository
+import com.onehouse.app.knx.KnxDeviceStateRepository
 import java.io.Closeable
 import java.util.concurrent.Executors
 
 class ImportProjectViewModel(context: Context) : Closeable {
     private val appContext = context.applicationContext
     private val repository = InsideControlProjectRepository(appContext)
+    private val stateRepository = KnxDeviceStateRepository(appContext)
     private val executor = Executors.newSingleThreadExecutor()
     private val mainHandler = Handler(Looper.getMainLooper())
     private val observers = mutableSetOf<(Snapshot) -> Unit>()
@@ -81,6 +83,7 @@ class ImportProjectViewModel(context: Context) : Closeable {
 
     fun clearProject() {
         repository.clear()
+        stateRepository.clear()
         update(Snapshot(project = null, state = ImportState.Idle))
     }
 

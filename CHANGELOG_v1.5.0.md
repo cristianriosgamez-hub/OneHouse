@@ -65,3 +65,13 @@ Esta entrega convierte la configuración importada en un catálogo normalizado y
 - Añadidos estados visibles de conexión, envío, confirmación y error.
 - Los DPT todavía no codificados se bloquean de forma segura para evitar telegramas incorrectos.
 - Eliminado de la pantalla principal el cuadro temporal **Primer control KNX** y su dirección de prueba fija.
+
+## Entrega 7
+
+- El proyecto InsideControl importado permanece disponible al reiniciar la aplicación.
+- Nueva navegación por habitaciones plegables para listas grandes.
+- Iconos visuales según el tipo de dispositivo KNX.
+- Ficha de dispositivo ampliada con estado conocido y origen del estado.
+- Caché persistente de estados KNX enviados localmente.
+- Infraestructura preparada para integrar respuestas `GroupValueResponse` del bus mediante `KnxDeviceStateRepository.updateFromBus()`.
+- Se mantiene la lectura `GroupValueRead` desde la pantalla de control.

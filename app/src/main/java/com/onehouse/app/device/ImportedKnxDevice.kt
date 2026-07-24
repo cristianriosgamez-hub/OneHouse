@@ -33,6 +33,20 @@ data class ImportedKnxDevice(
 
     val canRead: Boolean
         get() = commands.any { it.type == KnxCommandType.READ }
+
+    val iconGlyph: String
+        get() = when (controlKind) {
+            ControlKind.BOOLEAN_SWITCH -> if (category == ImportedKnxCategory.LIGHT) "💡" else "🔌"
+            ControlKind.BLIND -> "🪟"
+            ControlKind.TEMPERATURE -> "🌡"
+            ControlKind.CLIMATE -> "❄"
+            ControlKind.SCENE -> "▶"
+            ControlKind.ALARM -> "⚠"
+            ControlKind.SENSOR -> "◉"
+            ControlKind.METER -> "⚡"
+            ControlKind.READ_ONLY -> "◌"
+            ControlKind.UNKNOWN -> "◆"
+        }
 }
 
 enum class ControlKind(val displayName: String) {

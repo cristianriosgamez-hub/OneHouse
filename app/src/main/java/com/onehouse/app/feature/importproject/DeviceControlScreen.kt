@@ -44,17 +44,26 @@ import com.onehouse.app.device.ImportedKnxDevice
 import com.onehouse.app.knx.KnxCommand
 import com.onehouse.app.knx.KnxCommandExecutor
 import com.onehouse.app.knx.KnxCommandType
+import com.onehouse.app.knx.KnxDeviceState
+import com.onehouse.app.knx.KnxDeviceStateRepository
 
 @Composable
 fun DeviceControlScreen(device: ImportedKnxDevice, onBack: () -> Unit) {
     val context = LocalContext.current
     val executor = remember(context.applicationContext) { KnxCommandExecutor(context.applicationContext) }
+    val stateRepository = remember(context.applicationContext) {
+        KnxDeviceStateRepository(context.applicationContext)
+    }
     var isBusy by remember { mutableStateOf(false) }
-    var assumedOn by remember { mutableStateOf(false) }
+    var deviceState by remember(device.id) { mutableStateOf(stateRepository.get(device.id)) }
     var status by remember { mutableStateOf("Preparado para enviar al bus KNX") }
 
-    DisposableEffect(executor) {
-        onDispose { executor.close() }
+    DisposableEffect(executor, stateRepository, device.id) {
+        val observation = stateRepository.observe(device.id) { deviceState = it }
+        onDispose {
+            observation.close()
+            executor.close()
+        }
     }
 
     fun run(command: KnxCommand, toggleValue: Boolean? = null) {
@@ -66,9 +75,12 @@ fun DeviceControlScreen(device: ImportedKnxDevice, onBack: () -> Unit) {
             when (result) {
                 KnxCommandExecutor.Result.Success -> {
                     when (command.type) {
-                        KnxCommandType.ON -> assumedOn = true
-                        KnxCommandType.OFF -> assumedOn = false
-                        KnxCommandType.TOGGLE -> assumedOn = toggleValue ?: assumedOn
+                        KnxCommandType.ON -> stateRepository.updateFromLocalCommand(device.id, "Encendido")
+                        KnxCommandType.OFF -> stateRepository.updateFromLocalCommand(device.id, "Apagado")
+                        KnxCommandType.TOGGLE -> stateRepository.updateFromLocalCommand(
+                            device.id,
+                            if (toggleValue == true) "Encendido" else "Apagado"
+                        )
                         else -> Unit
                     }
                     status = when (command.type) {
@@ -85,6 +97,7 @@ fun DeviceControlScreen(device: ImportedKnxDevice, onBack: () -> Unit) {
     val offCommand = device.commands.firstOrNull { it.type == KnxCommandType.OFF }
     val toggleCommand = device.commands.firstOrNull { it.type == KnxCommandType.TOGGLE }
     val readCommand = device.commands.firstOrNull { it.type == KnxCommandType.READ }
+    val assumedOn = deviceState.value == "Encendido"
 
     Box(
         modifier = Modifier
@@ -113,11 +126,32 @@ fun DeviceControlScreen(device: ImportedKnxDevice, onBack: () -> Unit) {
 
             Surface(color = FondoTarjeta, shape = RoundedCornerShape(18.dp), modifier = Modifier.fillMaxWidth()) {
                 Column(modifier = Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text("Control KNX", color = AzulClaro, fontWeight = FontWeight.Bold)
+                    Text("${device.iconGlyph}  Control KNX", color = AzulClaro, fontWeight = FontWeight.Bold)
                     ControlDetail("Tipo", device.controlKind.displayName)
                     ControlDetail("Dirección de escritura", device.primaryWriteAddress?.toString() ?: "—")
                     ControlDetail("Dirección de lectura", device.primaryReadAddress?.toString() ?: "—")
                     ControlDetail("DPT resuelto", device.resolvedDpt)
+                }
+            }
+
+            Surface(color = FondoTarjeta, shape = RoundedCornerShape(18.dp), modifier = Modifier.fillMaxWidth()) {
+                Column(modifier = Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Text("Estado del dispositivo", color = AzulClaro, fontWeight = FontWeight.Bold)
+                    Text(
+                        deviceState.displayValue,
+                        color = TextoPrincipal,
+                        fontSize = 24.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Text(
+                        when (deviceState.source) {
+                            KnxDeviceState.Source.BUS_RESPONSE -> "Confirmado por el bus KNX"
+                            KnxDeviceState.Source.LOCAL_COMMAND -> "Estado asumido tras el último comando"
+                            KnxDeviceState.Source.UNKNOWN -> "Pendiente de lectura del bus"
+                        },
+                        color = TextoSecundario,
+                        fontSize = 12.sp
+                    )
                 }
             }
 
