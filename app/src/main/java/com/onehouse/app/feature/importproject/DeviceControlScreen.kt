@@ -285,6 +285,7 @@ private fun KnxDiagnosticsCard(
             ControlDetail("ACK del gateway", statistics.gatewayAcks.toString())
             ControlDetail("Telegramas del bus", statistics.busTelegrams.toString())
             ControlDetail("Errores de operación", statistics.operationErrors.toString())
+            ControlDetail("Retransmisiones", statistics.retransmissions.toString())
             ControlDetail("Último ACK", statistics.lastAckMillis?.let { "$it ms" } ?: "—")
             ControlDetail("Latencia ACK media", statistics.averageAckMillis?.let { "$it ms" } ?: "—")
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -320,6 +321,7 @@ private fun buildDiagnosticReport(
     appendLine("ACK ignorados: ${statistics.ignoredAcks}")
     appendLine("Paquetes inválidos: ${statistics.invalidPackets}")
     appendLine("Duplicados RX: ${statistics.duplicateIncoming}")
+    appendLine("Retransmisiones: ${statistics.retransmissions}")
     appendLine("Último ACK: ${statistics.lastAckMillis?.let { "$it ms" } ?: "—"}")
     appendLine("ACK medio: ${statistics.averageAckMillis?.let { "$it ms" } ?: "—"}")
     appendLine()

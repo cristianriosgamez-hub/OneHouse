@@ -68,7 +68,8 @@ class KnxConnectionManager(
         val incomingApci: String? = null,
         val ignoredAckCount: Int = 0,
         val invalidPacketCount: Int = 0,
-        val duplicateIncomingCount: Int = 0
+        val duplicateIncomingCount: Int = 0,
+        val transmissionAttempts: Int = 1
     )
 
     data class IncomingGroupTelegram(
@@ -205,7 +206,8 @@ class KnxConnectionManager(
                 ?.let { return OperationResult.Failure("Telegrama KNX/IP inválido: $it") }
 
             udpSocket.soTimeout = timeoutMillis
-            val sentAtNanos = System.nanoTime()
+            var sentAtNanos = System.nanoTime()
+            var transmissionAttempts = 1
             udpSocket.send(DatagramPacket(request, request.size))
 
             var acknowledged = false
@@ -242,6 +244,12 @@ class KnxConnectionManager(
                 try {
                     udpSocket.receive(response)
                 } catch (_: SocketTimeoutException) {
+                    if (!acknowledged && transmissionAttempts <= KnxProtocol.MAX_TUNNELLING_RETRIES) {
+                        transmissionAttempts += 1
+                        sentAtNanos = System.nanoTime()
+                        udpSocket.send(DatagramPacket(request, request.size))
+                        continue
+                    }
                     if (acknowledged && telegram !is KnxTelegram.GroupValueRead) break
                     continue
                 }
@@ -266,7 +274,8 @@ class KnxConnectionManager(
                             is KnxProtocol.TunnellingAck.Rejected -> {
                                 if (ack.channelId == currentChannel && ack.sequence == sequence) {
                                     return OperationResult.Failure(
-                                        "Telegrama rechazado por KNX/IP (estado ${ack.status})"
+                                        "Telegrama rechazado por KNX/IP: ${KnxProtocol.statusDescription(ack.status)} " +
+                                            "(0x%02X)".format(ack.status)
                                     )
                                 } else {
                                     ignoredAckCount += 1
@@ -325,7 +334,8 @@ class KnxConnectionManager(
                         incomingApci = incomingApci,
                         ignoredAckCount = ignoredAckCount,
                         invalidPacketCount = invalidPacketCount,
-                        duplicateIncomingCount = duplicateIncomingCount
+                        duplicateIncomingCount = duplicateIncomingCount,
+                        transmissionAttempts = transmissionAttempts
                     )
                 )
             }
@@ -482,6 +492,7 @@ internal object KnxProtocol {
     const val DEFAULT_TIMEOUT_MILLIS = 4_000
     const val MAX_PACKET_SIZE = 512
     const val WRITE_RESPONSE_WINDOW_MILLIS = 650L
+    const val MAX_TUNNELLING_RETRIES = 1
 
     private const val CONNECT_RESPONSE = 0x0206
     private const val CEMI_L_DATA_IND = 0x29
@@ -565,6 +576,19 @@ internal object KnxProtocol {
         if (length < 6) return null
         if ((data[0].toInt() and 0xFF) != 6 || (data[1].toInt() and 0xFF) != 0x10) return null
         return ((data[2].toInt() and 0xFF) shl 8) or (data[3].toInt() and 0xFF)
+    }
+
+
+    fun statusDescription(status: Int): String = when (status and 0xFF) {
+        0x00 -> "sin error"
+        0x21 -> "identificador de conexión no válido"
+        0x23 -> "secuencia no válida"
+        0x24 -> "error de conexión KNX"
+        0x26 -> "opción de conexión no admitida"
+        0x27 -> "tipo de conexión no admitido"
+        0x29 -> "sin más conexiones disponibles"
+        0x2D -> "error de datos KNX"
+        else -> "estado desconocido"
     }
 
     fun buildTunnellingAck(channelId: Int, sequence: Int): ByteArray = byteArrayOf(

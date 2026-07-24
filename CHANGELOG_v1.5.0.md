@@ -170,3 +170,12 @@ Esta entrega convierte la configuración importada en un catálogo normalizado y
 - Nuevo botón «Copiar diagnóstico» para copiar al portapapeles un informe completo de la prueba real.
 - El informe incluye dispositivo, habitación, direcciones de grupo, DPT, estadísticas y todo el historial KNX disponible.
 - El historial exportado utiliza fecha y hora con milisegundos y separa dirección, tipo, estado, valor y detalle hexadecimal.
+
+## Entrega 16 — Validación KNX/IP real
+
+- Retransmisión controlada de `TUNNELLING_REQUEST` cuando el ACK del gateway no llega a tiempo.
+- La retransmisión conserva canal y secuencia, evitando generar una operación KNX distinta.
+- Registro del número de intentos de transmisión en el monitor y en el diagnóstico copiable.
+- Contador persistente de retransmisiones para detectar enlaces UDP inestables.
+- Traducción de códigos de estado KNXnet/IP a mensajes comprensibles, manteniendo el código hexadecimal.
+- Se mantiene la detección de ACK fuera de canal/secuencia, telegramas duplicados y paquetes inválidos.

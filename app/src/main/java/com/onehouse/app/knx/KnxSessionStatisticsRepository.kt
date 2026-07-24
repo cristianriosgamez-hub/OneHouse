@@ -20,6 +20,7 @@ class KnxSessionStatisticsRepository(context: Context) {
         val ignoredAcks: Long,
         val invalidPackets: Long,
         val duplicateIncoming: Long,
+        val retransmissions: Long,
         val lastAckMillis: Long?,
         val averageAckMillis: Long?
     )
@@ -40,6 +41,7 @@ class KnxSessionStatisticsRepository(context: Context) {
             ignoredAcks = preferences.getLong(KEY_IGNORED_ACKS, 0),
             invalidPackets = preferences.getLong(KEY_INVALID_PACKETS, 0),
             duplicateIncoming = preferences.getLong(KEY_DUPLICATE_INCOMING, 0),
+            retransmissions = preferences.getLong(KEY_RETRANSMISSIONS, 0),
             lastAckMillis = preferences.getLong(KEY_LAST_ACK_MILLIS, -1).takeIf { it >= 0 },
             averageAckMillis = preferences.getLong(KEY_ACK_SAMPLE_COUNT, 0).takeIf { it > 0 }?.let { count ->
                 preferences.getLong(KEY_ACK_TOTAL_MILLIS, 0) / count
@@ -60,6 +62,7 @@ class KnxSessionStatisticsRepository(context: Context) {
                 .putLong(KEY_IGNORED_ACKS, preferences.getLong(KEY_IGNORED_ACKS, 0) + diagnostic.ignoredAckCount)
                 .putLong(KEY_INVALID_PACKETS, preferences.getLong(KEY_INVALID_PACKETS, 0) + diagnostic.invalidPacketCount)
                 .putLong(KEY_DUPLICATE_INCOMING, preferences.getLong(KEY_DUPLICATE_INCOMING, 0) + diagnostic.duplicateIncomingCount)
+                .putLong(KEY_RETRANSMISSIONS, preferences.getLong(KEY_RETRANSMISSIONS, 0) + (diagnostic.transmissionAttempts - 1).coerceAtLeast(0))
                 .apply {
                     diagnostic.gatewayRoundTripMillis?.let { elapsed ->
                         putLong(KEY_LAST_ACK_MILLIS, elapsed)
@@ -88,6 +91,7 @@ class KnxSessionStatisticsRepository(context: Context) {
         const val KEY_IGNORED_ACKS = "ignored_acks"
         const val KEY_INVALID_PACKETS = "invalid_packets"
         const val KEY_DUPLICATE_INCOMING = "duplicate_incoming"
+        const val KEY_RETRANSMISSIONS = "retransmissions"
         const val KEY_LAST_ACK_MILLIS = "last_ack_millis"
         const val KEY_ACK_TOTAL_MILLIS = "ack_total_millis"
         const val KEY_ACK_SAMPLE_COUNT = "ack_sample_count"

@@ -162,6 +162,7 @@ class KnxCommandExecutor(context: Context) : Closeable {
                                             if (diagnostic.duplicateIncomingCount > 0) {
                                                 append("\nTelegramas entrantes duplicados: ${diagnostic.duplicateIncomingCount}")
                                             }
+                                            append("\nIntentos de transmisión: ${diagnostic.transmissionAttempts}")
                                         }
                                     }
                                     is Result.Failure -> result.message
