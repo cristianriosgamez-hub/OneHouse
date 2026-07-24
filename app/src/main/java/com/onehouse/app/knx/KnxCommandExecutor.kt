@@ -144,6 +144,15 @@ class KnxCommandExecutor(context: Context) : Closeable {
                                             diagnostic.incomingKnxNetIpHex?.let { incomingHex ->
                                                 append("\nTelegrama bus RX: $incomingHex")
                                             }
+                                            diagnostic.incomingCemiHex?.let { incomingCemi ->
+                                                append("\ncEMI RX: $incomingCemi")
+                                            }
+                                            diagnostic.incomingMessageCode?.let { messageCode ->
+                                                append("\nMensaje cEMI RX: 0x%02X".format(messageCode))
+                                            }
+                                            diagnostic.incomingApci?.let { apci ->
+                                                append(" · APCI $apci")
+                                            }
                                             if (diagnostic.ignoredAckCount > 0) {
                                                 append("\nACK ajenos ignorados: ${diagnostic.ignoredAckCount}")
                                             }
@@ -221,7 +230,12 @@ class KnxCommandExecutor(context: Context) : Closeable {
                     groupAddress = incoming.destination.toString(),
                     value = incoming.booleanValue?.let { if (it) "1" else "0" },
                     status = KnxTelegramEvent.Status.RECEIVED,
-                    detail = "Origen ${incoming.sourceAddress}"
+                    detail = buildString {
+                        append("Origen ${incoming.sourceAddress}")
+                        append(" · ${incoming.apci}")
+                        append(" · cEMI 0x%02X".format(incoming.messageCode))
+                        append("\n${incoming.cemiHex}")
+                    }
                 )
                 Result.Success(
                     busValue = value,

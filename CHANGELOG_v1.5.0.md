@@ -151,3 +151,12 @@ Esta entrega convierte la configuración importada en un catálogo normalizado y
 - Contadores persistentes de conexiones, telegramas, ACK, respuestas del bus y errores.
 - Registro uniforme de fallos de conexión en el monitor KNX.
 - El detalle del monitor muestra ACK ignorados, paquetes inválidos y duplicados cuando existan.
+
+## Entrega 14 — Control KNX real y decodificación cEMI
+
+- Reforzada la validación de offsets y longitud APDU al decodificar telegramas entrantes.
+- Decodificación APCI completa combinando ambos bytes APDU.
+- Validación de `L_Data.ind` y `L_Data.con` antes de aceptar una trama del bus.
+- Validación de destino de grupo y longitud declarada de la trama cEMI.
+- Monitor ampliado con cEMI RX, código de mensaje y tipo APCI real.
+- Las respuestas `GroupValueResponse` y los `GroupValueWrite` entrantes actualizan ahora el estado booleano con el byte correcto.

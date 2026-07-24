@@ -63,6 +63,9 @@ class KnxConnectionManager(
         val gatewayAckHex: String? = null,
         val gatewayRoundTripMillis: Long? = null,
         val incomingKnxNetIpHex: String? = null,
+        val incomingCemiHex: String? = null,
+        val incomingMessageCode: Int? = null,
+        val incomingApci: String? = null,
         val ignoredAckCount: Int = 0,
         val invalidPacketCount: Int = 0,
         val duplicateIncomingCount: Int = 0
@@ -72,7 +75,10 @@ class KnxConnectionManager(
         val kind: Kind,
         val sourceAddress: String,
         val destination: KnxGroupAddress,
-        val booleanValue: Boolean?
+        val booleanValue: Boolean?,
+        val messageCode: Int,
+        val apci: String,
+        val cemiHex: String
     ) {
         enum class Kind { WRITE, RESPONSE }
     }
@@ -207,6 +213,9 @@ class KnxConnectionManager(
             var gatewayRoundTripMillis: Long? = null
             var incoming: IncomingGroupTelegram? = null
             var incomingPacketHex: String? = null
+            var incomingCemiHex: String? = null
+            var incomingMessageCode: Int? = null
+            var incomingApci: String? = null
             var ignoredAckCount = 0
             var invalidPacketCount = 0
             var duplicateIncomingCount = 0
@@ -283,6 +292,9 @@ class KnxConnectionManager(
                                 if (parsed.telegram.destination == telegram.destination) {
                                     incoming = parsed.telegram
                                     incomingPacketHex = KnxHex.format(response.data.copyOf(response.length))
+                                    incomingCemiHex = parsed.telegram.cemiHex
+                                    incomingMessageCode = parsed.telegram.messageCode
+                                    incomingApci = parsed.telegram.apci
                                 }
                             }
                         } else {
@@ -308,6 +320,9 @@ class KnxConnectionManager(
                         gatewayAckHex = gatewayAckHex,
                         gatewayRoundTripMillis = gatewayRoundTripMillis,
                         incomingKnxNetIpHex = incomingPacketHex,
+                        incomingCemiHex = incomingCemiHex,
+                        incomingMessageCode = incomingMessageCode,
+                        incomingApci = incomingApci,
                         ignoredAckCount = ignoredAckCount,
                         invalidPacketCount = invalidPacketCount,
                         duplicateIncomingCount = duplicateIncomingCount
@@ -469,6 +484,8 @@ internal object KnxProtocol {
     const val WRITE_RESPONSE_WINDOW_MILLIS = 650L
 
     private const val CONNECT_RESPONSE = 0x0206
+    private const val CEMI_L_DATA_IND = 0x29
+    private const val CEMI_L_DATA_CON = 0x2E
     private const val DISCONNECT_REQUEST = 0x0209
     private const val TUNNELLING_REQUEST = 0x0420
     private const val TUNNELLING_ACK = 0x0421
@@ -564,24 +581,41 @@ internal object KnxProtocol {
     fun parseIncomingGroupTelegram(data: ByteArray, length: Int): ParsedIncoming? {
         if (serviceType(data, length) != TUNNELLING_REQUEST || length < 21) return null
         val totalLength = ((data[4].toInt() and 0xFF) shl 8) or (data[5].toInt() and 0xFF)
-        if (totalLength !in 21..length || (data[6].toInt() and 0xFF) != 4) return null
+        if (totalLength != length || (data[6].toInt() and 0xFF) != 4) return null
+
         val channel = data[7].toInt() and 0xFF
         val sequence = data[8].toInt() and 0xFF
         val cemiOffset = 10
+        val messageCode = data[cemiOffset].toInt() and 0xFF
+        if (messageCode != CEMI_L_DATA_IND && messageCode != CEMI_L_DATA_CON) return null
+
         val additionalLength = data[cemiOffset + 1].toInt() and 0xFF
         val frameOffset = cemiOffset + 2 + additionalLength
-        if (frameOffset + 9 >= length) return null
-        val sourceRaw = ((data[frameOffset + 2].toInt() and 0xFF) shl 8) or (data[frameOffset + 3].toInt() and 0xFF)
-        val destinationRaw = ((data[frameOffset + 4].toInt() and 0xFF) shl 8) or (data[frameOffset + 5].toInt() and 0xFF)
-        val apduSecond = data[frameOffset + 8].toInt() and 0xFF
-        val apci = apduSecond and 0xC0
-        val kind = when (apci) {
-            0x40 -> KnxConnectionManager.IncomingGroupTelegram.Kind.RESPONSE
-            0x80 -> KnxConnectionManager.IncomingGroupTelegram.Kind.WRITE
+        val apduSecondOffset = frameOffset + 8
+        if (apduSecondOffset >= length) return null
+
+        val control2 = data[frameOffset + 1].toInt() and 0xFF
+        if ((control2 and 0x80) == 0) return null
+
+        val sourceRaw = ((data[frameOffset + 2].toInt() and 0xFF) shl 8) or
+            (data[frameOffset + 3].toInt() and 0xFF)
+        val destinationRaw = ((data[frameOffset + 4].toInt() and 0xFF) shl 8) or
+            (data[frameOffset + 5].toInt() and 0xFF)
+        val dataLength = data[frameOffset + 6].toInt() and 0xFF
+        if (dataLength < 1 || frameOffset + 7 + dataLength >= length) return null
+
+        val apduFirst = data[frameOffset + 7].toInt() and 0xFF
+        val apduSecond = data[apduSecondOffset].toInt() and 0xFF
+        val apciCode = ((apduFirst and 0x03) shl 2) or ((apduSecond ushr 6) and 0x03)
+        val (kind, apciName) = when (apciCode) {
+            0x01 -> KnxConnectionManager.IncomingGroupTelegram.Kind.RESPONSE to "GroupValueResponse"
+            0x02 -> KnxConnectionManager.IncomingGroupTelegram.Kind.WRITE to "GroupValueWrite"
             else -> return null
         }
+
         val source = "${(sourceRaw ushr 12) and 0x0F}.${(sourceRaw ushr 8) and 0x0F}.${sourceRaw and 0xFF}"
         val destination = KnxGroupAddress.fromRaw(destinationRaw)
+        val cemi = data.copyOfRange(cemiOffset, totalLength)
         return ParsedIncoming(
             channelId = channel,
             sequence = sequence,
@@ -589,7 +623,10 @@ internal object KnxProtocol {
                 kind = kind,
                 sourceAddress = source,
                 destination = destination,
-                booleanValue = (apduSecond and 0x01) == 1
+                booleanValue = (apduSecond and 0x01) == 1,
+                messageCode = messageCode,
+                apci = apciName,
+                cemiHex = KnxHex.format(cemi)
             )
         )
     }
