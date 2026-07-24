@@ -3,6 +3,8 @@ package com.onehouse.app.knx
 import android.content.Context
 import com.onehouse.app.data.knx.SettingsDataStore
 import java.io.Closeable
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.StateFlow
 
 /**
  * Ejecuta comandos normalizados sobre un túnel KNXnet/IP.
@@ -27,6 +29,18 @@ class KnxCommandExecutor(context: Context) : Closeable {
     private val monitorRepository = KnxTelegramMonitorRepository(appContext)
     private val statisticsRepository = KnxSessionStatisticsRepository(appContext)
     private var queuedOperation: Closeable? = null
+
+    /** Flujo compartido con todos los últimos estados KNX conocidos. */
+    val stateFlow: StateFlow<Map<String, KnxStateRepository.State>>
+        get() = stateRepository.stateFlow
+
+    /** Observa únicamente una dirección de grupo, sin polling. */
+    fun observeState(groupAddress: String): Flow<KnxStateRepository.State?> =
+        stateRepository.observeState(groupAddress)
+
+    /** Devuelve inmediatamente el último estado conocido de una dirección. */
+    fun getState(groupAddress: String): KnxStateRepository.State? =
+        stateRepository.get(groupAddress)
 
     fun execute(
         command: KnxCommand,
@@ -102,6 +116,7 @@ class KnxCommandExecutor(context: Context) : Closeable {
                             value = eventValue,
                             status = KnxTelegramEvent.Status.PENDING
                         )
+                        val operationStartedAt = System.currentTimeMillis()
                         connectionManager.sendTelegram(telegram) { operation ->
                             if (command.type == KnxCommandType.READ &&
                                 operation is KnxConnectionManager.OperationResult.Success &&
@@ -130,12 +145,47 @@ class KnxCommandExecutor(context: Context) : Closeable {
                                 return@sendTelegram
                             }
 
+                            val expectedBoolean = expectedBooleanFor(command, toggleValue)
+                            val cachedConfirmation = stateRepository
+                                .get(command.destination.toString())
+                                ?.takeIf { state ->
+                                    state.timestampMillis >= operationStartedAt &&
+                                        expectedBoolean != null &&
+                                        state.booleanValue == expectedBoolean
+                                }
+
+                            if (cachedConfirmation != null) {
+                                monitorRepository.record(
+                                    direction = KnxTelegramEvent.Direction.SYSTEM,
+                                    kind = KnxTelegramEvent.Kind.GROUP_VALUE_RESPONSE,
+                                    groupAddress = command.destination.toString(),
+                                    value = cachedConfirmation.rawValue,
+                                    status = KnxTelegramEvent.Status.CONFIRMED,
+                                    detail = buildString {
+                                        append("Escritura confirmada por el estado recibido en tiempo real")
+                                        append(" · origen ${cachedConfirmation.sourceAddress}")
+                                        append(" · ${cachedConfirmation.apci}")
+                                    }
+                                )
+                                connectionManager.disconnect()
+                                onResult(
+                                    Result.Success(
+                                        busValue = cachedConfirmation.booleanValue?.let {
+                                            if (it) "Encendido" else "Apagado"
+                                        },
+                                        sourceAddress = cachedConfirmation.sourceAddress,
+                                        diagnostic = (primaryResult as? Result.Success)?.diagnostic
+                                    )
+                                )
+                                return@sendTelegram
+                            }
+
                             monitorRepository.record(
                                 direction = KnxTelegramEvent.Direction.OUTGOING,
                                 kind = KnxTelegramEvent.Kind.GROUP_VALUE_READ,
                                 groupAddress = command.destination.toString(),
                                 status = KnxTelegramEvent.Status.PENDING,
-                                detail = "Verificación automática del estado después de la escritura"
+                                detail = "No llegó confirmación en tiempo real; se solicita lectura de verificación"
                             )
                             connectionManager.readGroupValue(command.destination.toString()) { verification ->
                                 recordOperationStatistics(verification)
@@ -297,6 +347,17 @@ class KnxCommandExecutor(context: Context) : Closeable {
         }
         is KnxConnectionManager.OperationResult.Failure -> Result.Failure(detail)
         is KnxConnectionManager.OperationResult.NotAvailable -> Result.Failure(detail)
+    }
+
+
+    private fun expectedBooleanFor(
+        command: KnxCommand,
+        toggleValue: Boolean?
+    ): Boolean? = when (command.type) {
+        KnxCommandType.ON -> true
+        KnxCommandType.OFF -> false
+        KnxCommandType.TOGGLE -> toggleValue
+        else -> null
     }
 
     private fun telegramFor(command: KnxCommand, toggleValue: Boolean?): KnxTelegram? = when (command.type) {
