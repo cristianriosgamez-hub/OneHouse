@@ -1,5 +1,8 @@
 package com.onehouse.app.feature.importproject
 
+import android.content.ClipData
+import android.content.ClipboardManager
+import android.content.Context
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.rememberScrollState
@@ -51,6 +54,7 @@ import com.onehouse.app.knx.KnxDeviceState
 import com.onehouse.app.knx.KnxDeviceStateRepository
 import com.onehouse.app.knx.KnxTelegramEvent
 import com.onehouse.app.knx.KnxTelegramMonitorRepository
+import com.onehouse.app.knx.KnxSessionStatisticsRepository
 import com.onehouse.app.knx.communicationStatus
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -66,10 +70,14 @@ fun DeviceControlScreen(device: ImportedKnxDevice, onBack: () -> Unit) {
     val monitorRepository = remember(context.applicationContext) {
         KnxTelegramMonitorRepository(context.applicationContext)
     }
+    val statisticsRepository = remember(context.applicationContext) {
+        KnxSessionStatisticsRepository(context.applicationContext)
+    }
     var telegramEvents by remember { mutableStateOf(emptyList<KnxTelegramEvent>()) }
     var isBusy by remember { mutableStateOf(false) }
     var deviceState by remember(device.id) { mutableStateOf(stateRepository.get(device.id)) }
     var status by remember { mutableStateOf("Preparado para enviar al bus KNX") }
+    var statistics by remember { mutableStateOf(statisticsRepository.snapshot()) }
 
     DisposableEffect(executor, stateRepository, monitorRepository, device.id) {
         val stateObservation = stateRepository.observe(device.id) { deviceState = it }
@@ -90,6 +98,7 @@ fun DeviceControlScreen(device: ImportedKnxDevice, onBack: () -> Unit) {
         status = "Conectando y enviando ${command.type.displayName.lowercase()}…"
         executor.execute(command, toggleValue) { result ->
             isBusy = false
+            statistics = statisticsRepository.snapshot()
             when (result) {
                 is KnxCommandExecutor.Result.Success -> {
                     if (result.busValue != null) {
@@ -229,6 +238,21 @@ fun DeviceControlScreen(device: ImportedKnxDevice, onBack: () -> Unit) {
                 }
             }
 
+            KnxDiagnosticsCard(
+                statistics = statistics,
+                onRefresh = { statistics = statisticsRepository.snapshot() },
+                onCopy = {
+                    val report = buildDiagnosticReport(
+                        device = device,
+                        statistics = statisticsRepository.snapshot(),
+                        events = monitorRepository.exportText()
+                    )
+                    val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                    clipboard.setPrimaryClip(ClipData.newPlainText("Diagnóstico KNX OneHouse", report))
+                    status = "Diagnóstico KNX copiado al portapapeles"
+                }
+            )
+
             TelegramMonitorCard(
                 events = telegramEvents,
                 onClear = { monitorRepository.clear() }
@@ -244,6 +268,63 @@ fun DeviceControlScreen(device: ImportedKnxDevice, onBack: () -> Unit) {
             Spacer(modifier = Modifier.height(8.dp))
         }
     }
+}
+
+@Composable
+private fun KnxDiagnosticsCard(
+    statistics: KnxSessionStatisticsRepository.Snapshot,
+    onRefresh: () -> Unit,
+    onCopy: () -> Unit
+) {
+    Surface(color = FondoTarjeta, shape = RoundedCornerShape(18.dp), modifier = Modifier.fillMaxWidth()) {
+        Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Text("Diagnóstico de sesión", color = AzulClaro, fontWeight = FontWeight.Bold)
+            ControlDetail("Conexiones correctas", statistics.connections.toString())
+            ControlDetail("Errores de conexión", statistics.connectionErrors.toString())
+            ControlDetail("Telegramas enviados", statistics.telegramsSent.toString())
+            ControlDetail("ACK del gateway", statistics.gatewayAcks.toString())
+            ControlDetail("Telegramas del bus", statistics.busTelegrams.toString())
+            ControlDetail("Errores de operación", statistics.operationErrors.toString())
+            ControlDetail("Último ACK", statistics.lastAckMillis?.let { "$it ms" } ?: "—")
+            ControlDetail("Latencia ACK media", statistics.averageAckMillis?.let { "$it ms" } ?: "—")
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                OutlinedButton(onClick = onRefresh, modifier = Modifier.weight(1f)) { Text("Actualizar") }
+                Button(
+                    onClick = onCopy,
+                    modifier = Modifier.weight(1f),
+                    colors = ButtonDefaults.buttonColors(containerColor = AzulOneHouse)
+                ) { Text("Copiar diagnóstico") }
+            }
+        }
+    }
+}
+
+private fun buildDiagnosticReport(
+    device: ImportedKnxDevice,
+    statistics: KnxSessionStatisticsRepository.Snapshot,
+    events: String
+): String = buildString {
+    appendLine("OneHouse v1.5.0 - Diagnóstico KNX")
+    appendLine("Dispositivo: ${device.name}")
+    appendLine("Habitación: ${device.roomName}")
+    appendLine("Escritura: ${device.primaryWriteAddress ?: "—"}")
+    appendLine("Lectura: ${device.primaryReadAddress ?: "—"}")
+    appendLine("DPT: ${device.resolvedDpt}")
+    appendLine()
+    appendLine("Conexiones: ${statistics.connections}")
+    appendLine("Errores de conexión: ${statistics.connectionErrors}")
+    appendLine("Telegramas TX: ${statistics.telegramsSent}")
+    appendLine("ACK gateway: ${statistics.gatewayAcks}")
+    appendLine("Telegramas RX bus: ${statistics.busTelegrams}")
+    appendLine("Errores de operación: ${statistics.operationErrors}")
+    appendLine("ACK ignorados: ${statistics.ignoredAcks}")
+    appendLine("Paquetes inválidos: ${statistics.invalidPackets}")
+    appendLine("Duplicados RX: ${statistics.duplicateIncoming}")
+    appendLine("Último ACK: ${statistics.lastAckMillis?.let { "$it ms" } ?: "—"}")
+    appendLine("ACK medio: ${statistics.averageAckMillis?.let { "$it ms" } ?: "—"}")
+    appendLine()
+    appendLine("Historial KNX:")
+    append(events.ifBlank { "Sin eventos registrados" })
 }
 
 @Composable

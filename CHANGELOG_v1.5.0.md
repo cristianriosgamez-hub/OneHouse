@@ -160,3 +160,13 @@ Esta entrega convierte la configuración importada en un catálogo normalizado y
 - Validación de destino de grupo y longitud declarada de la trama cEMI.
 - Monitor ampliado con cEMI RX, código de mensaje y tipo APCI real.
 - Las respuestas `GroupValueResponse` y los `GroupValueWrite` entrantes actualizan ahora el estado booleano con el byte correcto.
+
+## Entrega 15 — Prueba real y diagnóstico exportable
+
+- Añadida una tarjeta de diagnóstico dentro de la pantalla de cada dispositivo KNX.
+- Visibles los contadores de conexiones, errores, telegramas enviados, ACK del gateway y telegramas recibidos del bus.
+- Añadida la última latencia TX→ACK y la latencia media acumulada del gateway.
+- El repositorio de estadísticas conserva muestras de latencia sin romper los datos de versiones anteriores.
+- Nuevo botón «Copiar diagnóstico» para copiar al portapapeles un informe completo de la prueba real.
+- El informe incluye dispositivo, habitación, direcciones de grupo, DPT, estadísticas y todo el historial KNX disponible.
+- El historial exportado utiliza fecha y hora con milisegundos y separa dirección, tipo, estado, valor y detalle hexadecimal.

@@ -52,6 +52,21 @@ class KnxTelegramMonitorRepository(context: Context) {
         return event
     }
 
+    fun exportText(limit: Int = MAX_EVENTS): String {
+        val formatter = java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSS", java.util.Locale.getDefault())
+        return recent(limit).asReversed().joinToString("\n\n") { event ->
+            buildString {
+                append(formatter.format(java.util.Date(event.timestampMillis)))
+                append(" | ").append(event.direction.name)
+                append(" | ").append(event.kind.name)
+                append(" | ").append(event.status.name)
+                event.groupAddress?.let { append(" | GA ").append(it) }
+                event.value?.let { append(" | valor ").append(it) }
+                event.detail?.let { append("\n").append(it) }
+            }
+        }
+    }
+
     fun clear() {
         synchronized(lock) { preferences.edit().remove(KEY_EVENTS).apply() }
         notifyObservers()

@@ -20,7 +20,8 @@ class KnxSessionStatisticsRepository(context: Context) {
         val ignoredAcks: Long,
         val invalidPackets: Long,
         val duplicateIncoming: Long,
-        val lastAckMillis: Long?
+        val lastAckMillis: Long?,
+        val averageAckMillis: Long?
     )
 
     private val preferences = context.applicationContext.getSharedPreferences(
@@ -39,7 +40,10 @@ class KnxSessionStatisticsRepository(context: Context) {
             ignoredAcks = preferences.getLong(KEY_IGNORED_ACKS, 0),
             invalidPackets = preferences.getLong(KEY_INVALID_PACKETS, 0),
             duplicateIncoming = preferences.getLong(KEY_DUPLICATE_INCOMING, 0),
-            lastAckMillis = preferences.getLong(KEY_LAST_ACK_MILLIS, -1).takeIf { it >= 0 }
+            lastAckMillis = preferences.getLong(KEY_LAST_ACK_MILLIS, -1).takeIf { it >= 0 },
+            averageAckMillis = preferences.getLong(KEY_ACK_SAMPLE_COUNT, 0).takeIf { it > 0 }?.let { count ->
+                preferences.getLong(KEY_ACK_TOTAL_MILLIS, 0) / count
+            }
         )
     }
 
@@ -57,7 +61,11 @@ class KnxSessionStatisticsRepository(context: Context) {
                 .putLong(KEY_INVALID_PACKETS, preferences.getLong(KEY_INVALID_PACKETS, 0) + diagnostic.invalidPacketCount)
                 .putLong(KEY_DUPLICATE_INCOMING, preferences.getLong(KEY_DUPLICATE_INCOMING, 0) + diagnostic.duplicateIncomingCount)
                 .apply {
-                    diagnostic.gatewayRoundTripMillis?.let { putLong(KEY_LAST_ACK_MILLIS, it) }
+                    diagnostic.gatewayRoundTripMillis?.let { elapsed ->
+                        putLong(KEY_LAST_ACK_MILLIS, elapsed)
+                        putLong(KEY_ACK_TOTAL_MILLIS, preferences.getLong(KEY_ACK_TOTAL_MILLIS, 0) + elapsed)
+                        putLong(KEY_ACK_SAMPLE_COUNT, preferences.getLong(KEY_ACK_SAMPLE_COUNT, 0) + 1)
+                    }
                 }
                 .apply()
         }
@@ -81,6 +89,8 @@ class KnxSessionStatisticsRepository(context: Context) {
         const val KEY_INVALID_PACKETS = "invalid_packets"
         const val KEY_DUPLICATE_INCOMING = "duplicate_incoming"
         const val KEY_LAST_ACK_MILLIS = "last_ack_millis"
+        const val KEY_ACK_TOTAL_MILLIS = "ack_total_millis"
+        const val KEY_ACK_SAMPLE_COUNT = "ack_sample_count"
         val lock = Any()
     }
 }
