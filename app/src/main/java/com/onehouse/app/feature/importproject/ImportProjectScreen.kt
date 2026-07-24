@@ -356,9 +356,15 @@ private fun ProjectContent(
     }
     val groupedDevices = remember(sortedDevices, sortMode) {
         if (sortMode == DeviceSortMode.ROOM) {
-            sortedDevices.groupBy { it.roomName }.toSortedMap(String.CASE_INSENSITIVE_ORDER)
+            sortedDevices
+                .groupBy { it.roomName }
+                .entries
+                .sortedWith { first, second ->
+                    first.key.compareTo(second.key, ignoreCase = true)
+                }
+                .map { entry -> entry.key to entry.value }
         } else {
-            linkedMapOf("Todos los objetos" to sortedDevices)
+            listOf("Todos los objetos" to sortedDevices)
         }
     }
 
@@ -486,7 +492,7 @@ private fun ProjectActions(
         ) {
             Text("Ordenar objetos", color = TextoSecundario, fontSize = 12.sp)
             Row(horizontalArrangement = Arrangement.spacedBy(7.dp)) {
-                DeviceSortMode.values().forEach { mode ->
+                DeviceSortMode.entries.forEach { mode ->
                     Surface(
                         color = if (sortMode == mode) AzulOneHouse else FondoInferior,
                         shape = RoundedCornerShape(10.dp),

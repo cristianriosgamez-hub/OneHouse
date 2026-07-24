@@ -99,3 +99,9 @@ Esta entrega convierte la configuración importada en un catálogo normalizado y
 - Corregida la ordenación por habitación y nombre en `ImportProjectScreen`.
 - Sustituidas las llamadas incompatibles a `compareBy` por comparadores explícitos.
 - Eliminados los errores de compilación `None of the following candidates is applicable` y `Unresolved reference: it`.
+
+## v1.5.0 – Entrega 9 Rev.3
+
+- Eliminado `toSortedMap(...)` del agrupado de habitaciones para evitar la advertencia de API 35 (`SequencedMap`) en dispositivos con Android 10–14.
+- La ordenación de habitaciones se realiza ahora sobre una lista de entradas y conserva el orden alfabético sin depender de APIs recientes.
+- Sustituido `DeviceSortMode.values()` por `DeviceSortMode.entries`.
