@@ -75,3 +75,12 @@ Esta entrega convierte la configuración importada en un catálogo normalizado y
 - Caché persistente de estados KNX enviados localmente.
 - Infraestructura preparada para integrar respuestas `GroupValueResponse` del bus mediante `KnxDeviceStateRepository.updateFromBus()`.
 - Se mantiene la lectura `GroupValueRead` desde la pantalla de control.
+
+## Entrega 8
+
+- Añadido historial persistente de las últimas 60 operaciones KNX.
+- Registro de apertura del túnel, GroupValueRead, GroupValueWrite, confirmaciones y errores.
+- Nuevo monitor de telegramas dentro de la ficha de cada dispositivo importado.
+- Filtrado del monitor por las direcciones de grupo del dispositivo.
+- Preparada la misma canalización para futuros GroupValueWrite y GroupValueResponse entrantes.
+- La pantalla de control ahora admite desplazamiento vertical en dispositivos pequeños.

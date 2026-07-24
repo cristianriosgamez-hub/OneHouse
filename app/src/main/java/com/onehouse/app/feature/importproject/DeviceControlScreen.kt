@@ -2,6 +2,8 @@ package com.onehouse.app.feature.importproject
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -46,6 +48,11 @@ import com.onehouse.app.knx.KnxCommandExecutor
 import com.onehouse.app.knx.KnxCommandType
 import com.onehouse.app.knx.KnxDeviceState
 import com.onehouse.app.knx.KnxDeviceStateRepository
+import com.onehouse.app.knx.KnxTelegramEvent
+import com.onehouse.app.knx.KnxTelegramMonitorRepository
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
 @Composable
 fun DeviceControlScreen(device: ImportedKnxDevice, onBack: () -> Unit) {
@@ -54,14 +61,23 @@ fun DeviceControlScreen(device: ImportedKnxDevice, onBack: () -> Unit) {
     val stateRepository = remember(context.applicationContext) {
         KnxDeviceStateRepository(context.applicationContext)
     }
+    val monitorRepository = remember(context.applicationContext) {
+        KnxTelegramMonitorRepository(context.applicationContext)
+    }
+    var telegramEvents by remember { mutableStateOf(emptyList<KnxTelegramEvent>()) }
     var isBusy by remember { mutableStateOf(false) }
     var deviceState by remember(device.id) { mutableStateOf(stateRepository.get(device.id)) }
     var status by remember { mutableStateOf("Preparado para enviar al bus KNX") }
 
-    DisposableEffect(executor, stateRepository, device.id) {
-        val observation = stateRepository.observe(device.id) { deviceState = it }
+    DisposableEffect(executor, stateRepository, monitorRepository, device.id) {
+        val stateObservation = stateRepository.observe(device.id) { deviceState = it }
+        val monitorObservation = monitorRepository.observe { events ->
+            val addresses = (device.writeAddresses + device.readAddresses).map { it.toString() }.toSet()
+            telegramEvents = events.filter { it.groupAddress in addresses }.take(8)
+        }
         onDispose {
-            observation.close()
+            stateObservation.close()
+            monitorObservation.close()
             executor.close()
         }
     }
@@ -108,7 +124,8 @@ fun DeviceControlScreen(device: ImportedKnxDevice, onBack: () -> Unit) {
             modifier = Modifier
                 .fillMaxSize()
                 .statusBarsPadding()
-                .padding(horizontal = 18.dp, vertical = 14.dp),
+                .padding(horizontal = 18.dp, vertical = 14.dp)
+                .verticalScroll(rememberScrollState()),
             verticalArrangement = Arrangement.spacedBy(14.dp)
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -191,6 +208,11 @@ fun DeviceControlScreen(device: ImportedKnxDevice, onBack: () -> Unit) {
                 }
             }
 
+            TelegramMonitorCard(
+                events = telegramEvents,
+                onClear = { monitorRepository.clear() }
+            )
+
             if (onCommand == null && offCommand == null && toggleCommand == null) {
                 Text(
                     "En esta entrega el envío real está habilitado para luces e interruptores DPT 1.x. El resto de controles se incorporará con su codificación DPT específica.",
@@ -208,5 +230,63 @@ private fun ControlDetail(label: String, value: String) {
     Row(modifier = Modifier.fillMaxWidth()) {
         Text(label, color = TextoSecundario, modifier = Modifier.weight(1f), fontSize = 12.sp)
         Text(value, color = TextoPrincipal, fontWeight = FontWeight.SemiBold, fontSize = 12.sp)
+    }
+}
+
+
+@Composable
+private fun TelegramMonitorCard(
+    events: List<KnxTelegramEvent>,
+    onClear: () -> Unit
+) {
+    Surface(color = FondoTarjeta, shape = RoundedCornerShape(18.dp), modifier = Modifier.fillMaxWidth()) {
+        Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text("Monitor KNX", color = AzulClaro, fontWeight = FontWeight.Bold)
+                    Text("Últimas operaciones de este dispositivo", color = TextoSecundario, fontSize = 11.sp)
+                }
+                if (events.isNotEmpty()) {
+                    Text("Limpiar", color = AzulClaro, fontSize = 12.sp, modifier = Modifier.clickable(onClick = onClear))
+                }
+            }
+            if (events.isEmpty()) {
+                Text("Todavía no hay telegramas registrados.", color = TextoSecundario, fontSize = 12.sp)
+            } else {
+                events.forEach { event -> TelegramEventRow(event) }
+            }
+        }
+    }
+}
+
+@Composable
+private fun TelegramEventRow(event: KnxTelegramEvent) {
+    val time = remember(event.timestampMillis) {
+        SimpleDateFormat("HH:mm:ss", Locale.getDefault()).format(Date(event.timestampMillis))
+    }
+    val operation = when (event.kind) {
+        KnxTelegramEvent.Kind.CONNECT -> "Conexión"
+        KnxTelegramEvent.Kind.GROUP_VALUE_READ -> "GroupValueRead"
+        KnxTelegramEvent.Kind.GROUP_VALUE_WRITE -> "GroupValueWrite"
+        KnxTelegramEvent.Kind.GROUP_VALUE_RESPONSE -> "GroupValueResponse"
+        KnxTelegramEvent.Kind.DISCONNECT -> "Desconexión"
+    }
+    val statusText = when (event.status) {
+        KnxTelegramEvent.Status.PENDING -> "pendiente"
+        KnxTelegramEvent.Status.CONFIRMED -> "confirmado"
+        KnxTelegramEvent.Status.RECEIVED -> "recibido"
+        KnxTelegramEvent.Status.ERROR -> "error"
+    }
+    Column(modifier = Modifier.fillMaxWidth()) {
+        Row(modifier = Modifier.fillMaxWidth()) {
+            Text(time, color = TextoSecundario, fontSize = 11.sp, modifier = Modifier.weight(0.8f))
+            Text(operation, color = TextoPrincipal, fontSize = 11.sp, modifier = Modifier.weight(1.5f))
+            Text(statusText, color = if (event.status == KnxTelegramEvent.Status.ERROR) MaterialTheme.colorScheme.error else AzulClaro, fontSize = 11.sp)
+        }
+        Text(
+            listOfNotNull(event.groupAddress, event.value?.let { "valor $it" }, event.detail).joinToString(" · "),
+            color = TextoSecundario,
+            fontSize = 10.sp
+        )
     }
 }
