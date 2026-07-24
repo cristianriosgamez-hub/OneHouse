@@ -141,3 +141,13 @@ Esta entrega convierte la configuración importada en un catálogo normalizado y
 - Ventana breve de escucha tras escrituras para detectar `GroupValueWrite` o `GroupValueResponse` del bus.
 - Captura hexadecimal del telegrama entrante asociado al mismo destino.
 - Monitor KNX ampliado para distinguir claramente TX, ACK del gateway y RX del bus.
+
+## Entrega 13 — Estabilidad y diagnóstico KNX/IP
+
+- Reinicio explícito del contador de secuencia al abrir un túnel nuevo.
+- Detección de ACK pertenecientes a otro canal o secuencia.
+- Detección de paquetes KNXnet/IP inválidos durante una operación.
+- Detección y descarte de telegramas entrantes duplicados, manteniendo su ACK al gateway.
+- Contadores persistentes de conexiones, telegramas, ACK, respuestas del bus y errores.
+- Registro uniforme de fallos de conexión en el monitor KNX.
+- El detalle del monitor muestra ACK ignorados, paquetes inválidos y duplicados cuando existan.

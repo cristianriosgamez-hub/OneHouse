@@ -62,7 +62,10 @@ class KnxConnectionManager(
         val gatewayAcknowledged: Boolean,
         val gatewayAckHex: String? = null,
         val gatewayRoundTripMillis: Long? = null,
-        val incomingKnxNetIpHex: String? = null
+        val incomingKnxNetIpHex: String? = null,
+        val ignoredAckCount: Int = 0,
+        val invalidPacketCount: Int = 0,
+        val duplicateIncomingCount: Int = 0
     )
 
     data class IncomingGroupTelegram(
@@ -204,6 +207,10 @@ class KnxConnectionManager(
             var gatewayRoundTripMillis: Long? = null
             var incoming: IncomingGroupTelegram? = null
             var incomingPacketHex: String? = null
+            var ignoredAckCount = 0
+            var invalidPacketCount = 0
+            var duplicateIncomingCount = 0
+            var lastIncomingSequence: Int? = null
             val deadline = System.currentTimeMillis() + timeoutMillis
             var writeObservationDeadline: Long? = null
 
@@ -243,6 +250,8 @@ class KnxConnectionManager(
                                         writeObservationDeadline = System.currentTimeMillis() +
                                             KnxProtocol.WRITE_RESPONSE_WINDOW_MILLIS.coerceAtMost(timeoutMillis.toLong())
                                     }
+                                } else {
+                                    ignoredAckCount += 1
                                 }
                             }
                             is KnxProtocol.TunnellingAck.Rejected -> {
@@ -250,9 +259,11 @@ class KnxConnectionManager(
                                     return OperationResult.Failure(
                                         "Telegrama rechazado por KNX/IP (estado ${ack.status})"
                                     )
+                                } else {
+                                    ignoredAckCount += 1
                                 }
                             }
-                            KnxProtocol.TunnellingAck.Invalid -> Unit
+                            KnxProtocol.TunnellingAck.Invalid -> invalidPacketCount += 1
                         }
                     }
                     KnxProtocol.TUNNELLING_REQUEST_SERVICE -> {
@@ -263,12 +274,23 @@ class KnxConnectionManager(
                                 sequence = parsed.sequence
                             )
                             udpSocket.send(DatagramPacket(ackPacket, ackPacket.size))
-                            if (parsed.telegram.destination == telegram.destination) {
-                                incoming = parsed.telegram
-                                incomingPacketHex = KnxHex.format(response.data.copyOf(response.length))
+                            if (parsed.channelId != currentChannel) {
+                                invalidPacketCount += 1
+                            } else if (lastIncomingSequence == parsed.sequence) {
+                                duplicateIncomingCount += 1
+                            } else {
+                                lastIncomingSequence = parsed.sequence
+                                if (parsed.telegram.destination == telegram.destination) {
+                                    incoming = parsed.telegram
+                                    incomingPacketHex = KnxHex.format(response.data.copyOf(response.length))
+                                }
                             }
+                        } else {
+                            invalidPacketCount += 1
                         }
                     }
+                    null -> invalidPacketCount += 1
+                    else -> Unit
                 }
             }
 
@@ -285,7 +307,10 @@ class KnxConnectionManager(
                         gatewayAcknowledged = true,
                         gatewayAckHex = gatewayAckHex,
                         gatewayRoundTripMillis = gatewayRoundTripMillis,
-                        incomingKnxNetIpHex = incomingPacketHex
+                        incomingKnxNetIpHex = incomingPacketHex,
+                        ignoredAckCount = ignoredAckCount,
+                        invalidPacketCount = invalidPacketCount,
+                        duplicateIncomingCount = duplicateIncomingCount
                     )
                 )
             }
@@ -344,6 +369,7 @@ class KnxConnectionManager(
                             ConnectResult.Cancelled
                         } else {
                             channelId = parsed.channelId
+                            sequenceCounter.set(0)
                             state = State.CONNECTED
                             ConnectResult.Success(
                                 deviceAddress = response.address.hostAddress ?: target.host,

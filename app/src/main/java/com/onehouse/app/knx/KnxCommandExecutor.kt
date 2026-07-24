@@ -24,6 +24,7 @@ class KnxCommandExecutor(context: Context) : Closeable {
     private val appContext = context.applicationContext
     private val connectionManager = KnxConnectionManager()
     private val monitorRepository = KnxTelegramMonitorRepository(appContext)
+    private val statisticsRepository = KnxSessionStatisticsRepository(appContext)
     private var queuedOperation: Closeable? = null
 
     fun execute(
@@ -85,6 +86,7 @@ class KnxCommandExecutor(context: Context) : Closeable {
             connectionManager.connect(endpoint) { connectResult ->
                 when (connectResult) {
                     is KnxConnectionManager.ConnectResult.Success -> {
+                        statisticsRepository.recordConnectionSuccess()
                         monitorRepository.record(
                             direction = KnxTelegramEvent.Direction.SYSTEM,
                             kind = KnxTelegramEvent.Kind.CONNECT,
@@ -111,6 +113,16 @@ class KnxCommandExecutor(context: Context) : Closeable {
                             }
 
                             val result = operation.toExecutorResult()
+                            when (operation) {
+                                is KnxConnectionManager.OperationResult.Success -> operation.diagnostic?.let {
+                                    statisticsRepository.recordOperation(
+                                        diagnostic = it,
+                                        receivedFromBus = operation.incoming != null
+                                    )
+                                }
+                                is KnxConnectionManager.OperationResult.Failure,
+                                is KnxConnectionManager.OperationResult.NotAvailable -> statisticsRepository.recordOperationError()
+                            }
                             monitorRepository.record(
                                 direction = KnxTelegramEvent.Direction.OUTGOING,
                                 kind = eventKind,
@@ -132,6 +144,15 @@ class KnxCommandExecutor(context: Context) : Closeable {
                                             diagnostic.incomingKnxNetIpHex?.let { incomingHex ->
                                                 append("\nTelegrama bus RX: $incomingHex")
                                             }
+                                            if (diagnostic.ignoredAckCount > 0) {
+                                                append("\nACK ajenos ignorados: ${diagnostic.ignoredAckCount}")
+                                            }
+                                            if (diagnostic.invalidPacketCount > 0) {
+                                                append("\nPaquetes no válidos ignorados: ${diagnostic.invalidPacketCount}")
+                                            }
+                                            if (diagnostic.duplicateIncomingCount > 0) {
+                                                append("\nTelegramas entrantes duplicados: ${diagnostic.duplicateIncomingCount}")
+                                            }
                                         }
                                     }
                                     is Result.Failure -> result.message
@@ -140,16 +161,49 @@ class KnxCommandExecutor(context: Context) : Closeable {
                             onResult(result)
                         }
                     }
-                    KnxConnectionManager.ConnectResult.Timeout -> onResult(Result.Failure("Tiempo de espera agotado al conectar con KNX/IP"))
-                    is KnxConnectionManager.ConnectResult.Rejected -> onResult(Result.Failure("El interfaz KNX/IP rechazó el túnel (${connectResult.status})"))
-                    is KnxConnectionManager.ConnectResult.NetworkError -> onResult(Result.Failure(connectResult.detail))
-                    KnxConnectionManager.ConnectResult.InvalidResponse -> onResult(Result.Failure("Respuesta KNX/IP no válida"))
+                    KnxConnectionManager.ConnectResult.Timeout -> reportConnectionFailure(
+                        command,
+                        "Tiempo de espera agotado al conectar con KNX/IP",
+                        onResult
+                    )
+                    is KnxConnectionManager.ConnectResult.Rejected -> reportConnectionFailure(
+                        command,
+                        "El interfaz KNX/IP rechazó el túnel (${connectResult.status})",
+                        onResult
+                    )
+                    is KnxConnectionManager.ConnectResult.NetworkError -> reportConnectionFailure(
+                        command,
+                        connectResult.detail,
+                        onResult
+                    )
+                    KnxConnectionManager.ConnectResult.InvalidResponse -> reportConnectionFailure(
+                        command,
+                        "Respuesta KNX/IP no válida",
+                        onResult
+                    )
                     KnxConnectionManager.ConnectResult.Cancelled -> onResult(Result.Failure("Operación cancelada"))
                 }
             }
         }
 
         attempt(1)
+    }
+
+
+    private fun reportConnectionFailure(
+        command: KnxCommand,
+        message: String,
+        onResult: (Result) -> Unit
+    ) {
+        statisticsRepository.recordConnectionError()
+        monitorRepository.record(
+            direction = KnxTelegramEvent.Direction.SYSTEM,
+            kind = KnxTelegramEvent.Kind.CONNECT,
+            groupAddress = command.destination.toString(),
+            status = KnxTelegramEvent.Status.ERROR,
+            detail = message
+        )
+        onResult(Result.Failure(message))
     }
 
     private fun KnxConnectionManager.OperationResult.toExecutorResult(): Result = when (this) {
