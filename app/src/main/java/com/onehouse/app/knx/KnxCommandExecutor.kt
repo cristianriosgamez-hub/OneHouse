@@ -102,73 +102,65 @@ class KnxCommandExecutor(context: Context) : Closeable {
                             status = KnxTelegramEvent.Status.PENDING
                         )
                         connectionManager.sendTelegram(telegram) { operation ->
-                            connectionManager.disconnect()
                             if (command.type == KnxCommandType.READ &&
                                 operation is KnxConnectionManager.OperationResult.Success &&
                                 operation.incoming == null &&
                                 number == 1
                             ) {
+                                connectionManager.disconnect()
                                 attempt(2)
                                 return@sendTelegram
                             }
 
-                            val result = operation.toExecutorResult()
-                            when (operation) {
-                                is KnxConnectionManager.OperationResult.Success -> operation.diagnostic?.let {
-                                    statisticsRepository.recordOperation(
-                                        diagnostic = it,
-                                        receivedFromBus = operation.incoming != null
-                                    )
-                                }
-                                is KnxConnectionManager.OperationResult.Failure,
-                                is KnxConnectionManager.OperationResult.NotAvailable -> statisticsRepository.recordOperationError()
+                            recordOperationStatistics(operation)
+                            val primaryResult = operation.toExecutorResult()
+                            recordOutgoingResult(
+                                groupAddress = command.destination.toString(),
+                                eventKind = eventKind,
+                                eventValue = eventValue,
+                                result = primaryResult
+                            )
+
+                            val shouldVerifyWrite = command.type != KnxCommandType.READ &&
+                                operation is KnxConnectionManager.OperationResult.Success
+                            if (!shouldVerifyWrite) {
+                                connectionManager.disconnect()
+                                onResult(primaryResult)
+                                return@sendTelegram
                             }
+
                             monitorRepository.record(
                                 direction = KnxTelegramEvent.Direction.OUTGOING,
-                                kind = eventKind,
+                                kind = KnxTelegramEvent.Kind.GROUP_VALUE_READ,
                                 groupAddress = command.destination.toString(),
-                                value = eventValue,
-                                status = if (result is Result.Success) KnxTelegramEvent.Status.CONFIRMED else KnxTelegramEvent.Status.ERROR,
-                                detail = when (result) {
-                                    is Result.Success -> result.diagnostic?.let { diagnostic ->
-                                        buildString {
-                                            append("TX validado · canal ${diagnostic.channelId} · secuencia ${diagnostic.sequence}\n")
-                                            append("cEMI TX: ${diagnostic.cemiHex}\n")
-                                            append("KNXnet/IP TX: ${diagnostic.knxNetIpHex}")
-                                            diagnostic.gatewayAckHex?.let { ackHex ->
-                                                append("\nACK gateway: $ackHex")
-                                            }
-                                            diagnostic.gatewayRoundTripMillis?.let { elapsed ->
-                                                append("\nTiempo TX→ACK: ${elapsed} ms")
-                                            }
-                                            diagnostic.incomingKnxNetIpHex?.let { incomingHex ->
-                                                append("\nTelegrama bus RX: $incomingHex")
-                                            }
-                                            diagnostic.incomingCemiHex?.let { incomingCemi ->
-                                                append("\ncEMI RX: $incomingCemi")
-                                            }
-                                            diagnostic.incomingMessageCode?.let { messageCode ->
-                                                append("\nMensaje cEMI RX: 0x%02X".format(messageCode))
-                                            }
-                                            diagnostic.incomingApci?.let { apci ->
-                                                append(" · APCI $apci")
-                                            }
-                                            if (diagnostic.ignoredAckCount > 0) {
-                                                append("\nACK ajenos ignorados: ${diagnostic.ignoredAckCount}")
-                                            }
-                                            if (diagnostic.invalidPacketCount > 0) {
-                                                append("\nPaquetes no válidos ignorados: ${diagnostic.invalidPacketCount}")
-                                            }
-                                            if (diagnostic.duplicateIncomingCount > 0) {
-                                                append("\nTelegramas entrantes duplicados: ${diagnostic.duplicateIncomingCount}")
-                                            }
-                                            append("\nIntentos de transmisión: ${diagnostic.transmissionAttempts}")
-                                        }
-                                    }
-                                    is Result.Failure -> result.message
-                                }
+                                status = KnxTelegramEvent.Status.PENDING,
+                                detail = "Verificación automática del estado después de la escritura"
                             )
-                            onResult(result)
+                            connectionManager.readGroupValue(command.destination.toString()) { verification ->
+                                recordOperationStatistics(verification)
+                                val verificationResult = verification.toExecutorResult()
+                                recordOutgoingResult(
+                                    groupAddress = command.destination.toString(),
+                                    eventKind = KnxTelegramEvent.Kind.GROUP_VALUE_READ,
+                                    eventValue = null,
+                                    result = verificationResult,
+                                    successPrefix = "Verificación posterior a escritura"
+                                )
+                                connectionManager.disconnect()
+
+                                val combined = when {
+                                    primaryResult is Result.Failure -> primaryResult
+                                    verificationResult is Result.Success && verificationResult.busValue != null -> {
+                                        Result.Success(
+                                            busValue = verificationResult.busValue,
+                                            sourceAddress = verificationResult.sourceAddress,
+                                            diagnostic = (primaryResult as? Result.Success)?.diagnostic
+                                        )
+                                    }
+                                    else -> primaryResult
+                                }
+                                onResult(combined)
+                            }
                         }
                     }
                     KnxConnectionManager.ConnectResult.Timeout -> reportConnectionFailure(
@@ -197,6 +189,61 @@ class KnxCommandExecutor(context: Context) : Closeable {
         }
 
         attempt(1)
+    }
+
+
+    private fun recordOperationStatistics(operation: KnxConnectionManager.OperationResult) {
+        when (operation) {
+            is KnxConnectionManager.OperationResult.Success -> operation.diagnostic?.let {
+                statisticsRepository.recordOperation(
+                    diagnostic = it,
+                    receivedFromBus = operation.incoming != null
+                )
+            }
+            is KnxConnectionManager.OperationResult.Failure,
+            is KnxConnectionManager.OperationResult.NotAvailable -> statisticsRepository.recordOperationError()
+        }
+    }
+
+    private fun recordOutgoingResult(
+        groupAddress: String,
+        eventKind: KnxTelegramEvent.Kind,
+        eventValue: String?,
+        result: Result,
+        successPrefix: String? = null
+    ) {
+        monitorRepository.record(
+            direction = KnxTelegramEvent.Direction.OUTGOING,
+            kind = eventKind,
+            groupAddress = groupAddress,
+            value = eventValue,
+            status = if (result is Result.Success) {
+                KnxTelegramEvent.Status.CONFIRMED
+            } else {
+                KnxTelegramEvent.Status.ERROR
+            },
+            detail = when (result) {
+                is Result.Success -> result.diagnostic?.let { diagnostic ->
+                    buildString {
+                        successPrefix?.let { append("$it\n") }
+                        append("TX validado · canal ${diagnostic.channelId} · secuencia ${diagnostic.sequence}\n")
+                        append("cEMI TX: ${diagnostic.cemiHex}\n")
+                        append("KNXnet/IP TX: ${diagnostic.knxNetIpHex}")
+                        diagnostic.gatewayAckHex?.let { append("\nACK gateway: $it") }
+                        diagnostic.gatewayRoundTripMillis?.let { append("\nTiempo TX→ACK: ${it} ms") }
+                        diagnostic.incomingKnxNetIpHex?.let { append("\nTelegrama bus RX: $it") }
+                        diagnostic.incomingCemiHex?.let { append("\ncEMI RX: $it") }
+                        diagnostic.incomingMessageCode?.let { append("\nMensaje cEMI RX: 0x%02X".format(it)) }
+                        diagnostic.incomingApci?.let { append(" · APCI $it") }
+                        if (diagnostic.ignoredAckCount > 0) append("\nACK ajenos ignorados: ${diagnostic.ignoredAckCount}")
+                        if (diagnostic.invalidPacketCount > 0) append("\nPaquetes no válidos ignorados: ${diagnostic.invalidPacketCount}")
+                        if (diagnostic.duplicateIncomingCount > 0) append("\nTelegramas entrantes duplicados: ${diagnostic.duplicateIncomingCount}")
+                        append("\nIntentos de transmisión: ${diagnostic.transmissionAttempts}")
+                    }
+                } ?: successPrefix
+                is Result.Failure -> result.message
+            }
+        )
     }
 
 

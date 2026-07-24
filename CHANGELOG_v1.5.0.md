@@ -179,3 +179,12 @@ Esta entrega convierte la configuración importada en un catálogo normalizado y
 - Contador persistente de retransmisiones para detectar enlaces UDP inestables.
 - Traducción de códigos de estado KNXnet/IP a mensajes comprensibles, manteniendo el código hexadecimal.
 - Se mantiene la detección de ACK fuera de canal/secuencia, telegramas duplicados y paquetes inválidos.
+
+## Entrega 17
+
+- Verificación automática de estado después de cada escritura DPT 1.x.
+- Después de ON/OFF/TOGGLE, OneHouse envía un `GroupValueRead` por el mismo túnel antes de desconectarlo.
+- El monitor registra por separado la escritura y la lectura de comprobación.
+- Si el actuador responde, la interfaz recibe el estado real confirmado por el bus y la dirección física de origen.
+- Si la lectura de verificación no obtiene respuesta, la escritura sigue considerándose aceptada cuando el gateway confirmó su ACK.
+- Las estadísticas contabilizan por separado el telegrama de escritura y el telegrama de lectura de verificación.
