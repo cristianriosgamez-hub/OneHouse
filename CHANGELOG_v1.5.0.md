@@ -105,3 +105,13 @@ Esta entrega convierte la configuración importada en un catálogo normalizado y
 - Eliminado `toSortedMap(...)` del agrupado de habitaciones para evitar la advertencia de API 35 (`SequencedMap`) en dispositivos con Android 10–14.
 - La ordenación de habitaciones se realiza ahora sobre una lista de entradas y conserva el orden alfabético sin depender de APIs recientes.
 - Sustituido `DeviceSortMode.values()` por `DeviceSortMode.entries`.
+
+## v1.5.0 – Entrega 10
+
+- Recepción real de telegramas `GroupValueResponse` y `GroupValueWrite` durante las lecturas KNX/IP.
+- Confirmación automática de los telegramas entrantes mediante `TunnellingAck`.
+- Decodificación inicial de valores booleanos DPT 1.x.
+- Actualización del estado del dispositivo con origen `BUS_RESPONSE`.
+- Registro de telegramas entrantes en el monitor KNX con dirección de origen y destino.
+- Las lecturas masivas actualizan todos los dispositivos asociados a la dirección recibida.
+- Mensaje diferenciado cuando la petición se confirma pero el dispositivo no responde.

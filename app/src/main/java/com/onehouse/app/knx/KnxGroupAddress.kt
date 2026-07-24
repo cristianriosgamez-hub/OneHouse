@@ -22,6 +22,11 @@ value class KnxGroupAddress private constructor(val raw: Int) {
             return KnxGroupAddress((main shl 11) or (middle shl 8) or sub)
         }
 
+        fun fromRaw(raw: Int): KnxGroupAddress {
+            require(raw in 0..0xFFFF) { "Dirección KNX fuera de rango" }
+            return KnxGroupAddress(raw)
+        }
+
         fun parse(value: String): KnxGroupAddress {
             val parts = value.trim().split('/')
             require(parts.size == 3) { "Dirección KNX inválida. Usa el formato 1/2/3" }

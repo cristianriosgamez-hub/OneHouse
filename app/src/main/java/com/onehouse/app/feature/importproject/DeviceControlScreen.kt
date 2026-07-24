@@ -89,18 +89,25 @@ fun DeviceControlScreen(device: ImportedKnxDevice, onBack: () -> Unit) {
         executor.execute(command, toggleValue) { result ->
             isBusy = false
             when (result) {
-                KnxCommandExecutor.Result.Success -> {
+                is KnxCommandExecutor.Result.Success -> {
+                    if (result.busValue != null) {
+                        stateRepository.updateFromBus(device.id, result.busValue)
+                    }
                     when (command.type) {
-                        KnxCommandType.ON -> stateRepository.updateFromLocalCommand(device.id, "Encendido")
-                        KnxCommandType.OFF -> stateRepository.updateFromLocalCommand(device.id, "Apagado")
-                        KnxCommandType.TOGGLE -> stateRepository.updateFromLocalCommand(
+                        KnxCommandType.ON -> if (result.busValue == null) stateRepository.updateFromLocalCommand(device.id, "Encendido")
+                        KnxCommandType.OFF -> if (result.busValue == null) stateRepository.updateFromLocalCommand(device.id, "Apagado")
+                        KnxCommandType.TOGGLE -> if (result.busValue == null) stateRepository.updateFromLocalCommand(
                             device.id,
                             if (toggleValue == true) "Encendido" else "Apagado"
                         )
                         else -> Unit
                     }
                     status = when (command.type) {
-                        KnxCommandType.READ -> "Solicitud de lectura confirmada por KNX/IP"
+                        KnxCommandType.READ -> if (result.busValue != null) {
+                            "Estado recibido del bus: ${result.busValue}"
+                        } else {
+                            "Solicitud confirmada, pero el dispositivo no respondió"
+                        }
                         else -> "Telegrama ${command.type.displayName.lowercase()} confirmado"
                     }
                 }

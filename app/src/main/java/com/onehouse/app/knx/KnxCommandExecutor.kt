@@ -13,7 +13,10 @@ import java.io.Closeable
  */
 class KnxCommandExecutor(context: Context) : Closeable {
     sealed interface Result {
-        data object Success : Result
+        data class Success(
+            val busValue: String? = null,
+            val sourceAddress: String? = null
+        ) : Result
         data class Failure(val message: String) : Result
     }
 
@@ -77,7 +80,27 @@ class KnxCommandExecutor(context: Context) : Closeable {
                     connectionManager.sendTelegram(telegram) { operation ->
                         connectionManager.disconnect()
                         val result = when (operation) {
-                            KnxConnectionManager.OperationResult.Success -> Result.Success
+                            is KnxConnectionManager.OperationResult.Success -> {
+                                val incoming = operation.incoming
+                                if (incoming != null) {
+                                    val value = incoming.booleanValue?.let { if (it) "Encendido" else "Apagado" }
+                                    monitorRepository.record(
+                                        direction = KnxTelegramEvent.Direction.INCOMING,
+                                        kind = if (incoming.kind == KnxConnectionManager.IncomingGroupTelegram.Kind.RESPONSE) {
+                                            KnxTelegramEvent.Kind.GROUP_VALUE_RESPONSE
+                                        } else {
+                                            KnxTelegramEvent.Kind.GROUP_VALUE_WRITE
+                                        },
+                                        groupAddress = incoming.destination.toString(),
+                                        value = incoming.booleanValue?.let { if (it) "1" else "0" },
+                                        status = KnxTelegramEvent.Status.RECEIVED,
+                                        detail = "Origen ${incoming.sourceAddress}"
+                                    )
+                                    Result.Success(value, incoming.sourceAddress)
+                                } else {
+                                    Result.Success()
+                                }
+                            }
                             is KnxConnectionManager.OperationResult.Failure -> Result.Failure(operation.detail)
                             is KnxConnectionManager.OperationResult.NotAvailable -> Result.Failure(operation.detail)
                         }

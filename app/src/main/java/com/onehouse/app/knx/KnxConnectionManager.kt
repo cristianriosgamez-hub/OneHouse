@@ -45,9 +45,18 @@ class KnxConnectionManager(
     }
 
     sealed interface OperationResult {
-        data object Success : OperationResult
+        data class Success(val incoming: IncomingGroupTelegram? = null) : OperationResult
         data class Failure(val detail: String) : OperationResult
         data class NotAvailable(val detail: String) : OperationResult
+    }
+
+    data class IncomingGroupTelegram(
+        val kind: Kind,
+        val sourceAddress: String,
+        val destination: KnxGroupAddress,
+        val booleanValue: Boolean?
+    ) {
+        enum class Kind { WRITE, RESPONSE }
     }
 
     private val mainHandler = Handler(Looper.getMainLooper())
@@ -171,26 +180,53 @@ class KnxConnectionManager(
             udpSocket.soTimeout = timeoutMillis
             udpSocket.send(DatagramPacket(request, request.size))
 
-            val responseBuffer = ByteArray(KnxProtocol.MAX_PACKET_SIZE)
-            val response = DatagramPacket(responseBuffer, responseBuffer.size)
-            udpSocket.receive(response)
-            when (val ack = KnxProtocol.parseTunnellingAck(response.data, response.length)) {
-                is KnxProtocol.TunnellingAck.Accepted -> {
-                    if (ack.channelId == currentChannel && ack.sequence == sequence) {
-                        OperationResult.Success
-                    } else {
-                        OperationResult.Failure("Confirmación KNX/IP no corresponde al telegrama enviado")
+            var acknowledged = false
+            var incoming: IncomingGroupTelegram? = null
+            val deadline = System.currentTimeMillis() + timeoutMillis
+            while (System.currentTimeMillis() < deadline && (!acknowledged || (telegram is KnxTelegram.GroupValueRead && incoming == null))) {
+                val remaining = (deadline - System.currentTimeMillis()).coerceAtLeast(1L).toInt()
+                udpSocket.soTimeout = remaining
+                val responseBuffer = ByteArray(KnxProtocol.MAX_PACKET_SIZE)
+                val response = DatagramPacket(responseBuffer, responseBuffer.size)
+                try {
+                    udpSocket.receive(response)
+                } catch (_: SocketTimeoutException) {
+                    break
+                }
+
+                when (KnxProtocol.serviceType(response.data, response.length)) {
+                    KnxProtocol.TUNNELLING_ACK_SERVICE -> {
+                        when (val ack = KnxProtocol.parseTunnellingAck(response.data, response.length)) {
+                            is KnxProtocol.TunnellingAck.Accepted -> {
+                                if (ack.channelId == currentChannel && ack.sequence == sequence) acknowledged = true
+                            }
+                            is KnxProtocol.TunnellingAck.Rejected -> {
+                                return OperationResult.Failure("Telegrama rechazado por KNX/IP (estado ${ack.status})")
+                            }
+                            KnxProtocol.TunnellingAck.Invalid -> Unit
+                        }
+                    }
+                    KnxProtocol.TUNNELLING_REQUEST_SERVICE -> {
+                        val parsed = KnxProtocol.parseIncomingGroupTelegram(response.data, response.length)
+                        if (parsed != null) {
+                            val ackPacket = KnxProtocol.buildTunnellingAck(
+                                channelId = parsed.channelId,
+                                sequence = parsed.sequence
+                            )
+                            udpSocket.send(DatagramPacket(ackPacket, ackPacket.size))
+                            if (parsed.telegram.destination == telegram.destination) incoming = parsed.telegram
+                        }
                     }
                 }
-                is KnxProtocol.TunnellingAck.Rejected -> {
-                    OperationResult.Failure("Telegrama rechazado por KNX/IP (estado ${ack.status})")
-                }
-                KnxProtocol.TunnellingAck.Invalid -> {
-                    OperationResult.Failure("Respuesta KNX/IP no válida")
-                }
+            }
+
+            if (!acknowledged) {
+                OperationResult.Failure("No se recibió confirmación KNX/IP del telegrama")
+            } else {
+                OperationResult.Success(incoming)
             }
         } catch (_: SocketTimeoutException) {
-            OperationResult.Failure("Tiempo de espera agotado al enviar el telegrama KNX")
+            OperationResult.Failure("Tiempo de espera agotado al enviar o recibir el telegrama KNX")
         } catch (error: Exception) {
             OperationResult.Failure(error.localizedMessage ?: error.javaClass.simpleName)
         }
@@ -345,6 +381,8 @@ internal object KnxProtocol {
     private const val DISCONNECT_REQUEST = 0x0209
     private const val TUNNELLING_REQUEST = 0x0420
     private const val TUNNELLING_ACK = 0x0421
+    const val TUNNELLING_REQUEST_SERVICE = TUNNELLING_REQUEST
+    const val TUNNELLING_ACK_SERVICE = TUNNELLING_ACK
 
     fun buildConnectRequest(localAddress: Inet4Address, localPort: Int): ByteArray {
         val hpai = buildHpai(localAddress, localPort)
@@ -391,6 +429,56 @@ internal object KnxProtocol {
             (sequence and 0xFF).toByte(),
             0x00,
             *cemi
+        )
+    }
+
+    fun serviceType(data: ByteArray, length: Int): Int? {
+        if (length < 6) return null
+        if ((data[0].toInt() and 0xFF) != 6 || (data[1].toInt() and 0xFF) != 0x10) return null
+        return ((data[2].toInt() and 0xFF) shl 8) or (data[3].toInt() and 0xFF)
+    }
+
+    fun buildTunnellingAck(channelId: Int, sequence: Int): ByteArray = byteArrayOf(
+        0x06, 0x10, 0x04, 0x21, 0x00, 0x0A,
+        0x04, (channelId and 0xFF).toByte(), (sequence and 0xFF).toByte(), 0x00
+    )
+
+    data class ParsedIncoming(
+        val channelId: Int,
+        val sequence: Int,
+        val telegram: KnxConnectionManager.IncomingGroupTelegram
+    )
+
+    fun parseIncomingGroupTelegram(data: ByteArray, length: Int): ParsedIncoming? {
+        if (serviceType(data, length) != TUNNELLING_REQUEST || length < 21) return null
+        val totalLength = ((data[4].toInt() and 0xFF) shl 8) or (data[5].toInt() and 0xFF)
+        if (totalLength !in 21..length || (data[6].toInt() and 0xFF) != 4) return null
+        val channel = data[7].toInt() and 0xFF
+        val sequence = data[8].toInt() and 0xFF
+        val cemiOffset = 10
+        val additionalLength = data[cemiOffset + 1].toInt() and 0xFF
+        val frameOffset = cemiOffset + 2 + additionalLength
+        if (frameOffset + 9 >= length) return null
+        val sourceRaw = ((data[frameOffset + 2].toInt() and 0xFF) shl 8) or (data[frameOffset + 3].toInt() and 0xFF)
+        val destinationRaw = ((data[frameOffset + 4].toInt() and 0xFF) shl 8) or (data[frameOffset + 5].toInt() and 0xFF)
+        val apduSecond = data[frameOffset + 8].toInt() and 0xFF
+        val apci = apduSecond and 0xC0
+        val kind = when (apci) {
+            0x40 -> KnxConnectionManager.IncomingGroupTelegram.Kind.RESPONSE
+            0x80 -> KnxConnectionManager.IncomingGroupTelegram.Kind.WRITE
+            else -> return null
+        }
+        val source = "${(sourceRaw ushr 12) and 0x0F}.${(sourceRaw ushr 8) and 0x0F}.${sourceRaw and 0xFF}"
+        val destination = KnxGroupAddress.fromRaw(destinationRaw)
+        return ParsedIncoming(
+            channelId = channel,
+            sequence = sequence,
+            telegram = KnxConnectionManager.IncomingGroupTelegram(
+                kind = kind,
+                sourceAddress = source,
+                destination = destination,
+                booleanValue = (apduSecond and 0x01) == 1
+            )
         )
     }
 

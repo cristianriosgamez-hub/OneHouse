@@ -21,6 +21,7 @@ class KnxBulkStateReader(context: Context) : Closeable {
 
     private val appContext = context.applicationContext
     private val cancelled = AtomicBoolean(false)
+    private val stateRepository = KnxDeviceStateRepository(context.applicationContext)
     private var activeExecutor: KnxCommandExecutor? = null
 
     fun read(
@@ -59,6 +60,13 @@ class KnxBulkStateReader(context: Context) : Closeable {
                 executor.close()
                 if (activeExecutor === executor) activeExecutor = null
                 if (cancelled.get()) return@execute
+                if (result is KnxCommandExecutor.Result.Success && result.busValue != null) {
+                    devices.filter { device ->
+                        command.destination in device.readAddresses || command.destination in device.writeAddresses
+                    }.forEach { device ->
+                        stateRepository.updateFromBus(device.id, result.busValue)
+                    }
+                }
                 val nextFailures = failures + if (result is KnxCommandExecutor.Result.Failure) 1 else 0
                 onProgress(
                     Progress(
