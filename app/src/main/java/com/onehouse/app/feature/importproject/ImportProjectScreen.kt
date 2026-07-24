@@ -336,8 +336,21 @@ private fun ProjectContent(
     }
     val sortedDevices = remember(filteredDevices, sortMode) {
         when (sortMode) {
-            DeviceSortMode.ROOM -> filteredDevices.sortedWith(compareBy<ImportedKnxDevice>(String.CASE_INSENSITIVE_ORDER) { it.roomName }.thenBy(String.CASE_INSENSITIVE_ORDER) { it.name })
-            DeviceSortMode.NAME -> filteredDevices.sortedWith(compareBy<ImportedKnxDevice>(String.CASE_INSENSITIVE_ORDER) { it.name })
+            DeviceSortMode.ROOM -> filteredDevices.sortedWith(
+                Comparator { first, second ->
+                    val roomComparison = first.roomName.compareTo(second.roomName, ignoreCase = true)
+                    if (roomComparison != 0) {
+                        roomComparison
+                    } else {
+                        first.name.compareTo(second.name, ignoreCase = true)
+                    }
+                }
+            )
+            DeviceSortMode.NAME -> filteredDevices.sortedWith(
+                Comparator { first, second ->
+                    first.name.compareTo(second.name, ignoreCase = true)
+                }
+            )
             DeviceSortMode.ADDRESS -> filteredDevices.sortedBy { it.primaryWriteAddress?.toString() ?: it.primaryReadAddress?.toString().orEmpty() }
         }
     }

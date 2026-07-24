@@ -93,3 +93,9 @@ Esta entrega convierte la configuración importada en un catálogo normalizado y
 - Persistencia de las habitaciones plegadas entre aperturas de la pantalla.
 - Deduplicación de direcciones para evitar lecturas repetidas y saturación del túnel KNX/IP.
 - Base de sincronización preparada para asociar futuras respuestas del bus con el repositorio de estados.
+
+## Entrega 9 Rev.2
+
+- Corregida la ordenación por habitación y nombre en `ImportProjectScreen`.
+- Sustituidas las llamadas incompatibles a `compareBy` por comparadores explícitos.
+- Eliminados los errores de compilación `None of the following candidates is applicable` y `Unresolved reference: it`.
