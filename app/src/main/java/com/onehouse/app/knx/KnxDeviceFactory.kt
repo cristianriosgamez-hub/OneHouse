@@ -14,21 +14,9 @@ object KnxDeviceFactory {
     fun create(index: Int, source: ImportedKnxObject): ImportedKnxDevice {
         val readAddresses = source.readAddresses.mapNotNull(::parseAddress)
         val importedWriteAddresses = source.writeAddresses.mapNotNull(::parseAddress)
-
-        /*
-         * Algunos proyectos antiguos de InsideControl guardan luces e interruptores
-         * binarios únicamente en DEVICE_READ_ADD, aunque la misma dirección de grupo
-         * sea la que la aplicación original utilizaba también para escribir.
-         *
-         * Sin esta compatibilidad el dispositivo se clasificaba como "Solo lectura",
-         * no se construían comandos ON/OFF y, por tanto, nunca podía generarse un
-         * GroupValueWrite. Para controles inequívocamente escribibles reutilizamos la
-         * primera dirección de lectura cuando no existe ninguna dirección de escritura.
-         */
         val writeAddresses = importedWriteAddresses.ifEmpty {
-            inferredLegacyWriteAddresses(source, readAddresses)
+            inferWriteAddresses(source, readAddresses)
         }
-
         val kind = controlKindFor(source, writeAddresses.isNotEmpty())
         val resolvedDpt = KnxDptResolver.resolve(source, kind)
         val stableAddress = (source.writeAddresses + source.readAddresses).firstOrNull().orEmpty()
@@ -56,33 +44,38 @@ object KnxDeviceFactory {
         runCatching { KnxGroupAddress.parse(raw) }.getOrNull()
 
     /**
-     * Compatibilidad con exportaciones antiguas de InsideControl.
+     * InsideControl puede exportar únicamente la dirección de estado de una luz.
+     * En las instalaciones analizadas, el patrón ETS es:
      *
-     * La inferencia se limita a categorías que representan controles y nunca se aplica
-     * a sensores, temperaturas, contadores o alarmas. Se reutiliza una sola dirección
-     * para evitar convertir accidentalmente una dirección auxiliar de estado en mando.
+     *  - 1/1/x: mando ON/OFF
+     *  - 1/2/x: estado ON/OFF
+     *
+     * Solo aplicamos esta inferencia a luces e interruptores sin ninguna dirección
+     * de escritura importada. El resto de categorías conserva el comportamiento
+     * de solo lectura para evitar escrituras sobre direcciones de estado.
      */
-    private fun inferredLegacyWriteAddresses(
+    private fun inferWriteAddresses(
         source: ImportedKnxObject,
         readAddresses: List<KnxGroupAddress>
     ): List<KnxGroupAddress> {
-        if (readAddresses.isEmpty()) return emptyList()
-
-        val categoryCanWrite = when (source.category) {
-            ImportedKnxCategory.LIGHT,
-            ImportedKnxCategory.SWITCH,
-            ImportedKnxCategory.BLIND,
-            ImportedKnxCategory.SCENE -> true
-
-            ImportedKnxCategory.CLIMATE,
-            ImportedKnxCategory.TEMPERATURE,
-            ImportedKnxCategory.SENSOR,
-            ImportedKnxCategory.ALARM,
-            ImportedKnxCategory.METER,
-            ImportedKnxCategory.UNKNOWN -> false
+        if (source.category != ImportedKnxCategory.LIGHT &&
+            source.category != ImportedKnxCategory.SWITCH
+        ) {
+            return emptyList()
         }
 
-        return if (categoryCanWrite) listOf(readAddresses.first()) else emptyList()
+        return readAddresses.mapNotNull { readAddress ->
+            when {
+                readAddress.main == 1 && readAddress.middle == 2 ->
+                    KnxGroupAddress.of(
+                        main = readAddress.main,
+                        middle = 1,
+                        sub = readAddress.sub
+                    )
+
+                else -> null
+            }
+        }.distinct()
     }
 
     private fun controlKindFor(source: ImportedKnxObject, hasWriteAddress: Boolean): ControlKind {
