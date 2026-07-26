@@ -12,23 +12,35 @@ import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import com.onehouse.app.R
 import com.onehouse.app.design.FondoInferior
 import com.onehouse.app.design.FondoSuperior
+import com.onehouse.app.knx.KnxCommand
+import com.onehouse.app.knx.KnxCommandExecutor
+import com.onehouse.app.knx.KnxCommandType
+import com.onehouse.app.knx.KnxGroupAddress
 
 @Composable
 fun RoomDetailScreen(roomType: RoomType, onBack: () -> Unit) {
+    val context = LocalContext.current
+    val commandExecutor = remember { KnxCommandExecutor(context) }
     var contentVisible by remember(roomType) { mutableStateOf(false) }
     var state by remember(roomType) { mutableStateOf(initialState(roomType)) }
+
+    DisposableEffect(commandExecutor) {
+        onDispose { commandExecutor.close() }
+    }
 
     LaunchedEffect(roomType) { contentVisible = true }
 
@@ -64,8 +76,23 @@ fun RoomDetailScreen(roomType: RoomType, onBack: () -> Unit) {
                     title = mainLightTitle(roomType),
                     enabled = state.mainLightOn,
                     onEnabledChange = { enabled ->
+                        val previousValue = state.mainLightOn
                         state = state.copy(mainLightOn = enabled)
-                        RoomKnxGatewayProvider.gateway.setMainLight(roomType, enabled)
+
+                        if (roomType == RoomType.HALLWAY) {
+                            val command = KnxCommand(
+                                type = if (enabled) KnxCommandType.ON else KnxCommandType.OFF,
+                                destination = KnxGroupAddress.parse(HALLWAY_LIGHT_GROUP_ADDRESS),
+                                dpt = "1.001"
+                            )
+                            commandExecutor.execute(command) { result ->
+                                if (result is KnxCommandExecutor.Result.Failure) {
+                                    state = state.copy(mainLightOn = previousValue)
+                                }
+                            }
+                        } else {
+                            RoomKnxGatewayProvider.gateway.setMainLight(roomType, enabled)
+                        }
                     }
                 )
 
@@ -179,9 +206,11 @@ private fun BlindControl(
     )
 }
 
+private const val HALLWAY_LIGHT_GROUP_ADDRESS = "1/2/9"
+
 private fun initialState(roomType: RoomType): RoomControlState = when (roomType) {
     RoomType.ENTRANCE -> RoomControlState(mainLightOn = true, temperatureCelsius = 22.4f)
-    RoomType.HALLWAY -> RoomControlState(mainLightOn = true)
+    RoomType.HALLWAY -> RoomControlState(mainLightOn = false)
     RoomType.STORAGE -> RoomControlState(mainLightOn = true)
     RoomType.BATHROOM -> RoomControlState(mainLightOn = true, floodDetected = false)
     RoomType.KITCHEN -> RoomControlState(
