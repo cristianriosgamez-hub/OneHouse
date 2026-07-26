@@ -24,7 +24,8 @@ data class RoomControlState(
     val temperatureCelsius: Float? = null,
     val pirBlocked: Boolean = false,
     val floodDetected: Boolean = false,
-    val lastBlindCommand: BlindCommand = BlindCommand.STOP
+    val lastBlindCommand: BlindCommand = BlindCommand.STOP,
+    val blindPositionPercent: Float? = null
 )
 
 /**

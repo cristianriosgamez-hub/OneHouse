@@ -20,8 +20,11 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
@@ -50,6 +53,10 @@ import com.onehouse.app.design.VerdeEstado
 import com.onehouse.app.feature.rooms.RoomItem
 import com.onehouse.app.feature.weather.WeatherUiState
 import com.onehouse.app.feature.weather.rememberWeatherState
+import com.onehouse.app.feature.home.state.HomeDashboardUiState
+import com.onehouse.app.feature.home.state.HomeStateMapper
+import com.onehouse.app.knx.KnxHomeSnapshot
+import com.onehouse.app.knx.KnxHomeStateRepository
 import java.util.Locale
 
 @Composable
@@ -58,6 +65,10 @@ fun HomeScreen(
     onFavoriteSelected: (String) -> Unit
 ) {
     val exteriorWeather = rememberWeatherState()
+    val context = LocalContext.current
+    val homeRepository = remember { KnxHomeStateRepository(context) }
+    val homeState by homeRepository.stateFlow.collectAsState(initial = homeRepository.snapshot())
+    val dashboardState = remember(homeState) { HomeStateMapper.dashboard(homeState) }
 
     Box(
         modifier = Modifier
@@ -92,10 +103,10 @@ fun HomeScreen(
             )
 
             Spacer(modifier = Modifier.height(22.dp))
-            ClimateHeroCard()
+            ClimateHeroCard(dashboardState)
 
             Spacer(modifier = Modifier.height(16.dp))
-            QuickStatusGrid(exteriorWeather)
+            QuickStatusGrid(exteriorWeather, dashboardState)
 
             Spacer(modifier = Modifier.height(26.dp))
             Row(
@@ -123,7 +134,7 @@ fun HomeScreen(
 }
 
 @Composable
-private fun ClimateHeroCard() {
+private fun ClimateHeroCard(homeState: HomeDashboardUiState) {
     OneHouseCard(modifier = Modifier.fillMaxWidth()) {
         Column(
             modifier = Modifier
@@ -150,7 +161,9 @@ private fun ClimateHeroCard() {
                     Spacer(modifier = Modifier.height(8.dp))
                     Row(verticalAlignment = Alignment.Bottom) {
                         Text(
-                            text = "22,5",
+                            text = homeState.climate.currentTemperature?.let {
+                                String.format(Locale("es", "ES"), "%.1f", it)
+                            } ?: "--,-",
                             color = TextoPrincipal,
                             fontSize = 46.sp,
                             lineHeight = 48.sp,
@@ -172,7 +185,7 @@ private fun ClimateHeroCard() {
 
                 Surface(color = FondoChip, shape = RoundedCornerShape(50)) {
                     Text(
-                        text = "❄  Frío",
+                        text = "❄  ${homeState.climate.mode ?: "Sin datos"}",
                         modifier = Modifier.padding(horizontal = 14.dp, vertical = 9.dp),
                         color = AzulClaro,
                         style = MaterialTheme.typography.labelLarge,
@@ -188,19 +201,25 @@ private fun ClimateHeroCard() {
             Row(modifier = Modifier.fillMaxWidth()) {
                 OneHouseStatusItem(
                     title = "Estado",
-                    value = "Encendido",
-                    valueColor = VerdeEstado,
+                    value = when (homeState.climate.powered) {
+                        true -> "Encendido"
+                        false -> "Apagado"
+                        null -> "Sin datos"
+                    },
+                    valueColor = if (homeState.climate.powered == true) VerdeEstado else TextoSecundario,
                     modifier = Modifier.weight(1f)
                 )
                 OneHouseStatusItem(
                     title = "Consigna",
-                    value = "23 °C",
+                    value = homeState.climate.targetTemperature?.let {
+                        String.format(Locale("es", "ES"), "%.1f °C", it)
+                    } ?: "-- °C",
                     modifier = Modifier.weight(1f)
                 )
                 OneHouseStatusItem(
-                    title = "Consumo ACS",
-                    value = "4,8 kW",
-                    valueColor = AmarilloEstado,
+                    title = "Ventilador",
+                    value = homeState.climate.fanSpeed ?: "Sin datos",
+                    valueColor = AzulClaro,
                     modifier = Modifier.weight(1f)
                 )
             }
@@ -209,11 +228,13 @@ private fun ClimateHeroCard() {
 }
 
 @Composable
-private fun QuickStatusGrid(weather: WeatherUiState) {
+private fun QuickStatusGrid(weather: WeatherUiState, homeState: HomeDashboardUiState) {
     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
         OneHouseInfoCard(
             title = "Persianas",
-            value = "2 de 4 abiertas",
+            value = if (homeState.blindsTotal > 0) {
+                "${homeState.blindsOpen} de ${homeState.blindsTotal} abiertas"
+            } else "Sin datos",
             detail = "Estado general",
             symbol = "▥",
             modifier = Modifier.weight(1f).height(146.dp)
@@ -239,7 +260,9 @@ private fun QuickStatusGrid(weather: WeatherUiState) {
     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
         OneHouseInfoCard(
             title = "Luces",
-            value = "3 de 12 encendidas",
+            value = if (homeState.lightsTotal > 0) {
+                "${homeState.lightsOn} de ${homeState.lightsTotal} encendidas"
+            } else "Sin datos",
             detail = "Estado general",
             symbol = "☀",
             symbolColor = AmarilloEstado,

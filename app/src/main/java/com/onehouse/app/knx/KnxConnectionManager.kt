@@ -645,13 +645,6 @@ internal object KnxProtocol {
 
         val source = "${(sourceRaw ushr 12) and 0x0F}.${(sourceRaw ushr 8) and 0x0F}.${sourceRaw and 0xFF}"
         val destination = KnxGroupAddress.fromRaw(destinationRaw)
-        val payload = if (dataLength <= 1) {
-            byteArrayOf((apduSecond and 0x3F).toByte())
-        } else {
-            val payloadStart = apduSecondOffset + 1
-            val payloadEnd = minOf(payloadStart + dataLength - 1, totalLength)
-            if (payloadStart < payloadEnd) data.copyOfRange(payloadStart, payloadEnd) else byteArrayOf()
-        }
         val cemi = data.copyOfRange(cemiOffset, totalLength)
         return ParsedIncoming(
             channelId = channel,
@@ -661,7 +654,13 @@ internal object KnxProtocol {
                 sourceAddress = source,
                 destination = destination,
                 booleanValue = if (dataLength <= 1) (apduSecond and 0x01) == 1 else null,
-                payload = payload,
+                payload = if (dataLength <= 1) {
+                    byteArrayOf((apduSecond and 0x01).toByte())
+                } else {
+                    val payloadStart = apduSecondOffset + 1
+                    val payloadEnd = minOf(length, frameOffset + 8 + dataLength)
+                    if (payloadStart < payloadEnd) data.copyOfRange(payloadStart, payloadEnd) else byteArrayOf()
+                },
                 messageCode = messageCode,
                 apci = apciName,
                 cemiHex = KnxHex.format(cemi)

@@ -230,6 +230,7 @@ internal fun RoomTemperatureCard(temperature: Float) {
 @Composable
 internal fun RoomBlindCard(
     lastCommand: BlindCommand,
+    positionPercent: Float? = null,
     onCommand: (BlindCommand) -> Unit
 ) {
     RoomPremiumCard {
@@ -239,7 +240,7 @@ internal fun RoomBlindCard(
             Column(modifier = Modifier.weight(1f)) {
                 Text("Persiana", color = TextoPrincipal, fontSize = 17.sp, fontWeight = FontWeight.SemiBold)
                 Text(
-                    when (lastCommand) {
+                    positionPercent?.let { "Posición real ${it.toInt()} %" } ?: when (lastCommand) {
                         BlindCommand.UP -> "Subiendo"
                         BlindCommand.STOP -> "Detenida"
                         BlindCommand.DOWN -> "Bajando"
@@ -416,66 +417,53 @@ private fun roomSymbol(type: RoomType): String = when (type) {
 }
 
 @Composable
-internal fun RoomKnxValueCard(
-    title: String,
-    value: String,
-    subtitle: String = "Estado KNX",
-    symbol: String = "◉",
-    accent: Color = RoomBlue
+internal fun RoomClimateCard(
+    powered: Boolean?,
+    currentTemperature: Float?,
+    targetTemperature: Float?,
+    mode: String?,
+    fanSpeed: String?
 ) {
     RoomPremiumCard {
-        Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-            RoomIconBox(symbol = symbol, accent = accent)
-            Spacer(Modifier.size(14.dp))
-            Column(modifier = Modifier.weight(1f)) {
-                Text(title, color = TextoPrincipal, fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
-                Text(subtitle, color = TextoSecundario, fontSize = 11.sp)
+        Column {
+            Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                RoomIconBox(symbol = "❄", accent = RoomBlue)
+                Spacer(Modifier.size(14.dp))
+                Column(modifier = Modifier.weight(1f)) {
+                    Text("Climatización", color = TextoPrincipal, fontSize = 17.sp, fontWeight = FontWeight.SemiBold)
+                    Text(
+                        when (powered) {
+                            true -> "Encendida"
+                            false -> "Apagada"
+                            null -> "Esperando estado KNX"
+                        },
+                        color = if (powered == true) RoomGreen else TextoSecundario,
+                        fontSize = 12.sp
+                    )
+                }
+                Text(
+                    currentTemperature?.let { String.format("%.1f °C", it) } ?: "-- °C",
+                    color = RoomOrange,
+                    fontSize = 23.sp,
+                    fontWeight = FontWeight.SemiBold
+                )
             }
-            Text(value, color = accent, fontSize = 18.sp, fontWeight = FontWeight.SemiBold)
+
+            Spacer(Modifier.height(14.dp))
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                ClimateValue("Consigna", targetTemperature?.let { String.format("%.1f °C", it) } ?: "-- °C")
+                ClimateValue("Modo", mode ?: "Sin datos")
+                ClimateValue("Ventilador", fanSpeed ?: "Sin datos")
+            }
         }
     }
 }
 
 @Composable
-internal fun RoomBlindStatusCard(
-    title: String,
-    positionPercent: Int?,
-    updated: Boolean
-) {
-    RoomPremiumCard {
-        Column {
-            Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                RoomIconBox(symbol = "▤", accent = RoomBlue)
-                Spacer(Modifier.size(14.dp))
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(title, color = TextoPrincipal, fontSize = 17.sp, fontWeight = FontWeight.SemiBold)
-                    Text(
-                        if (updated) "Posición recibida del bus" else "Esperando estado KNX",
-                        color = TextoSecundario,
-                        fontSize = 11.sp
-                    )
-                }
-                Text(
-                    positionPercent?.let { "$it %" } ?: "—",
-                    color = RoomBlue,
-                    fontSize = 22.sp,
-                    fontWeight = FontWeight.SemiBold
-                )
-            }
-            Spacer(Modifier.height(14.dp))
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(9.dp)
-                    .background(RoomBlue.copy(alpha = 0.12f), RoundedCornerShape(8.dp))
-            ) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth((positionPercent ?: 0).coerceIn(0, 100) / 100f)
-                        .height(9.dp)
-                        .background(RoomBlue, RoundedCornerShape(8.dp))
-                )
-            }
-        }
+private fun ClimateValue(title: String, value: String) {
+    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+        Text(title, color = TextoSecundario, fontSize = 10.sp)
+        Spacer(Modifier.height(3.dp))
+        Text(value, color = TextoPrincipal, fontSize = 12.sp, fontWeight = FontWeight.Medium)
     }
 }
