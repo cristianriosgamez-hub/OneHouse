@@ -1,0 +1,11 @@
+OneHouse — Entrega 20
+
+- Las pantallas bonitas de las habitaciones se alimentan del proyecto InsideControl importado.
+- Las luces muestran el estado KNX real y envían ON/OFF por su dirección de mando.
+- Al entrar en una estancia se ejecuta una lectura secuencial de sus estados.
+- Las persianas muestran su porcentaje real mediante el estado DPT 5.001.
+- Climatización y sensores muestran temperatura, modo, ventilador, ON/OFF y mediciones disponibles.
+- El parser KNX conserva ahora la carga útil APDU de telegramas de varios bytes.
+- El repositorio persiste el valor KNX bruto para poder interpretar DPT 5.x y 9.x en la interfaz.
+
+Nota: la compilación Gradle no pudo ejecutarse en el entorno porque el wrapper requiere descargar Gradle 9.5.0.

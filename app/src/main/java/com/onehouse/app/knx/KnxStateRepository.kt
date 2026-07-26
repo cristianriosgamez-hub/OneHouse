@@ -105,8 +105,12 @@ class KnxStateRepository(context: Context) {
             states[address] = State(
                 groupAddress = address,
                 booleanValue = telegram.booleanValue,
-                rawValue = telegram.booleanValue?.let { value ->
-                    if (value) "1" else "0"
+                rawValue = when {
+                    telegram.payload.isNotEmpty() -> telegram.payload.joinToString("") { byte ->
+                        "%02X".format(byte.toInt() and 0xFF)
+                    }
+                    telegram.booleanValue != null -> if (telegram.booleanValue) "1" else "0"
+                    else -> null
                 },
                 sourceAddress = telegram.sourceAddress,
                 telegramKind = telegram.kind,

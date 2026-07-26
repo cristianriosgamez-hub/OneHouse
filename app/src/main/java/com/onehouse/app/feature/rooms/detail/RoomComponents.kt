@@ -414,3 +414,68 @@ private fun roomSymbol(type: RoomType): String = when (type) {
     RoomType.DINING_ROOM -> "◫"
     RoomType.SUITE -> "▣"
 }
+
+@Composable
+internal fun RoomKnxValueCard(
+    title: String,
+    value: String,
+    subtitle: String = "Estado KNX",
+    symbol: String = "◉",
+    accent: Color = RoomBlue
+) {
+    RoomPremiumCard {
+        Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            RoomIconBox(symbol = symbol, accent = accent)
+            Spacer(Modifier.size(14.dp))
+            Column(modifier = Modifier.weight(1f)) {
+                Text(title, color = TextoPrincipal, fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
+                Text(subtitle, color = TextoSecundario, fontSize = 11.sp)
+            }
+            Text(value, color = accent, fontSize = 18.sp, fontWeight = FontWeight.SemiBold)
+        }
+    }
+}
+
+@Composable
+internal fun RoomBlindStatusCard(
+    title: String,
+    positionPercent: Int?,
+    updated: Boolean
+) {
+    RoomPremiumCard {
+        Column {
+            Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                RoomIconBox(symbol = "▤", accent = RoomBlue)
+                Spacer(Modifier.size(14.dp))
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(title, color = TextoPrincipal, fontSize = 17.sp, fontWeight = FontWeight.SemiBold)
+                    Text(
+                        if (updated) "Posición recibida del bus" else "Esperando estado KNX",
+                        color = TextoSecundario,
+                        fontSize = 11.sp
+                    )
+                }
+                Text(
+                    positionPercent?.let { "$it %" } ?: "—",
+                    color = RoomBlue,
+                    fontSize = 22.sp,
+                    fontWeight = FontWeight.SemiBold
+                )
+            }
+            Spacer(Modifier.height(14.dp))
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(9.dp)
+                    .background(RoomBlue.copy(alpha = 0.12f), RoundedCornerShape(8.dp))
+            ) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth((positionPercent ?: 0).coerceIn(0, 100) / 100f)
+                        .height(9.dp)
+                        .background(RoomBlue, RoundedCornerShape(8.dp))
+                )
+            }
+        }
+    }
+}
