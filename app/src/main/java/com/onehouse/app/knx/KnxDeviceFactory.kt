@@ -44,38 +44,77 @@ object KnxDeviceFactory {
         runCatching { KnxGroupAddress.parse(raw) }.getOrNull()
 
     /**
-     * InsideControl puede exportar únicamente la dirección de estado de una luz.
-     * En las instalaciones analizadas, el patrón ETS es:
+     * Reconstruye las direcciones de mando que InsideControl puede omitir.
      *
-     *  - 1/1/x: mando ON/OFF
-     *  - 1/2/x: estado ON/OFF
+     * Patrones comprobados en proyectos ETS reales:
      *
-     * Solo aplicamos esta inferencia a luces e interruptores sin ninguna dirección
-     * de escritura importada. El resto de categorías conserva el comportamiento
-     * de solo lectura para evitar escrituras sobre direcciones de estado.
+     *  - Luces:       1/1/n mando, 1/2/n estado.
+     *  - Persianas:   2/1/n mando, 2/2/n estado de posición.
+     *  - Clima:       5/2/n mando, 5/3/n estado.
+     *
+     * La inferencia solo se usa cuando el proyecto importado no incluye ninguna
+     * dirección de escritura. Las direcciones explícitas siempre tienen prioridad.
      */
     private fun inferWriteAddresses(
         source: ImportedKnxObject,
         readAddresses: List<KnxGroupAddress>
-    ): List<KnxGroupAddress> {
-        if (source.category != ImportedKnxCategory.LIGHT &&
-            source.category != ImportedKnxCategory.SWITCH
-        ) {
-            return emptyList()
+    ): List<KnxGroupAddress> = when (source.category) {
+        ImportedKnxCategory.LIGHT,
+        ImportedKnxCategory.SWITCH -> inferParallelMiddleGroup(
+            readAddresses = readAddresses,
+            expectedMain = 1,
+            readMiddle = 2,
+            writeMiddle = 1
+        )
+
+        ImportedKnxCategory.BLIND -> inferBlindWriteAddresses(readAddresses)
+
+        ImportedKnxCategory.CLIMATE -> inferParallelMiddleGroup(
+            readAddresses = readAddresses,
+            expectedMain = 5,
+            readMiddle = 3,
+            writeMiddle = 2
+        )
+
+        else -> emptyList()
+    }
+
+    private fun inferParallelMiddleGroup(
+        readAddresses: List<KnxGroupAddress>,
+        expectedMain: Int,
+        readMiddle: Int,
+        writeMiddle: Int
+    ): List<KnxGroupAddress> = readAddresses.mapNotNull { readAddress ->
+        if (readAddress.main == expectedMain && readAddress.middle == readMiddle) {
+            KnxGroupAddress.of(
+                main = expectedMain,
+                middle = writeMiddle,
+                sub = readAddress.sub
+            )
+        } else {
+            null
         }
+    }.distinct()
 
-        return readAddresses.mapNotNull { readAddress ->
-            when {
-                readAddress.main == 1 && readAddress.middle == 2 ->
-                    KnxGroupAddress.of(
-                        main = readAddress.main,
-                        middle = 1,
-                        sub = readAddress.sub
-                    )
+    /**
+     * En el esquema de persianas, la dirección de estado de altura mantiene el
+     * mismo subgrupo que la escritura de posición. Los dos subgrupos anteriores
+     * corresponden a movimiento Up/Down y Stop, respectivamente.
+     *
+     * Ejemplo: estado 2/2/9 -> movimiento 2/1/7, stop 2/1/8, posición 2/1/9.
+     */
+    private fun inferBlindWriteAddresses(
+        readAddresses: List<KnxGroupAddress>
+    ): List<KnxGroupAddress> {
+        val positionState = readAddresses.firstOrNull { address ->
+            address.main == 2 && address.middle == 2 && address.sub >= 3
+        } ?: return emptyList()
 
-                else -> null
-            }
-        }.distinct()
+        return listOf(
+            KnxGroupAddress.of(2, 1, positionState.sub - 2),
+            KnxGroupAddress.of(2, 1, positionState.sub - 1),
+            KnxGroupAddress.of(2, 1, positionState.sub)
+        )
     }
 
     private fun controlKindFor(source: ImportedKnxObject, hasWriteAddress: Boolean): ControlKind {

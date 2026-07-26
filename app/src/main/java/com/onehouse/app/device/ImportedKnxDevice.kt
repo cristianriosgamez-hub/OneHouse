@@ -28,6 +28,16 @@ data class ImportedKnxDevice(
     val primaryReadAddress: KnxGroupAddress?
         get() = readAddresses.firstOrNull()
 
+    /** Direcciones semánticas para controles con más de un objeto de comunicación. */
+    val blindMoveAddress: KnxGroupAddress?
+        get() = writeAddresses.getOrNull(0)
+
+    val blindStopAddress: KnxGroupAddress?
+        get() = writeAddresses.getOrNull(1) ?: blindMoveAddress
+
+    val blindPositionAddress: KnxGroupAddress?
+        get() = writeAddresses.getOrNull(2) ?: blindMoveAddress
+
     val canWrite: Boolean
         get() = commands.any { it.type != KnxCommandType.READ }
 

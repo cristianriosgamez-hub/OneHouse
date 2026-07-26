@@ -26,18 +26,9 @@ object KnxCommandBuilder {
                 command(KnxCommandType.OFF, writeDestination, device.resolvedDpt),
                 command(KnxCommandType.TOGGLE, writeDestination, device.resolvedDpt)
             )
-            ControlKind.BLIND -> listOf(
-                command(KnxCommandType.UP, writeDestination, device.resolvedDpt),
-                command(KnxCommandType.DOWN, writeDestination, device.resolvedDpt),
-                command(KnxCommandType.STOP, writeDestination, "1.007"),
-                command(
-                    KnxCommandType.POSITION,
-                    writeDestination,
-                    "5.001",
-                    requiresValue = true,
-                    valueHint = "0–100 %"
-                )
-            )
+
+            ControlKind.BLIND -> buildBlindCommands(device)
+
             ControlKind.CLIMATE -> listOf(
                 command(
                     KnxCommandType.SET_VALUE,
@@ -47,6 +38,7 @@ object KnxCommandBuilder {
                     valueHint = "Valor según DPT"
                 )
             )
+
             ControlKind.SCENE -> listOf(
                 command(
                     KnxCommandType.CALL_SCENE,
@@ -56,6 +48,7 @@ object KnxCommandBuilder {
                     valueHint = "Escena 0–63"
                 )
             )
+
             ControlKind.ALARM,
             ControlKind.SENSOR,
             ControlKind.METER,
@@ -65,6 +58,25 @@ object KnxCommandBuilder {
         }
 
         return commands.distinctBy { Triple(it.type, it.destination, it.dpt) }
+    }
+
+    private fun buildBlindCommands(device: ImportedKnxDevice): List<KnxCommand> {
+        val move = device.blindMoveAddress ?: return emptyList()
+        val stop = device.blindStopAddress ?: move
+        val position = device.blindPositionAddress ?: move
+
+        return listOf(
+            command(KnxCommandType.UP, move, "1.008"),
+            command(KnxCommandType.DOWN, move, "1.008"),
+            command(KnxCommandType.STOP, stop, "1.007"),
+            command(
+                KnxCommandType.POSITION,
+                position,
+                "5.001",
+                requiresValue = true,
+                valueHint = "0–100 %"
+            )
+        )
     }
 
     private fun command(
