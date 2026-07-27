@@ -58,6 +58,7 @@ fun SecurityScreen(onBack: () -> Unit) {
         notificationPermissionGranted = granted
         notificationsEnabled = granted
         notificationManager.enabled = granted
+        HomeAssistantSecurityBackgroundScheduler.setEnabled(context.applicationContext, granted)
     }
 
     fun persist(status: HomeAssistantConnectionStatus, message: String, tested: Boolean) {
@@ -214,12 +215,14 @@ fun SecurityScreen(onBack: () -> Unit) {
                     if (!enabled) {
                         notificationsEnabled = false
                         notificationManager.enabled = false
+                        HomeAssistantSecurityBackgroundScheduler.setEnabled(context.applicationContext, false)
                     } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU && !notificationManager.hasPermission()) {
                         notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
                     } else {
                         notificationsEnabled = true
                         notificationPermissionGranted = true
                         notificationManager.enabled = true
+                        HomeAssistantSecurityBackgroundScheduler.setEnabled(context.applicationContext, true)
                     }
                 }
             )
@@ -270,7 +273,7 @@ private fun SecurityNotificationsCard(
                 Spacer(Modifier.height(5.dp))
                 Text(
                     when {
-                        enabled -> "Recibirás avisos al abrirse una puerta o detectarse movimiento."
+                        enabled -> "Vigilancia activa. Con la pantalla abierta se comprueba cada 30 s y en segundo plano aproximadamente cada 15 min."
                         !permissionGranted -> "Activa el permiso para recibir alertas de seguridad."
                         else -> "Los avisos están desactivados."
                     },

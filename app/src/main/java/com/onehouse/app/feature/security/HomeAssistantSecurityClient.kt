@@ -47,11 +47,14 @@ object HomeAssistantSecurityClient {
 
     fun fetch(baseUrl: String, token: String, callback: (Result) -> Unit) {
         executor.execute {
-            val result = runCatching { request(baseUrl, token) }
-                .getOrElse { Result.Failure(it.message ?: "No se pudieron leer los sensores") }
+            val result = fetchBlocking(baseUrl, token)
             mainHandler.post { callback(result) }
         }
     }
+
+    fun fetchBlocking(baseUrl: String, token: String): Result =
+        runCatching { request(baseUrl, token) }
+            .getOrElse { Result.Failure(it.message ?: "No se pudieron leer los sensores") }
 
     private fun request(baseUrl: String, token: String): Result {
         val endpoint = baseUrl.trim().trimEnd('/') + "/api/states"
