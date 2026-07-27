@@ -60,7 +60,10 @@ fun SecurityScreen(onBack: () -> Unit) {
         notificationPermissionGranted = granted
         notificationsEnabled = granted
         notificationManager.enabled = granted
-        HomeAssistantSecurityBackgroundScheduler.setEnabled(context.applicationContext, granted)
+        HomeAssistantSecurityBackgroundScheduler.setEnabled(
+            context.applicationContext,
+            granted && monitoringOptions.armedEnabled
+        )
     }
 
     fun persist(status: HomeAssistantConnectionStatus, message: String, tested: Boolean) {
@@ -136,7 +139,7 @@ fun SecurityScreen(onBack: () -> Unit) {
             }
 
             Spacer(Modifier.height(24.dp))
-            GeneralSecurityStatusCard(settings, snapshot, sensorMessage)
+            GeneralSecurityStatusCard(settings, snapshot, sensorMessage, monitoringOptions.armedEnabled)
 
             Spacer(Modifier.height(22.dp))
             SectionTitle("Conexión con Home Assistant")
@@ -210,6 +213,20 @@ fun SecurityScreen(onBack: () -> Unit) {
 
 
             Spacer(Modifier.height(22.dp))
+            SecurityArmedCard(
+                armed = monitoringOptions.armedEnabled,
+                onArmedChange = { armed ->
+                    val updated = monitoringOptions.copy(armedEnabled = armed)
+                    monitoringOptions = updated
+                    monitoringPreferences.write(updated)
+                    HomeAssistantSecurityBackgroundScheduler.setEnabled(
+                        context.applicationContext,
+                        armed && notificationsEnabled && notificationManager.hasPermission()
+                    )
+                }
+            )
+
+            Spacer(Modifier.height(22.dp))
             SecurityNotificationsCard(
                 enabled = notificationsEnabled,
                 permissionGranted = notificationPermissionGranted,
@@ -217,6 +234,10 @@ fun SecurityScreen(onBack: () -> Unit) {
                 onMonitoringOptionsChange = { updated ->
                     monitoringOptions = updated
                     monitoringPreferences.write(updated)
+                    HomeAssistantSecurityBackgroundScheduler.setEnabled(
+                        context.applicationContext,
+                        updated.armedEnabled && notificationsEnabled && notificationManager.hasPermission()
+                    )
                 },
                 onEnabledChange = { enabled ->
                     if (!enabled) {
@@ -229,7 +250,10 @@ fun SecurityScreen(onBack: () -> Unit) {
                         notificationsEnabled = true
                         notificationPermissionGranted = true
                         notificationManager.enabled = true
-                        HomeAssistantSecurityBackgroundScheduler.setEnabled(context.applicationContext, true)
+                        HomeAssistantSecurityBackgroundScheduler.setEnabled(
+                            context.applicationContext,
+                            monitoringOptions.armedEnabled
+                        )
                     }
                 }
             )
@@ -260,6 +284,54 @@ fun SecurityScreen(onBack: () -> Unit) {
                 }
             )
             Spacer(Modifier.height(24.dp))
+        }
+    }
+}
+
+@Composable
+private fun SecurityArmedCard(
+    armed: Boolean,
+    onArmedChange: (Boolean) -> Unit
+) {
+    SectionTitle("Modo de seguridad")
+    Spacer(Modifier.height(10.dp))
+    OneHouseCard(modifier = Modifier.fillMaxWidth()) {
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(18.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(44.dp)
+                    .clip(CircleShape)
+                    .background(
+                        if (armed) Color(0xFF61D88B).copy(alpha = 0.18f)
+                        else TextoDesactivado.copy(alpha = 0.14f)
+                    ),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(if (armed) "●" else "○", color = if (armed) Color(0xFF61D88B) else TextoDesactivado, fontSize = 22.sp)
+            }
+            Spacer(Modifier.width(14.dp))
+            Column(Modifier.weight(1f)) {
+                Text(
+                    if (armed) "Seguridad armada" else "Seguridad desarmada",
+                    color = TextoPrincipal,
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.SemiBold
+                )
+                Spacer(Modifier.height(4.dp))
+                Text(
+                    if (armed)
+                        "Las aperturas y movimientos configurados pueden generar avisos."
+                    else
+                        "Los sensores siguen visibles, pero no se generan alertas ni vigilancia en segundo plano.",
+                    color = TextoSecundario,
+                    style = MaterialTheme.typography.bodySmall
+                )
+            }
+            Spacer(Modifier.width(12.dp))
+            Switch(checked = armed, onCheckedChange = onArmedChange)
         }
     }
 }
@@ -360,10 +432,16 @@ private fun MonitoringOptionRow(
 }
 
 @Composable
-private fun GeneralSecurityStatusCard(settings: HomeAssistantSettings, snapshot: HomeAssistantSecuritySnapshot, message: String) {
+private fun GeneralSecurityStatusCard(
+    settings: HomeAssistantSettings,
+    snapshot: HomeAssistantSecuritySnapshot,
+    message: String,
+    armed: Boolean
+) {
     val hasAlerts = snapshot.alertCount > 0
     val statusColor = when {
         settings.lastStatus == HomeAssistantConnectionStatus.FAILED -> Color(0xFFFF6B6B)
+        !armed && settings.lastStatus == HomeAssistantConnectionStatus.CONNECTED -> TextoDesactivado
         hasAlerts -> Color(0xFFFFB74D)
         settings.lastStatus == HomeAssistantConnectionStatus.CONNECTED -> Color(0xFF61D88B)
         settings.lastStatus == HomeAssistantConnectionStatus.TESTING -> AzulClaro
@@ -371,6 +449,7 @@ private fun GeneralSecurityStatusCard(settings: HomeAssistantSettings, snapshot:
     }
     val title = when {
         settings.lastStatus == HomeAssistantConnectionStatus.FAILED -> "Sin conexión"
+        !armed && settings.lastStatus == HomeAssistantConnectionStatus.CONNECTED -> "Seguridad desarmada"
         hasAlerts -> "Atención: ${snapshot.alertCount} sensor(es) activo(s)"
         settings.lastStatus == HomeAssistantConnectionStatus.CONNECTED && snapshot.fetchedAtEpochMillis > 0 -> "Todo correcto"
         settings.lastStatus == HomeAssistantConnectionStatus.CONNECTED -> "Conectado"

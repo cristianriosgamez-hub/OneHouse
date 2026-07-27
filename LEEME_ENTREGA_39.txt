@@ -1,0 +1,19 @@
+ONEHOUSE - ENTREGA 39 - v1.6.9 MODO ARMADO/DESARMADO
+
+Archivos incluidos:
+- app/build.gradle.kts
+- app/src/main/java/com/onehouse/app/feature/security/SecurityScreen.kt
+- app/src/main/java/com/onehouse/app/feature/security/HomeAssistantSecurityMonitoringPreferences.kt
+- app/src/main/java/com/onehouse/app/feature/security/HomeAssistantSecurityJobService.kt
+
+Cambios:
+- Nuevo modo de Seguridad armada/desarmada.
+- Al armar, las aperturas y movimientos configurados pueden generar avisos.
+- Al desarmar, los sensores y cámaras siguen visibles, pero no se generan notificaciones ni se mantiene la vigilancia periódica en segundo plano.
+- El estado armado queda guardado en el dispositivo.
+- La vigilancia de fondo solo se programa cuando coinciden: seguridad armada, notificaciones activadas y permiso concedido.
+- El estado general indica "Seguridad desarmada" cuando corresponde.
+- Se mantienen las preferencias separadas de puertas, movimiento y actualización automática de cámaras.
+- versionName 1.6.9 / versionCode 34.
+
+No se modifica KNX, climatización, consumos, estancias ni la lógica existente de Home Assistant.

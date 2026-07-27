@@ -44,8 +44,13 @@ object HomeAssistantSecurityBackgroundScheduler {
     private const val INTERVAL_MILLIS = 15L * 60L * 1000L
 
     fun sync(context: Context) {
-        val notificationManager = HomeAssistantSecurityNotificationManager(context.applicationContext)
-        setEnabled(context, notificationManager.enabled && notificationManager.hasPermission())
+        val appContext = context.applicationContext
+        val notificationManager = HomeAssistantSecurityNotificationManager(appContext)
+        val monitoringOptions = HomeAssistantSecurityMonitoringPreferences(appContext).read()
+        setEnabled(
+            context,
+            notificationManager.enabled && notificationManager.hasPermission() && monitoringOptions.armedEnabled
+        )
     }
 
     fun setEnabled(context: Context, enabled: Boolean) {
