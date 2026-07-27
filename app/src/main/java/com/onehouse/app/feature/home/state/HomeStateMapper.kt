@@ -81,7 +81,10 @@ object HomeStateMapper {
             RoomType.SUITE -> snapshot.numericAt(KnxAddressBook.Indoor.TEMPERATURE_SUITE, "9.001")
             else -> null
         }
-        val roomTemperature = explicitRoomTemperature ?: importedRoomTemperature
+        // El importador es la fuente principal: así la UI usa exactamente la
+        // dirección asociada al objeto de esa estancia. Las GA del catálogo son
+        // solo respaldo para instalaciones antiguas.
+        val roomTemperature = importedRoomTemperature ?: explicitRoomTemperature
 
         // Entrada y Habitación 1 no tienen climatización en la UI.
         val roomHasClimate = roomType in CLIMATE_ROOMS && devices.any { device ->
@@ -93,12 +96,22 @@ object HomeStateMapper {
         val temperature = roomTemperature ?: climate?.currentTemperature
 
         val co2Ppm = if (roomType == RoomType.DINING_ROOM) {
-            snapshot.numericAt(KnxAddressBook.Indoor.CO2_DINING, "14.000")
+            val imported = devices.firstOrNull { device ->
+                device.name.contains("co2", ignoreCase = true) ||
+                    device.name.contains("co₂", ignoreCase = true) ||
+                    device.unit?.contains("ppm", ignoreCase = true) == true
+            }?.let(snapshot::numericValue)
+            imported ?: snapshot.numericAt(KnxAddressBook.Indoor.CO2_DINING, "14.000")
         } else {
             null
         }
         val humidityPercent = if (roomType == RoomType.DINING_ROOM) {
-            snapshot.numericAt(KnxAddressBook.Indoor.HUMIDITY_DINING, "5.001")
+            val imported = devices.firstOrNull { device ->
+                device.name.contains("humedad", ignoreCase = true) ||
+                    device.name.contains("humidity", ignoreCase = true) ||
+                    device.unit?.contains("%", ignoreCase = true) == true
+            }?.let(snapshot::numericValue)?.takeIf { it in 0f..100f }
+            imported ?: snapshot.numericAt(KnxAddressBook.Indoor.HUMIDITY_DINING, "5.001")
         } else {
             null
         }

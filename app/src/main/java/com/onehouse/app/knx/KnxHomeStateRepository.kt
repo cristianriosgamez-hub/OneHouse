@@ -75,7 +75,7 @@ data class KnxHomeSnapshot(
         states[address]?.let(StateFreshness::isTrusted) == true
 
     private fun stateAddresses(device: ImportedKnxDevice) =
-        device.readAddresses.ifEmpty { device.writeAddresses }
+        (device.readAddresses + device.writeAddresses).distinct()
 
     companion object {
         private fun normalize(value: String): String = value
@@ -119,6 +119,7 @@ class KnxHomeStateRepository(context: Context) {
         .orEmpty()
 
     init {
+        KnxProcessSession.prepare(stateRepository)
         PeriodicKnxStateRefresh.ensureStarted(appContext, devices)
     }
 
@@ -133,8 +134,8 @@ class KnxHomeStateRepository(context: Context) {
         states: Map<String, KnxStateRepository.State>
     ): KnxHomeSnapshot {
         fun stateFor(device: ImportedKnxDevice): KnxStateRepository.State? =
-            device.readAddresses
-                .ifEmpty { device.writeAddresses }
+            (device.readAddresses + device.writeAddresses)
+                .distinct()
                 .asSequence()
                 .mapNotNull { states[it.toString()]?.takeIf(StateFreshness::isTrusted) }
                 .firstOrNull()
@@ -149,13 +150,64 @@ class KnxHomeStateRepository(context: Context) {
 
         fun findByAddress(address: String): KnxStateRepository.State? =
             states[address]?.takeIf(StateFreshness::isTrusted)
-        fun floatAt(address: String, dpt: String) = KnxValueDecoder.decode(findByAddress(address)?.rawValue, dpt)
         fun boolAt(address: String) = findByAddress(address)?.booleanValue
         fun byteAt(address: String) = KnxValueDecoder.decode(findByAddress(address)?.rawValue, "20.102")?.toInt()
 
-        // El modo y la velocidad solo se muestran cuando existe una respuesta KNX
-        // real durante la sesión actual. No se inventan estados de reposo.
-        val mode = when (byteAt(KnxAddressBook.Climate.MODE_STATE)) {
+        fun normalized(value: String): String = value
+            .lowercase(Locale.ROOT)
+            .replace("á", "a").replace("é", "e").replace("í", "i")
+            .replace("ó", "o").replace("ú", "u").replace("ñ", "n")
+
+        fun semanticDevices(vararg terms: String): List<ImportedKnxDevice> = devices.filter { device ->
+            val text = normalized("${device.roomName} ${device.name} ${device.unit.orEmpty()}")
+            terms.all { term -> text.contains(normalized(term)) }
+        }
+
+        fun numericFromDevices(candidates: List<ImportedKnxDevice>, range: ClosedFloatingPointRange<Float>? = null): Float? =
+            candidates.asSequence().mapNotNull { device ->
+                val state = (device.readAddresses + device.writeAddresses).distinct()
+                    .asSequence()
+                    .mapNotNull { address -> states[address.toString()]?.takeIf(StateFreshness::isTrusted) }
+                    .firstOrNull() ?: return@mapNotNull null
+                KnxValueDecoder.decodeFlexible(state.rawValue, device.resolvedDpt)
+                    ?.takeIf { it.isFinite() && (range == null || it in range) }
+            }.firstOrNull()
+
+        fun booleanFromDevices(candidates: List<ImportedKnxDevice>): Boolean? =
+            candidates.asSequence().mapNotNull { device ->
+                (device.readAddresses + device.writeAddresses).distinct()
+                    .asSequence()
+                    .mapNotNull { address -> states[address.toString()]?.takeIf(StateFreshness::isTrusted)?.booleanValue }
+                    .firstOrNull()
+            }.firstOrNull()
+
+        val climateDevices = devices.filter { device ->
+            device.controlKind == ControlKind.CLIMATE ||
+                normalized(device.name).contains("daikin") ||
+                normalized(device.name).contains("clima") ||
+                normalized(device.name).contains("termostato")
+        }
+        val modeDevices = climateDevices.filter { device ->
+            val name = normalized(device.name)
+            name.contains("modo") || name.contains("mode")
+        }
+        val fanDevices = climateDevices.filter { device ->
+            val name = normalized(device.name)
+            name.contains("ventil") || name.contains("fan") || name.contains("velocidad")
+        }
+        val setpointDevices = climateDevices.filter { device ->
+            val name = normalized(device.name)
+            name.contains("consigna") || name.contains("setpoint") || name.contains("objetivo")
+        }
+        val powerDevices = climateDevices.filter { device ->
+            val name = normalized(device.name)
+            name.contains("on/off") || name.contains("encendido") || name.contains("marcha") ||
+                KnxDptResolver.mainNumber(device.resolvedDpt) == 1
+        }
+
+        val modeCode = numericFromDevices(modeDevices)?.toInt() ?: byteAt(KnxAddressBook.Climate.MODE_STATE)
+        val fanCode = numericFromDevices(fanDevices)?.toInt() ?: byteAt(KnxAddressBook.Climate.FAN_SPEED_STATE)
+        val mode = when (modeCode) {
             0 -> "Automático"
             1, 4 -> "Calor"
             2, 3, 9 -> "Frío"
@@ -163,32 +215,31 @@ class KnxHomeStateRepository(context: Context) {
             6, 14 -> "Ventilación"
             else -> null
         }
-        val fan = when (byteAt(KnxAddressBook.Climate.FAN_SPEED_STATE)) {
+        val fan = when (fanCode) {
             0, 1 -> "Baja"
             2 -> "Media"
             3 -> "Alta"
             else -> null
         }
 
-        val diningTemperature = strictDpt9At(
-            states = states,
-            address = KnxAddressBook.Indoor.TEMPERATURE_DINING,
-            range = -20f..60f
-        )
-        val climateTemperature = strictDpt9At(
-            states = states,
-            address = KnxAddressBook.Climate.CURRENT_TEMPERATURE,
-            range = -20f..60f
-        )
-        val targetTemperature = strictDpt9At(
-            states = states,
-            address = KnxAddressBook.Climate.TARGET_TEMPERATURE_PRIMARY,
-            range = 16f..34f
-        ) ?: strictDpt9At(
-            states = states,
-            address = KnxAddressBook.Climate.TARGET_TEMPERATURE_FALLBACK,
-            range = 16f..34f
-        )
+        val diningTemperature = numericFromDevices(
+            devices.filter { device ->
+                val text = normalized("${device.roomName} ${device.name}")
+                (text.contains("comedor") || text.contains("salon")) && text.contains("temperatura")
+            }, -20f..60f
+        ) ?: strictDpt9At(states, KnxAddressBook.Indoor.TEMPERATURE_DINING, -20f..60f)
+
+        val climateTemperature = numericFromDevices(
+            climateDevices.filter { normalized(it.name).contains("temperatura") &&
+                !normalized(it.name).contains("consigna") }, -20f..60f
+        ) ?: strictDpt9At(states, KnxAddressBook.Climate.CURRENT_TEMPERATURE, -20f..60f)
+
+        val targetTemperature = numericFromDevices(setpointDevices, 16f..34f)
+            ?: strictDpt9At(states, KnxAddressBook.Climate.TARGET_TEMPERATURE_PRIMARY, 16f..34f)
+            ?: strictDpt9At(states, KnxAddressBook.Climate.TARGET_TEMPERATURE_FALLBACK, 16f..34f)
+
+        val climatePowered = booleanFromDevices(powerDevices)
+            ?: boolAt(KnxAddressBook.Climate.POWER_STATE)
 
         return KnxHomeSnapshot(
             devices = devices,
@@ -198,7 +249,7 @@ class KnxHomeStateRepository(context: Context) {
             blindsOpen = blindOpen,
             blindsTotal = blinds.size,
             climate = KnxClimateSnapshot(
-                powered = boolAt(KnxAddressBook.Climate.POWER_STATE),
+                powered = climatePowered,
                 // La portada debe mostrar la sonda del comedor, no una lectura interna
                 // del equipo de climatización. Se conserva como respaldo la sonda Daikin.
                 currentTemperature = diningTemperature ?: climateTemperature,
@@ -223,13 +274,29 @@ class KnxHomeStateRepository(context: Context) {
 
 }
 
-private object StateFreshness {
-    // Los estados persistidos de ejecuciones anteriores no se presentan como actuales.
-    // Solo son válidos los telegramas recibidos desde que arrancó este proceso.
-    private val sessionStartedAtMillis = System.currentTimeMillis()
+private object KnxProcessSession {
+    private val lock = Any()
+    @Volatile private var prepared = false
+    @Volatile var startedAtMillis: Long = Long.MAX_VALUE
+        private set
 
+    fun prepare(repository: KnxStateRepository) {
+        if (prepared) return
+        synchronized(lock) {
+            if (prepared) return
+            // Se elimina una sola vez la caché de la ejecución anterior. Desde
+            // este instante cualquier telegrama recibido pertenece a la sesión
+            // actual y no puede quedar invalidado por inicializaciones tardías.
+            repository.clear()
+            startedAtMillis = System.currentTimeMillis()
+            prepared = true
+        }
+    }
+}
+
+private object StateFreshness {
     fun isTrusted(state: KnxStateRepository.State): Boolean =
-        state.timestampMillis >= sessionStartedAtMillis
+        state.timestampMillis >= KnxProcessSession.startedAtMillis
 }
 
 /**
@@ -239,7 +306,7 @@ private object StateFreshness {
  */
 private object PeriodicKnxStateRefresh {
     private const val REFRESH_INTERVAL_MILLIS = 60_000L
-    private const val STARTUP_RETRY_DELAY_MILLIS = 4_000L
+    private const val STARTUP_RETRY_DELAY_MILLIS = 8_000L
     private val lock = Any()
     private val handler = Handler(Looper.getMainLooper())
     private var activeReader: KnxBulkStateReader? = null

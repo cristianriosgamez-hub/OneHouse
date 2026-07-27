@@ -1,0 +1,26 @@
+OneHouse v1.6.13 REV5 - Sincronización estable KNX
+
+Base: OneHouse v1.6.13 REV4 enviada por el usuario.
+
+Cambios:
+- La lectura masiva usa un único túnel KNX/IP por ciclo.
+- Se evita abrir y cerrar una conexión por cada dirección de grupo.
+- Timeout corto por dirección para que un objeto sin respuesta no bloquee al resto.
+- Se consultan todas las direcciones de lectura importadas.
+- Para luces y clima también se consulta la dirección de mando cuando InsideControl no aporta un estado independiente o el actuador responde en esa GA.
+- Las pantallas toman como fuente principal las direcciones importadas por estancia y nombre de objeto.
+- Las direcciones fijas quedan únicamente como respaldo.
+- Temperatura de comedor, CO2, humedad, consigna, modo, velocidad y encendido de clima se resuelven primero desde el importador.
+- La caché KNX de una ejecución anterior se limpia una sola vez al arrancar el proceso.
+- No se muestran valores persistidos de otra sesión.
+- Se mantiene --- cuando no existe respuesta real del bus.
+
+Versión:
+- versionCode 43
+- versionName 1.6.13 REV5
+
+Archivos modificados:
+- app/build.gradle.kts
+- app/src/main/java/com/onehouse/app/knx/KnxBulkStateReader.kt
+- app/src/main/java/com/onehouse/app/knx/KnxHomeStateRepository.kt
+- app/src/main/java/com/onehouse/app/feature/home/state/HomeStateMapper.kt

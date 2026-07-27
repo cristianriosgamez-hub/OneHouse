@@ -1,13 +1,18 @@
 package com.onehouse.app.knx
 
 import android.content.Context
+import com.onehouse.app.data.knx.SettingsDataStore
+import com.onehouse.app.device.ControlKind
 import com.onehouse.app.device.ImportedKnxDevice
 import java.io.Closeable
 import java.util.concurrent.atomic.AtomicBoolean
 
 /**
- * Ejecuta lecturas de estado de forma secuencial para no saturar el túnel KNX/IP.
- * Cada dirección de grupo se consulta una sola vez aunque aparezca en varios objetos.
+ * Lee un conjunto de direcciones usando un único túnel KNX/IP.
+ *
+ * Abrir/cerrar un túnel por dirección provocaba pérdidas, lentitud y rechazo de
+ * conexiones en algunos interfaces KNX/IP. Esta implementación abre una sesión,
+ * consulta todas las direcciones secuencialmente y cierra al terminar.
  */
 class KnxBulkStateReader(context: Context) : Closeable {
     data class Progress(
@@ -15,14 +20,13 @@ class KnxBulkStateReader(context: Context) : Closeable {
         val total: Int,
         val failures: Int,
         val currentAddress: String?
-    ) {
-        val finished: Boolean get() = completed >= total
-    }
+    )
 
     private val appContext = context.applicationContext
     private val cancelled = AtomicBoolean(false)
-    private val stateRepository = KnxDeviceStateRepository(context.applicationContext)
-    private var activeExecutor: KnxCommandExecutor? = null
+    private val stateRepository = KnxStateRepository(appContext)
+    private val deviceStateRepository = KnxDeviceStateRepository(appContext)
+    private var connectionManager: KnxConnectionManager? = null
 
     fun read(
         devices: List<ImportedKnxDevice>,
@@ -32,80 +36,124 @@ class KnxBulkStateReader(context: Context) : Closeable {
     ) {
         cancel()
         cancelled.set(false)
-        val importedCommands = devices
-            .flatMap { it.commands }
-            .filter { it.type == KnxCommandType.READ }
 
-        val explicitCommands = extraReadAddresses.mapNotNull { address ->
-            runCatching {
-                KnxCommand(
-                    type = KnxCommandType.READ,
-                    destination = KnxGroupAddress.parse(address),
-                    dpt = "unknown"
-                )
-            }.getOrNull()
+        val importedAddresses = devices.flatMap { device ->
+            buildList {
+                addAll(device.readAddresses.map { it.toString() })
+                // Algunos proyectos InsideControl no exportan una GA de estado
+                // separada, o el actuador responde también en la GA de mando.
+                // La lectura de la GA de mando es segura y permite recuperar el
+                // estado real de todas las luces, no solo de unas pocas.
+                if (device.controlKind == ControlKind.BOOLEAN_SWITCH ||
+                    device.controlKind == ControlKind.CLIMATE
+                ) {
+                    addAll(device.writeAddresses.map { it.toString() })
+                }
+            }
         }
 
-        // Las direcciones visibles y críticas se consultan primero. En la REV3
-        // se añadían al final de toda la importación y podían tardar mucho en
-        // aparecer cuando había objetos que no respondían.
-        val commands = (explicitCommands + importedCommands)
-            .distinctBy { it.destination.toString() }
+        val addresses = (extraReadAddresses + importedAddresses)
+            .map(String::trim)
+            .filter(String::isNotBlank)
+            .distinct()
 
-        if (commands.isEmpty()) {
+        if (addresses.isEmpty()) {
             val result = Progress(0, 0, 0, null)
             onProgress(result)
             onComplete(result)
             return
         }
 
-        fun executeAt(index: Int, failures: Int) {
-            if (cancelled.get()) return
-            if (index >= commands.size) {
-                val result = Progress(commands.size, commands.size, failures, null)
-                onProgress(result)
-                onComplete(result)
-                return
-            }
-
-            val command = commands[index]
-            onProgress(Progress(index, commands.size, failures, command.destination.toString()))
-            val executor = KnxCommandExecutor(appContext)
-            activeExecutor = executor
-            // En una lectura masiva no repetimos inmediatamente una dirección
-            // sin respuesta: ese segundo timeout bloqueaba toda la cola. Las
-            // direcciones pendientes se recuperan en la siguiente pasada.
-            executor.execute(command, retryReadOnce = false) { result ->
-                executor.close()
-                if (activeExecutor === executor) activeExecutor = null
-                if (cancelled.get()) return@execute
-                if (result is KnxCommandExecutor.Result.Success && result.busValue != null) {
-                    devices.filter { device ->
-                        command.destination in device.readAddresses || command.destination in device.writeAddresses
-                    }.forEach { device ->
-                        stateRepository.updateFromBus(device.id, result.busValue)
-                    }
-                }
-                val nextFailures = failures + if (result is KnxCommandExecutor.Result.Failure) 1 else 0
-                onProgress(
-                    Progress(
-                        completed = index + 1,
-                        total = commands.size,
-                        failures = nextFailures,
-                        currentAddress = command.destination.toString()
-                    )
-                )
-                executeAt(index + 1, nextFailures)
-            }
+        val endpoint = resolveEndpoint().getOrElse {
+            val result = Progress(0, addresses.size, addresses.size, null)
+            onProgress(result)
+            onComplete(result)
+            return
         }
 
-        executeAt(0, 0)
+        // Timeout corto para la carga masiva. Una GA que no responde no debe
+        // bloquear durante cuatro segundos al resto de sensores.
+        val manager = KnxConnectionManager(timeoutMillis = 1_600, stateRepository = stateRepository)
+        connectionManager = manager
+        manager.connect(endpoint) { connectResult ->
+            if (cancelled.get()) return@connect
+            if (connectResult !is KnxConnectionManager.ConnectResult.Success) {
+                manager.close()
+                if (connectionManager === manager) connectionManager = null
+                val result = Progress(0, addresses.size, addresses.size, null)
+                onProgress(result)
+                onComplete(result)
+                return@connect
+            }
+
+            fun readAt(index: Int, failures: Int) {
+                if (cancelled.get()) return
+                if (index >= addresses.size) {
+                    manager.close()
+                    if (connectionManager === manager) connectionManager = null
+                    val result = Progress(addresses.size, addresses.size, failures, null)
+                    onProgress(result)
+                    onComplete(result)
+                    return
+                }
+
+                val address = addresses[index]
+                onProgress(Progress(index, addresses.size, failures, address))
+                val groupAddress = runCatching { KnxGroupAddress.parse(address) }.getOrNull()
+                if (groupAddress == null) {
+                    readAt(index + 1, failures + 1)
+                    return
+                }
+
+                manager.sendTelegram(KnxTelegram.GroupValueRead(groupAddress)) { result ->
+                    if (cancelled.get()) return@sendTelegram
+                    val success = result is KnxConnectionManager.OperationResult.Success &&
+                        result.incoming != null
+                    if (success) {
+                        val incoming = (result as KnxConnectionManager.OperationResult.Success).incoming!!
+                        devices.filter { device ->
+                            incoming.destination in device.readAddresses ||
+                                incoming.destination in device.writeAddresses
+                        }.forEach { device ->
+                            val busValue = incoming.booleanValue?.let {
+                                if (it) "Encendido" else "Apagado"
+                            } ?: incoming.payload.joinToString("") { byte ->
+                                "%02X".format(byte.toInt() and 0xFF)
+                            }
+                            deviceStateRepository.updateFromBus(device.id, busValue)
+                        }
+                    }
+                    val nextFailures = failures + if (success) 0 else 1
+                    onProgress(Progress(index + 1, addresses.size, nextFailures, address))
+                    readAt(index + 1, nextFailures)
+                }
+            }
+
+            readAt(0, 0)
+        }
+    }
+
+    private fun resolveEndpoint(): Result<KnxEndpoint> = runCatching {
+        val settings = SettingsDataStore(appContext).read()
+        val detector = NetworkConnectionDetector(appContext)
+        val network = try {
+            detector.currentState()
+        } finally {
+            detector.close()
+        }
+        require(network.isConnected) { "El dispositivo no tiene conexión de red" }
+        val local = network.usesLocalRoute
+        val host = (if (local) settings.localIp else settings.remoteIp).trim()
+        val port = (if (local) settings.localPort else settings.remotePort).trim().toIntOrNull()
+        require(host.isNotBlank()) { "Dirección KNX/IP no configurada" }
+        require(port != null && port in 1..65535) { "Puerto KNX/IP no válido" }
+        KnxEndpoint(host, port)
     }
 
     fun cancel() {
         cancelled.set(true)
-        activeExecutor?.close()
-        activeExecutor = null
+        connectionManager?.close()
+        connectionManager = null
     }
 
     override fun close() = cancel()
