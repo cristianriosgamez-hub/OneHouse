@@ -1,5 +1,9 @@
 package com.onehouse.app.feature.security
 
+import android.Manifest
+import android.os.Build
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.background
@@ -37,6 +41,7 @@ fun SecurityScreen(onBack: () -> Unit) {
     val store = remember { HomeAssistantSettingsStore(context.applicationContext) }
     val snapshotStore = remember { HomeAssistantSecuritySnapshotStore(context.applicationContext) }
     val eventStore = remember { HomeAssistantSecurityEventStore(context.applicationContext) }
+    val notificationManager = remember { HomeAssistantSecurityNotificationManager(context.applicationContext) }
     var settings by remember { mutableStateOf(store.read()) }
     var baseUrl by remember { mutableStateOf(settings.baseUrl) }
     var accessToken by remember { mutableStateOf(settings.accessToken) }
@@ -45,6 +50,15 @@ fun SecurityScreen(onBack: () -> Unit) {
     var loadingSensors by remember { mutableStateOf(false) }
     var sensorMessage by remember { mutableStateOf("Pulsa actualizar para leer los sensores") }
     var securityEvents by remember { mutableStateOf(eventStore.readEvents()) }
+    var notificationsEnabled by remember { mutableStateOf(notificationManager.enabled) }
+    var notificationPermissionGranted by remember { mutableStateOf(notificationManager.hasPermission()) }
+    val notificationPermissionLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { granted ->
+        notificationPermissionGranted = granted
+        notificationsEnabled = granted
+        notificationManager.enabled = granted
+    }
 
     fun persist(status: HomeAssistantConnectionStatus, message: String, tested: Boolean) {
         settings = HomeAssistantSettings(
@@ -69,7 +83,9 @@ fun SecurityScreen(onBack: () -> Unit) {
                 is HomeAssistantSecurityClient.Result.Success -> {
                     snapshot = result.snapshot
                     snapshotStore.write(result.snapshot)
-                    securityEvents = eventStore.process(result.snapshot)
+                    val processed = eventStore.process(result.snapshot)
+                    securityEvents = processed.events
+                    notificationManager.notify(processed.newEvents)
                     if (!silent) {
                         sensorMessage = if (snapshot.openings.isEmpty() && snapshot.motions.isEmpty() && snapshot.cameras.isEmpty()) {
                             "No se encontraron sensores ni cámaras compatibles"
@@ -189,6 +205,25 @@ fun SecurityScreen(onBack: () -> Unit) {
                 colors = ButtonDefaults.buttonColors(containerColor = AzulOneHouse.copy(alpha = 0.85f))
             ) { Text(if (loadingSensors) "Actualizando…" else "Actualizar sensores") }
 
+
+            Spacer(Modifier.height(22.dp))
+            SecurityNotificationsCard(
+                enabled = notificationsEnabled,
+                permissionGranted = notificationPermissionGranted,
+                onEnabledChange = { enabled ->
+                    if (!enabled) {
+                        notificationsEnabled = false
+                        notificationManager.enabled = false
+                    } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU && !notificationManager.hasPermission()) {
+                        notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+                    } else {
+                        notificationsEnabled = true
+                        notificationPermissionGranted = true
+                        notificationManager.enabled = true
+                    }
+                }
+            )
+
             Spacer(Modifier.height(22.dp))
             SensorSection("Puertas y ventanas", "▣", snapshot.openings, SecurityEntityCategory.OPENING, settings)
             Spacer(Modifier.height(22.dp))
@@ -208,6 +243,43 @@ fun SecurityScreen(onBack: () -> Unit) {
                 }
             )
             Spacer(Modifier.height(24.dp))
+        }
+    }
+}
+
+@Composable
+private fun SecurityNotificationsCard(
+    enabled: Boolean,
+    permissionGranted: Boolean,
+    onEnabledChange: (Boolean) -> Unit
+) {
+    SectionTitle("Avisos de seguridad")
+    Spacer(Modifier.height(10.dp))
+    OneHouseCard(modifier = Modifier.fillMaxWidth()) {
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(18.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column(Modifier.weight(1f)) {
+                Text(
+                    "Notificaciones en el móvil",
+                    color = TextoPrincipal,
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.SemiBold
+                )
+                Spacer(Modifier.height(5.dp))
+                Text(
+                    when {
+                        enabled -> "Recibirás avisos al abrirse una puerta o detectarse movimiento."
+                        !permissionGranted -> "Activa el permiso para recibir alertas de seguridad."
+                        else -> "Los avisos están desactivados."
+                    },
+                    color = TextoSecundario,
+                    style = MaterialTheme.typography.bodySmall
+                )
+            }
+            Spacer(Modifier.width(12.dp))
+            Switch(checked = enabled, onCheckedChange = onEnabledChange)
         }
     }
 }

@@ -12,12 +12,18 @@ data class SecurityEvent(
     val occurredAtEpochMillis: Long
 )
 
+data class SecurityEventProcessResult(
+    val events: List<SecurityEvent>,
+    val newEvents: List<SecurityEvent>
+)
+
 class HomeAssistantSecurityEventStore(context: Context) {
     private val preferences = context.getSharedPreferences("onehouse_security_events", Context.MODE_PRIVATE)
 
-    fun process(snapshot: HomeAssistantSecuritySnapshot): List<SecurityEvent> {
+    fun process(snapshot: HomeAssistantSecuritySnapshot): SecurityEventProcessResult {
         val previous = readStates()
         val events = readEvents().toMutableList()
+        val newEvents = mutableListOf<SecurityEvent>()
         val current = JSONObject()
 
         (snapshot.openings + snapshot.motions).forEach { entity ->
@@ -26,16 +32,15 @@ class HomeAssistantSecurityEventStore(context: Context) {
             if (previous.has(entity.entityId)) {
                 val wasActive = previous.optBoolean(entity.entityId, entity.active)
                 if (wasActive != entity.active) {
-                    events.add(
-                        0,
-                        SecurityEvent(
-                            entityId = entity.entityId,
-                            name = entity.name,
-                            category = entity.category,
-                            active = entity.active,
-                            occurredAtEpochMillis = System.currentTimeMillis()
-                        )
+                    val event = SecurityEvent(
+                        entityId = entity.entityId,
+                        name = entity.name,
+                        category = entity.category,
+                        active = entity.active,
+                        occurredAtEpochMillis = System.currentTimeMillis()
                     )
+                    events.add(0, event)
+                    newEvents.add(event)
                 }
             }
         }
@@ -45,7 +50,7 @@ class HomeAssistantSecurityEventStore(context: Context) {
             .putString(KEY_STATES, current.toString())
             .putString(KEY_EVENTS, eventsToJson(limited).toString())
             .apply()
-        return limited
+        return SecurityEventProcessResult(events = limited, newEvents = newEvents)
     }
 
     fun readEvents(): List<SecurityEvent> = runCatching {
