@@ -1,0 +1,22 @@
+ONEHOUSE - ENTREGA 33 - v1.6.3 CÁMARAS HOME ASSISTANT
+
+Base utilizada:
+- OneHousev1.6.2_Sensores_Home_Assistant.zip
+
+Cambios:
+- Detecta automáticamente entidades camera.* de Home Assistant.
+- Muestra nombre y disponibilidad real de cada cámara.
+- Solicita una imagen fija autenticada mediante /api/camera_proxy/{entity_id}.
+- Permite actualizar manualmente la imagen.
+- Si una cámara no ofrece imagen compatible, muestra el error sin afectar al resto de Seguridad.
+- Mantiene intactos KNX, luces, persianas, clima, consumos y sensores de apertura/movimiento.
+- Versión actualizada a 1.6.3 (versionCode 28).
+
+Instalación:
+1. Copiar la carpeta app sobre la raíz del proyecto.
+2. Aceptar la sustitución de archivos.
+3. Build > Clean Project.
+4. Build > Rebuild Project.
+
+Nota:
+La aparición de vídeo o imagen depende de que Home Assistant exponga la cámara como entidad camera.* y permita el endpoint camera_proxy. Algunas cámaras Xiaomi solo exponen estado o no ofrecen una imagen fija.

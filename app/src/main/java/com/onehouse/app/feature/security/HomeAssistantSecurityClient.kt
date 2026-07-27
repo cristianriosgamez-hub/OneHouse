@@ -20,9 +20,17 @@ data class SecurityEntity(
 
 enum class SecurityEntityCategory { OPENING, MOTION }
 
+data class SecurityCameraEntity(
+    val entityId: String,
+    val name: String,
+    val available: Boolean,
+    val state: String
+)
+
 data class HomeAssistantSecuritySnapshot(
     val openings: List<SecurityEntity> = emptyList(),
     val motions: List<SecurityEntity> = emptyList(),
+    val cameras: List<SecurityCameraEntity> = emptyList(),
     val fetchedAtEpochMillis: Long = 0L
 ) {
     val alertCount: Int get() = openings.count { it.available && it.active } + motions.count { it.available && it.active }
@@ -70,18 +78,32 @@ object HomeAssistantSecurityClient {
         val array = JSONArray(json)
         val openings = mutableListOf<SecurityEntity>()
         val motions = mutableListOf<SecurityEntity>()
+        val cameras = mutableListOf<SecurityCameraEntity>()
         for (index in 0 until array.length()) {
             val item = array.optJSONObject(index) ?: continue
             val entityId = item.optString("entity_id")
-            if (!entityId.startsWith("binary_sensor.")) continue
             val attributes = item.optJSONObject("attributes")
+            val rawState = item.optString("state").lowercase()
+
+            if (entityId.startsWith("camera.")) {
+                cameras += SecurityCameraEntity(
+                    entityId = entityId,
+                    name = attributes?.optString("friendly_name").orEmpty().ifBlank {
+                        entityId.substringAfter('.').replace('_', ' ').replaceFirstChar { it.uppercase() }
+                    },
+                    available = rawState != "unavailable" && rawState != "unknown" && rawState.isNotBlank(),
+                    state = rawState
+                )
+                continue
+            }
+
+            if (!entityId.startsWith("binary_sensor.")) continue
             val deviceClass = attributes?.optString("device_class").orEmpty().lowercase()
             val category = when (deviceClass) {
                 "door", "window", "opening", "garage_door" -> SecurityEntityCategory.OPENING
                 "motion", "occupancy", "presence" -> SecurityEntityCategory.MOTION
                 else -> continue
             }
-            val rawState = item.optString("state").lowercase()
             val entity = SecurityEntity(
                 entityId = entityId,
                 name = attributes?.optString("friendly_name").orEmpty().ifBlank {
@@ -98,6 +120,7 @@ object HomeAssistantSecurityClient {
             HomeAssistantSecuritySnapshot(
                 openings = openings.sortedBy { it.name.lowercase() },
                 motions = motions.sortedBy { it.name.lowercase() },
+                cameras = cameras.sortedBy { it.name.lowercase() },
                 fetchedAtEpochMillis = System.currentTimeMillis()
             )
         )

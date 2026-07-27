@@ -1,5 +1,6 @@
 package com.onehouse.app.feature.security
 
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -12,6 +13,8 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
@@ -57,9 +60,9 @@ fun SecurityScreen(onBack: () -> Unit) {
                 is HomeAssistantSecurityClient.Result.Success -> {
                     snapshot = result.snapshot
                     snapshotStore.write(result.snapshot)
-                    sensorMessage = if (snapshot.openings.isEmpty() && snapshot.motions.isEmpty()) {
-                        "No se encontraron sensores de apertura o movimiento"
-                    } else "Sensores actualizados correctamente"
+                    sensorMessage = if (snapshot.openings.isEmpty() && snapshot.motions.isEmpty() && snapshot.cameras.isEmpty()) {
+                        "No se encontraron sensores ni cámaras compatibles"
+                    } else "Dispositivos actualizados correctamente"
                     persist(HomeAssistantConnectionStatus.CONNECTED, "Conectado correctamente con Home Assistant", true)
                 }
                 is HomeAssistantSecurityClient.Result.Failure -> {
@@ -171,7 +174,7 @@ fun SecurityScreen(onBack: () -> Unit) {
             Spacer(Modifier.height(22.dp))
             SectionTitle("Cámaras")
             Spacer(Modifier.height(10.dp))
-            SecurityDeviceCard("▰", "Cámaras Xiaomi", "Pendiente", "La compatibilidad de vídeo se revisará en la siguiente fase.", TextoDesactivado)
+            CameraSection(snapshot.cameras, settings, baseUrl, accessToken)
             Spacer(Modifier.height(24.dp))
         }
     }
@@ -238,6 +241,109 @@ private fun SensorSection(title: String, symbol: String, entities: List<Security
             }
             SecurityDeviceCard(symbol, entity.name, activeText, "Último cambio: ${entity.lastChanged}", color)
             if (index != entities.lastIndex) Spacer(Modifier.height(10.dp))
+        }
+    }
+}
+
+@Composable
+private fun CameraSection(
+    cameras: List<SecurityCameraEntity>,
+    settings: HomeAssistantSettings,
+    baseUrl: String,
+    accessToken: String
+) {
+    if (cameras.isEmpty()) {
+        val status = when (settings.lastStatus) {
+            HomeAssistantConnectionStatus.CONNECTED -> "Sin cámaras encontradas"
+            HomeAssistantConnectionStatus.FAILED -> "Sin conexión"
+            else -> "Sin comprobar"
+        }
+        SecurityDeviceCard(
+            "▰",
+            "Cámaras Home Assistant",
+            status,
+            "Las cámaras compatibles aparecerán aquí.",
+            TextoDesactivado
+        )
+        return
+    }
+
+    cameras.forEachIndexed { index, camera ->
+        SecurityCameraCard(camera, baseUrl, accessToken)
+        if (index != cameras.lastIndex) Spacer(Modifier.height(12.dp))
+    }
+}
+
+@Composable
+private fun SecurityCameraCard(camera: SecurityCameraEntity, baseUrl: String, accessToken: String) {
+    var bitmap by remember(camera.entityId, baseUrl) { mutableStateOf<android.graphics.Bitmap?>(null) }
+    var imageMessage by remember(camera.entityId, baseUrl) { mutableStateOf("Cargando imagen…") }
+    var loading by remember(camera.entityId, baseUrl) { mutableStateOf(false) }
+
+    fun loadImage() {
+        if (!camera.available || baseUrl.isBlank() || accessToken.isBlank() || loading) return
+        loading = true
+        imageMessage = "Cargando imagen…"
+        HomeAssistantCameraImageLoader.load(baseUrl, accessToken, camera.entityId) { result ->
+            loading = false
+            when (result) {
+                is HomeAssistantCameraImageLoader.Result.Success -> {
+                    bitmap = result.bitmap
+                    imageMessage = "Imagen actual de Home Assistant"
+                }
+                is HomeAssistantCameraImageLoader.Result.Failure -> {
+                    bitmap = null
+                    imageMessage = result.message
+                }
+            }
+        }
+    }
+
+    LaunchedEffect(camera.entityId, camera.available, baseUrl, accessToken) { loadImage() }
+
+    OneHouseCard(Modifier.fillMaxWidth()) {
+        Column(Modifier.padding(16.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Surface(color = AzulOneHouse.copy(alpha = 0.16f), shape = RoundedCornerShape(16.dp)) {
+                    Text("▰", color = AzulClaro, fontSize = 25.sp, modifier = Modifier.padding(horizontal = 15.dp, vertical = 12.dp))
+                }
+                Spacer(Modifier.width(14.dp))
+                Column(Modifier.weight(1f)) {
+                    Text(camera.name, color = TextoPrincipal, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+                    Spacer(Modifier.height(3.dp))
+                    Text(
+                        if (camera.available) "Disponible" else "No disponible",
+                        color = if (camera.available) Color(0xFF61D88B) else TextoDesactivado,
+                        style = MaterialTheme.typography.labelLarge,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                }
+            }
+            Spacer(Modifier.height(14.dp))
+            if (bitmap != null) {
+                Image(
+                    bitmap = bitmap!!.asImageBitmap(),
+                    contentDescription = "Imagen de ${camera.name}",
+                    modifier = Modifier.fillMaxWidth().height(190.dp).clip(RoundedCornerShape(16.dp)),
+                    contentScale = ContentScale.Crop
+                )
+            } else {
+                Box(
+                    modifier = Modifier.fillMaxWidth().height(120.dp).clip(RoundedCornerShape(16.dp))
+                        .background(AzulOneHouse.copy(alpha = 0.10f)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(imageMessage, color = TextoSecundario, style = MaterialTheme.typography.bodySmall)
+                }
+            }
+            Spacer(Modifier.height(10.dp))
+            Text(imageMessage, color = TextoSecundario, style = MaterialTheme.typography.bodySmall)
+            if (camera.available) {
+                Spacer(Modifier.height(10.dp))
+                OutlinedButton(onClick = { loadImage() }, modifier = Modifier.fillMaxWidth(), enabled = !loading) {
+                    Text(if (loading) "Actualizando imagen…" else "Actualizar imagen")
+                }
+            }
         }
     }
 }

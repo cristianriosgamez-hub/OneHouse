@@ -10,6 +10,7 @@ class HomeAssistantSecuritySnapshotStore(context: Context) {
             .putInt("open_count", snapshot.openings.count { it.available && it.active })
             .putInt("motion_count", snapshot.motions.count { it.available && it.active })
             .putInt("entity_count", snapshot.openings.size + snapshot.motions.size)
+            .putInt("camera_count", snapshot.cameras.size)
             .putLong("updated_at", snapshot.fetchedAtEpochMillis)
             .apply()
     }
