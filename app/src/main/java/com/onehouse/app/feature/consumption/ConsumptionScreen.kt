@@ -41,7 +41,6 @@ import com.onehouse.app.data.energy.EnergyRepository
 import com.onehouse.app.data.local.OneHouseDatabase
 import com.onehouse.app.design.FondoInferior
 import com.onehouse.app.design.FondoSuperior
-import com.onehouse.app.design.OneHouseSectionHeader
 import com.onehouse.app.design.TextoPrincipal
 import com.onehouse.app.design.TextoSecundario
 import com.onehouse.app.feature.rooms.detail.RoomHeader
@@ -152,10 +151,10 @@ private fun EnergyDashboardScreen(
     ) {
         Spacer(Modifier.height(14.dp))
         if (onBack != null) {
-            RoomHeader("Centro energético", onBack)
+            RoomHeader("Contadores", onBack)
         } else {
             Text(
-                "Centro energético",
+                "Contadores",
                 color = TextoPrincipal,
                 fontSize = 30.sp,
                 fontWeight = FontWeight.Bold,
@@ -164,7 +163,7 @@ private fun EnergyDashboardScreen(
         }
 
         Text(
-            "Consumos, costes y evolución de toda la vivienda",
+            "Consulta el detalle, histórico y coste de cada suministro",
             color = TextoSecundario,
             fontSize = 14.sp
         )
@@ -188,23 +187,9 @@ private fun EnergyDashboardScreen(
             enter = fadeIn(tween(420)) + slideInVertically(tween(420)) { it / 10 }
         ) {
             Column {
-                EnergyOverviewCard(overview = overview, summaries = summaries)
-                Spacer(Modifier.height(16.dp))
-                EnergyDistributionCard(summaries = summaries)
-                Spacer(Modifier.height(16.dp))
-                EnergyAnalyticsCard(
-                    points = analyticsPoints,
-                    projectedValue = smartEnergy.projectedMonthKwh
-                )
-                Spacer(Modifier.height(16.dp))
-                SmartEnergyCard(state = smartEnergy)
-                Spacer(Modifier.height(24.dp))
-                OneHouseSectionHeader(
-                    title = "Contadores",
-                    subtitle = "Consulta el detalle, histórico y coste de cada suministro"
-                )
-                Spacer(Modifier.height(13.dp))
-
+                // Vista simplificada temporal: solo se muestran los contadores.
+                // Se conservan los datos y componentes de analítica para poder
+                // reactivarlos en una entrega futura sin afectar al histórico.
                 summaries.chunked(2).forEach { rowSummaries ->
                     Row(
                         modifier = Modifier.fillMaxWidth(),

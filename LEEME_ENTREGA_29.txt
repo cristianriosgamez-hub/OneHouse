@@ -1,0 +1,23 @@
+ONEHOUSE - ENTREGA 29
+Base utilizada: OneHouse (3)(4).zip
+
+CAMBIOS INCLUIDOS
+1. Dashboard de Consumos simplificado temporalmente:
+   - Se oculta "Consumo eléctrico anual".
+   - Se oculta "Distribución eléctrica".
+   - Se oculta "Evolución energética".
+   - Se oculta "Smart Energy".
+   - Permanecen visibles únicamente los contadores.
+
+2. Tarjetas de contadores:
+   - ACS: se elimina el cuadro "Coste" y su importe en euros.
+   - Clima: se elimina el cuadro "Coste" y su importe en euros.
+   - ENDESA y AGBAR mantienen su coste.
+   - En ACS y Clima, el cuadro "Año" ocupa el espacio disponible.
+
+3. No se elimina la lógica ni los datos de los bloques ocultos.
+   Quedan conservados para poder reactivarlos posteriormente.
+
+INSTALACIÓN
+Copiar la carpeta app sobre la raíz del proyecto y aceptar la sustitución de archivos.
+Después ejecutar Clean Project y Rebuild Project.
