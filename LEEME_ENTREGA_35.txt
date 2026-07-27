@@ -1,0 +1,15 @@
+ONEHOUSE - ENTREGA 35 - v1.6.5 HISTORIAL DE SEGURIDAD
+
+Base utilizada: OneHousev1.6.4_actualizacion_automatica_camaras.zip
+
+CAMBIOS
+- Registra cambios reales detectados durante las actualizaciones de Home Assistant.
+- Eventos compatibles: apertura/cierre de puertas y ventanas; inicio/fin de movimiento.
+- Conserva hasta 50 eventos en el dispositivo.
+- Muestra los 12 eventos más recientes en la pantalla Seguridad.
+- Añade opción Borrar para limpiar solamente el historial.
+- La primera lectura de un sensor se toma como estado inicial y no genera una falsa alerta.
+- No modifica KNX, cámaras, consumos, climatización ni estancias.
+
+INSTALACIÓN
+Copiar la carpeta app sobre la raíz del proyecto y aceptar la sustitución.

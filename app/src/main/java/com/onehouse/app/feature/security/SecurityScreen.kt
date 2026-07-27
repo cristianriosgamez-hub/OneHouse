@@ -27,12 +27,16 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.onehouse.app.design.*
 import kotlinx.coroutines.delay
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
 @Composable
 fun SecurityScreen(onBack: () -> Unit) {
     val context = LocalContext.current
     val store = remember { HomeAssistantSettingsStore(context.applicationContext) }
     val snapshotStore = remember { HomeAssistantSecuritySnapshotStore(context.applicationContext) }
+    val eventStore = remember { HomeAssistantSecurityEventStore(context.applicationContext) }
     var settings by remember { mutableStateOf(store.read()) }
     var baseUrl by remember { mutableStateOf(settings.baseUrl) }
     var accessToken by remember { mutableStateOf(settings.accessToken) }
@@ -40,6 +44,7 @@ fun SecurityScreen(onBack: () -> Unit) {
     var snapshot by remember { mutableStateOf(HomeAssistantSecuritySnapshot()) }
     var loadingSensors by remember { mutableStateOf(false) }
     var sensorMessage by remember { mutableStateOf("Pulsa actualizar para leer los sensores") }
+    var securityEvents by remember { mutableStateOf(eventStore.readEvents()) }
 
     fun persist(status: HomeAssistantConnectionStatus, message: String, tested: Boolean) {
         settings = HomeAssistantSettings(
@@ -64,6 +69,7 @@ fun SecurityScreen(onBack: () -> Unit) {
                 is HomeAssistantSecurityClient.Result.Success -> {
                     snapshot = result.snapshot
                     snapshotStore.write(result.snapshot)
+                    securityEvents = eventStore.process(result.snapshot)
                     if (!silent) {
                         sensorMessage = if (snapshot.openings.isEmpty() && snapshot.motions.isEmpty() && snapshot.cameras.isEmpty()) {
                             "No se encontraron sensores ni cámaras compatibles"
@@ -192,6 +198,15 @@ fun SecurityScreen(onBack: () -> Unit) {
             SectionTitle("Cámaras")
             Spacer(Modifier.height(10.dp))
             CameraSection(snapshot.cameras, settings, baseUrl, accessToken)
+
+            Spacer(Modifier.height(22.dp))
+            SecurityEventHistory(
+                events = securityEvents,
+                onClear = {
+                    eventStore.clear()
+                    securityEvents = emptyList()
+                }
+            )
             Spacer(Modifier.height(24.dp))
         }
     }
@@ -260,6 +275,56 @@ private fun SensorSection(title: String, symbol: String, entities: List<Security
             if (index != entities.lastIndex) Spacer(Modifier.height(10.dp))
         }
     }
+}
+
+@Composable
+private fun SecurityEventHistory(events: List<SecurityEvent>, onClear: () -> Unit) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        SectionTitle("Últimos eventos")
+        Spacer(Modifier.weight(1f))
+        if (events.isNotEmpty()) {
+            TextButton(onClick = onClear) { Text("Borrar") }
+        }
+    }
+    Spacer(Modifier.height(10.dp))
+
+    if (events.isEmpty()) {
+        SecurityDeviceCard(
+            symbol = "◷",
+            title = "Historial de seguridad",
+            status = "Sin eventos registrados",
+            detail = "Aquí aparecerán los cambios detectados en puertas y sensores de movimiento.",
+            statusColor = TextoDesactivado
+        )
+        return
+    }
+
+    events.take(12).forEachIndexed { index, event ->
+        val isOpening = event.category == SecurityEntityCategory.OPENING
+        val status = when {
+            isOpening && event.active -> "Puerta o ventana abierta"
+            isOpening -> "Puerta o ventana cerrada"
+            event.active -> "Movimiento detectado"
+            else -> "Movimiento finalizado"
+        }
+        val color = if (event.active) Color(0xFFFFB74D) else Color(0xFF61D88B)
+        SecurityDeviceCard(
+            symbol = if (isOpening) "▣" else "◉",
+            title = event.name,
+            status = status,
+            detail = formatSecurityEventTime(event.occurredAtEpochMillis),
+            statusColor = color
+        )
+        if (index != events.take(12).lastIndex) Spacer(Modifier.height(10.dp))
+    }
+}
+
+private fun formatSecurityEventTime(epochMillis: Long): String {
+    if (epochMillis <= 0L) return "Sin fecha"
+    return SimpleDateFormat("dd/MM/yyyy · HH:mm:ss", Locale.getDefault()).format(Date(epochMillis))
 }
 
 @Composable
