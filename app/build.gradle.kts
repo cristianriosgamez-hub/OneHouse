@@ -16,8 +16,8 @@ android {
         applicationId = "com.onehouse.app"
         minSdk = 29
         targetSdk = 36
-        versionCode = 40
-        versionName = "1.6.13 REV2"
+        versionCode = 41
+        versionName = "1.6.13 REV3"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }

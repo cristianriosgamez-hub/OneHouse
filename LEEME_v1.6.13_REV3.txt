@@ -1,0 +1,24 @@
+ONEHOUSE v1.6.13 REV3 - DATOS KNX REALES
+
+Archivos incluidos para sustituir:
+- app/build.gradle.kts
+- app/src/main/java/com/onehouse/app/knx/KnxAddressBook.kt
+- app/src/main/java/com/onehouse/app/knx/KnxHomeStateRepository.kt
+- app/src/main/java/com/onehouse/app/feature/climate/ClimateScreen.kt
+- app/src/main/java/com/onehouse/app/feature/climate/ClimateComponents.kt
+
+Correcciones:
+- Eliminada la validez de 24 horas de estados KNX persistidos.
+- Solo se muestran telegramas recibidos durante la sesión actual de la aplicación.
+- Sin respuesta KNX se muestra --- o ninguna opción seleccionada.
+- Eliminados los valores predeterminados de consigna 25 ºC, modo Frío y velocidad Baja/Media.
+- Dirección de temperatura Suite corregida a 5/2/3.
+- Temperaturas y consignas DPT 9.001 decodificadas estrictamente como dos bytes.
+- Se rechazan tramas de otra longitud y temperaturas fuera del rango válido.
+- Comedor y Suite usan la misma decodificación DPT 9.001.
+
+Versión:
+- versionCode 41
+- versionName 1.6.13 REV3
+
+No se modifica Seguridad, Home Assistant, cámaras, luces, persianas, consumos, login ni navegación.

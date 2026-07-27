@@ -86,7 +86,7 @@ fun ClimateScreen(onBack: () -> Unit) {
 
         ClimateSystemCard(
             enabled = enabled,
-            selectedMode = selectedMode ?: ClimateMode.COLD,
+            selectedMode = selectedMode,
             onEnabledChange = { }
         )
         Spacer(Modifier.height(12.dp))
@@ -94,21 +94,21 @@ fun ClimateScreen(onBack: () -> Unit) {
         TemperatureControl(
             targetTemperature = climate.targetTemperature,
             enabled = enabled && climate.targetTemperature != null,
-            mode = selectedMode ?: ClimateMode.COLD,
+            mode = selectedMode,
             onDecrease = { },
             onIncrease = { }
         )
         Spacer(Modifier.height(20.dp))
 
         ClimateModeSelector(
-            selectedMode = selectedMode ?: ClimateMode.COLD,
+            selectedMode = selectedMode,
             enabled = false,
             onModeSelected = { }
         )
         Spacer(Modifier.height(24.dp))
 
         FanSpeedSelector(
-            selectedSpeed = selectedFanSpeed ?: FanSpeed.MEDIUM,
+            selectedSpeed = selectedFanSpeed,
             enabled = false,
             onSpeedSelected = { }
         )

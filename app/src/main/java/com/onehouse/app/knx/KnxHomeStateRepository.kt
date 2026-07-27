@@ -63,7 +63,12 @@ data class KnxHomeSnapshot(
             ?.takeIf(StateFreshness::isTrusted)
             ?.rawValue
             ?: return null
-        return KnxValueDecoder.decodeFlexible(raw, dpt)
+        return if (KnxDptResolver.mainNumber(dpt) == 9) {
+            // Las temperaturas DPT 9 deben ocupar exactamente dos bytes.
+            if (raw.length != 4) null else KnxValueDecoder.decode(raw, dpt)
+        } else {
+            KnxValueDecoder.decode(raw, dpt)
+        }
     }
 
     fun hasTrustedState(address: String): Boolean =
@@ -148,47 +153,42 @@ class KnxHomeStateRepository(context: Context) {
         fun boolAt(address: String) = findByAddress(address)?.booleanValue
         fun byteAt(address: String) = KnxValueDecoder.decode(findByAddress(address)?.rawValue, "20.102")?.toInt()
 
-        // En esta instalación Daikin publica el modo y la velocidad como enumeraciones.
-        // Se aceptan las variantes habituales de KNX/Daikin y, mientras todavía no haya
-        // respuesta del bus, se muestran los valores reales de reposo de la vivienda.
+        // El modo y la velocidad solo se muestran cuando existe una respuesta KNX
+        // real durante la sesión actual. No se inventan estados de reposo.
         val mode = when (byteAt(KnxAddressBook.Climate.MODE_STATE)) {
             0 -> "Automático"
             1, 4 -> "Calor"
             2, 3, 9 -> "Frío"
             5 -> "Dry"
             6, 14 -> "Ventilación"
-            else -> "Frío"
+            else -> null
         }
         val fan = when (byteAt(KnxAddressBook.Climate.FAN_SPEED_STATE)) {
             0, 1 -> "Baja"
             2 -> "Media"
             3 -> "Alta"
-            else -> "Baja"
+            else -> null
         }
 
-        val diningTemperature = floatAtFlexible(
+        val diningTemperature = strictDpt9At(
             states = states,
             address = KnxAddressBook.Indoor.TEMPERATURE_DINING,
-            preferredDpt = "9.001",
-            range = 5f..45f
+            range = -20f..60f
         )
-        val climateTemperature = floatAtFlexible(
+        val climateTemperature = strictDpt9At(
             states = states,
             address = KnxAddressBook.Climate.CURRENT_TEMPERATURE,
-            preferredDpt = "9.001",
-            range = 5f..45f
+            range = -20f..60f
         )
-        val targetTemperature = floatAtFlexible(
+        val targetTemperature = strictDpt9At(
             states = states,
             address = KnxAddressBook.Climate.TARGET_TEMPERATURE_PRIMARY,
-            preferredDpt = "9.001",
             range = 16f..34f
-        ) ?: floatAtFlexible(
+        ) ?: strictDpt9At(
             states = states,
             address = KnxAddressBook.Climate.TARGET_TEMPERATURE_FALLBACK,
-            preferredDpt = "9.001",
             range = 16f..34f
-        ) ?: 25f
+        )
 
         return KnxHomeSnapshot(
             devices = devices,
@@ -209,34 +209,27 @@ class KnxHomeStateRepository(context: Context) {
         )
     }
 
-    private fun floatAtFlexible(
+    private fun strictDpt9At(
         states: Map<String, KnxStateRepository.State>,
         address: String,
-        preferredDpt: String,
         range: ClosedFloatingPointRange<Float>
     ): Float? {
         val raw = states[address]?.takeIf(StateFreshness::isTrusted)?.rawValue ?: return null
-        val preferred = KnxValueDecoder.decode(raw, preferredDpt)
-        if (preferred != null && preferred in range) return preferred
-
-        // InsideControl exporta algunas sondas como DPT 14 (float de 4 bytes),
-        // aunque funcionalmente sean temperaturas. Esta segunda interpretación
-        // evita valores imposibles como 5089,3 °C.
-        val alternative = KnxValueDecoder.decode(raw, "14.000")
-        return alternative?.takeIf { it in range }
+        // DPT 9.001 ocupa exactamente dos bytes. No reinterpretamos automáticamente
+        // datos de otra longitud como temperatura.
+        if (raw.length != 4) return null
+        return KnxValueDecoder.decode(raw, "9.001")?.takeIf { it.isFinite() && it in range }
     }
+
 }
 
 private object StateFreshness {
-    private const val MAX_CACHED_STATE_AGE_MILLIS = 24L * 60L * 60L * 1000L
+    // Los estados persistidos de ejecuciones anteriores no se presentan como actuales.
+    // Solo son válidos los telegramas recibidos desde que arrancó este proceso.
+    private val sessionStartedAtMillis = System.currentTimeMillis()
 
-    /**
-     * Algunos sensores KNX (inundación, lluvia, CO₂ o sondas) solo transmiten
-     * cuando cambia su valor y no siempre responden a GroupValueRead. Por eso se
-     * conserva el último telegrama real durante 24 horas mientras llega uno nuevo.
-     */
     fun isTrusted(state: KnxStateRepository.State): Boolean =
-        System.currentTimeMillis() - state.timestampMillis <= MAX_CACHED_STATE_AGE_MILLIS
+        state.timestampMillis >= sessionStartedAtMillis
 }
 
 /**

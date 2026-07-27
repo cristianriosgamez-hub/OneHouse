@@ -22,7 +22,7 @@ object KnxAddressBook {
         const val CO2_DINING = "5/1/1"
         const val HUMIDITY_DINING = "5/1/2"
         const val TEMPERATURE_DINING = "5/1/3"
-        const val TEMPERATURE_SUITE = "5/1/4"
+        const val TEMPERATURE_SUITE = "5/2/3"
         const val PIR_BLOCK_ENTRANCE = "5/5/1"
         const val FLOOD_KITCHEN = "2/4/1"
         const val FLOOD_BATHROOM = "2/4/2"

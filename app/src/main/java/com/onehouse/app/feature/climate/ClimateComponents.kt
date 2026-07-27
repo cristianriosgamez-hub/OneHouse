@@ -305,11 +305,11 @@ private fun temperatureColor(temperature: Float): Color {
 @Composable
 internal fun ClimateSystemCard(
     enabled: Boolean,
-    selectedMode: ClimateMode,
+    selectedMode: ClimateMode?,
     onEnabledChange: (Boolean) -> Unit
 ) {
     val activeAccent by animateColorAsState(
-        targetValue = if (enabled) selectedMode.accent else ClimateMuted,
+        targetValue = if (enabled) (selectedMode?.accent ?: ClimateMuted) else ClimateMuted,
         label = "systemCardAccent"
     )
     val cardAlpha by animateFloatAsState(
@@ -319,6 +319,7 @@ internal fun ClimateSystemCard(
 
     val statusText = when {
         !enabled -> "Sistema detenido"
+        selectedMode == null -> "Esperando modo KNX"
         selectedMode == ClimateMode.COLD -> "Refrigerando"
         selectedMode == ClimateMode.HEAT -> "Calentando"
         selectedMode == ClimateMode.FAN -> "Ventilando"
@@ -379,7 +380,7 @@ internal fun ClimateSystemCard(
                 contentAlignment = Alignment.Center
             ) {
                 ClimateVectorIcon(
-                    type = if (enabled) selectedMode.iconType else ClimateIconType.POWER,
+                    type = if (enabled) selectedMode?.iconType ?: ClimateIconType.POWER else ClimateIconType.POWER,
                     color = activeAccent.copy(alpha = cardAlpha),
                     modifier = Modifier.size(25.dp)
                 )
@@ -399,7 +400,7 @@ internal fun ClimateSystemCard(
 
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(
-                        text = if (enabled) "Modo ${selectedMode.label}" else "Sistema desactivado",
+                        text = if (enabled) selectedMode?.let { "Modo ${it.label}" } ?: "Modo ---" else "Sistema desactivado",
                         color = activeAccent.copy(alpha = cardAlpha),
                         fontSize = 12.sp,
                         fontWeight = FontWeight.Medium
@@ -434,8 +435,8 @@ internal fun ClimateSystemCard(
                 onCheckedChange = onEnabledChange,
                 colors = SwitchDefaults.colors(
                     checkedThumbColor = Color.White,
-                    checkedTrackColor = selectedMode.accent,
-                    checkedBorderColor = selectedMode.accent,
+                    checkedTrackColor = selectedMode?.accent ?: ClimateMuted,
+                    checkedBorderColor = selectedMode?.accent ?: ClimateMuted,
                     uncheckedThumbColor = Color.White,
                     uncheckedTrackColor = ClimateCardSecondary,
                     uncheckedBorderColor = ClimateBorder
@@ -449,7 +450,7 @@ internal fun ClimateSystemCard(
 internal fun TemperatureControl(
     targetTemperature: Float?,
     enabled: Boolean,
-    mode: ClimateMode,
+    mode: ClimateMode?,
     onDecrease: () -> Unit,
     onIncrease: () -> Unit
 ) {
@@ -572,7 +573,7 @@ internal fun TemperatureControl(
                     )
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(
-                        text = targetTemperature?.let { String.format("%.1f°", it) } ?: "--",
+                        text = targetTemperature?.let { String.format("%.1f°", it) } ?: "---",
                         color = activeAccent.copy(alpha = contentAlpha),
                         fontSize = 50.sp,
                         fontWeight = FontWeight.Light
@@ -580,7 +581,7 @@ internal fun TemperatureControl(
                     Text(
                         text = when {
                             targetTemperature == null -> "Esperando consigna KNX"
-                            enabled -> "${mode.label} · Consigna general"
+                            enabled -> mode?.let { "${it.label} · Consigna general" } ?: "Modo KNX no disponible"
                             else -> "Control desactivado"
                         },
                         color = activeAccent.copy(alpha = contentAlpha),
@@ -765,7 +766,7 @@ private fun CompactAmbientValue(
                 fontSize = 11.sp
             )
             Text(
-                text = temperature?.let { String.format("%.1f°", it) } ?: "--",
+                text = temperature?.let { String.format("%.1f°", it) } ?: "---",
                 color = ClimateText,
                 fontSize = 20.sp,
                 fontWeight = FontWeight.SemiBold
@@ -776,7 +777,7 @@ private fun CompactAmbientValue(
 
 @Composable
 internal fun ClimateModeSelector(
-    selectedMode: ClimateMode,
+    selectedMode: ClimateMode?,
     enabled: Boolean,
     onModeSelected: (ClimateMode) -> Unit
 ) {
@@ -843,7 +844,7 @@ internal fun ClimateModeSelector(
 
 @Composable
 internal fun FanSpeedSelector(
-    selectedSpeed: FanSpeed,
+    selectedSpeed: FanSpeed?,
     enabled: Boolean,
     onSpeedSelected: (FanSpeed) -> Unit
 ) {
@@ -921,7 +922,7 @@ internal fun ClimateInformationCard(
         Row(modifier = Modifier.fillMaxWidth()) {
             StatusValue(
                 title = "Ventilador",
-                value = fanSpeed?.label ?: "--",
+                value = fanSpeed?.label ?: "---",
                 symbol = "✣",
                 accent = ClimateGreen,
                 modifier = Modifier.weight(1f)
@@ -929,7 +930,7 @@ internal fun ClimateInformationCard(
             StatusDivider()
             StatusValue(
                 title = "Humedad",
-                value = humidity?.let { "$it %" } ?: "--",
+                value = humidity?.let { "$it %" } ?: "---",
                 symbol = "◉",
                 accent = ClimateCyan,
                 modifier = Modifier.weight(1f)
@@ -937,7 +938,7 @@ internal fun ClimateInformationCard(
             StatusDivider()
             StatusValue(
                 title = "Modo",
-                value = selectedMode?.label ?: "--",
+                value = selectedMode?.label ?: "---",
                 symbol = selectedMode?.symbol ?: "·",
                 accent = selectedMode?.accent ?: ClimateMuted,
                 modifier = Modifier.weight(1f)
@@ -945,7 +946,7 @@ internal fun ClimateInformationCard(
             StatusDivider()
             StatusValue(
                 title = "CO₂",
-                value = co2Ppm?.let { "$it ppm" } ?: "--",
+                value = co2Ppm?.let { "$it ppm" } ?: "---",
                 secondaryValue = co2Quality,
                 symbol = "⌁",
                 accent = co2Accent,
