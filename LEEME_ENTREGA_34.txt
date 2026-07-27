@@ -1,0 +1,17 @@
+ONEHOUSE - ENTREGA 34 - v1.6.4
+
+Base utilizada: OneHousev1.6.3_Camaras_Home_Assistant.zip
+
+Cambios:
+- Actualización automática de sensores y cámaras cada 30 segundos mientras la pantalla Seguridad está abierta.
+- Primera actualización automática al entrar en Seguridad si Home Assistant ya está conectado.
+- La actualización automática es silenciosa y no bloquea la pantalla.
+- Las imágenes de cámara se pueden pulsar para verlas ampliadas.
+- Botón Cerrar en la vista ampliada.
+- Se mantiene el botón manual Actualizar imagen.
+- versionName 1.6.4 / versionCode 29.
+
+No se modifica KNX, luces, persianas, climatización, consumos ni el resto de estancias.
+
+Copiar la carpeta app sobre la raíz del proyecto y aceptar la sustitución.
+Después: Clean Project, Rebuild Project y generar APK.

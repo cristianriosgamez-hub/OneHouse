@@ -1,6 +1,7 @@
 package com.onehouse.app.feature.security
 
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -9,6 +10,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
+import androidx.compose.ui.window.Dialog
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -24,6 +26,7 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.onehouse.app.design.*
+import kotlinx.coroutines.delay
 
 @Composable
 fun SecurityScreen(onBack: () -> Unit) {
@@ -47,28 +50,42 @@ fun SecurityScreen(onBack: () -> Unit) {
         store.write(settings)
     }
 
-    fun refreshSensors() {
+    fun refreshSensors(silent: Boolean = false) {
         if (baseUrl.isBlank() || accessToken.isBlank()) {
-            sensorMessage = "Configura primero Home Assistant"
+            if (!silent) sensorMessage = "Configura primero Home Assistant"
             return
         }
+        if (loadingSensors) return
         loadingSensors = true
-        sensorMessage = "Leyendo sensores…"
+        if (!silent) sensorMessage = "Leyendo sensores…"
         HomeAssistantSecurityClient.fetch(baseUrl, accessToken) { result ->
             loadingSensors = false
             when (result) {
                 is HomeAssistantSecurityClient.Result.Success -> {
                     snapshot = result.snapshot
                     snapshotStore.write(result.snapshot)
-                    sensorMessage = if (snapshot.openings.isEmpty() && snapshot.motions.isEmpty() && snapshot.cameras.isEmpty()) {
-                        "No se encontraron sensores ni cámaras compatibles"
-                    } else "Dispositivos actualizados correctamente"
+                    if (!silent) {
+                        sensorMessage = if (snapshot.openings.isEmpty() && snapshot.motions.isEmpty() && snapshot.cameras.isEmpty()) {
+                            "No se encontraron sensores ni cámaras compatibles"
+                        } else "Dispositivos actualizados correctamente"
+                    }
                     persist(HomeAssistantConnectionStatus.CONNECTED, "Conectado correctamente con Home Assistant", true)
                 }
                 is HomeAssistantSecurityClient.Result.Failure -> {
-                    sensorMessage = result.message
+                    if (!silent) sensorMessage = result.message
                     persist(HomeAssistantConnectionStatus.FAILED, result.message, true)
                 }
+            }
+        }
+    }
+
+
+    LaunchedEffect(settings.lastStatus, baseUrl, accessToken) {
+        if (settings.lastStatus == HomeAssistantConnectionStatus.CONNECTED && baseUrl.isNotBlank() && accessToken.isNotBlank()) {
+            refreshSensors(silent = true)
+            while (true) {
+                delay(30_000)
+                refreshSensors(silent = true)
             }
         }
     }
@@ -142,7 +159,7 @@ fun SecurityScreen(onBack: () -> Unit) {
                                         when (result) {
                                             HomeAssistantConnectionTester.Result.Success -> {
                                                 persist(HomeAssistantConnectionStatus.CONNECTED, "Conectado correctamente con Home Assistant", true)
-                                                refreshSensors()
+                                                refreshSensors(silent = false)
                                             }
                                             is HomeAssistantConnectionTester.Result.Failure -> persist(HomeAssistantConnectionStatus.FAILED, result.message, true)
                                         }
@@ -161,7 +178,7 @@ fun SecurityScreen(onBack: () -> Unit) {
 
             Spacer(Modifier.height(18.dp))
             Button(
-                onClick = { refreshSensors() }, modifier = Modifier.fillMaxWidth(),
+                onClick = { refreshSensors(silent = false) }, modifier = Modifier.fillMaxWidth(),
                 enabled = !loadingSensors && settings.lastStatus == HomeAssistantConnectionStatus.CONNECTED,
                 colors = ButtonDefaults.buttonColors(containerColor = AzulOneHouse.copy(alpha = 0.85f))
             ) { Text(if (loadingSensors) "Actualizando…" else "Actualizar sensores") }
@@ -279,6 +296,7 @@ private fun SecurityCameraCard(camera: SecurityCameraEntity, baseUrl: String, ac
     var bitmap by remember(camera.entityId, baseUrl) { mutableStateOf<android.graphics.Bitmap?>(null) }
     var imageMessage by remember(camera.entityId, baseUrl) { mutableStateOf("Cargando imagen…") }
     var loading by remember(camera.entityId, baseUrl) { mutableStateOf(false) }
+    var showExpanded by remember(camera.entityId) { mutableStateOf(false) }
 
     fun loadImage() {
         if (!camera.available || baseUrl.isBlank() || accessToken.isBlank() || loading) return
@@ -324,7 +342,8 @@ private fun SecurityCameraCard(camera: SecurityCameraEntity, baseUrl: String, ac
                 Image(
                     bitmap = bitmap!!.asImageBitmap(),
                     contentDescription = "Imagen de ${camera.name}",
-                    modifier = Modifier.fillMaxWidth().height(190.dp).clip(RoundedCornerShape(16.dp)),
+                    modifier = Modifier.fillMaxWidth().height(190.dp).clip(RoundedCornerShape(16.dp))
+                        .clickable { showExpanded = true },
                     contentScale = ContentScale.Crop
                 )
             } else {
@@ -338,10 +357,37 @@ private fun SecurityCameraCard(camera: SecurityCameraEntity, baseUrl: String, ac
             }
             Spacer(Modifier.height(10.dp))
             Text(imageMessage, color = TextoSecundario, style = MaterialTheme.typography.bodySmall)
+            if (bitmap != null) {
+                Spacer(Modifier.height(6.dp))
+                Text("Pulsa la imagen para ampliarla", color = TextoDesactivado, style = MaterialTheme.typography.bodySmall)
+            }
             if (camera.available) {
                 Spacer(Modifier.height(10.dp))
                 OutlinedButton(onClick = { loadImage() }, modifier = Modifier.fillMaxWidth(), enabled = !loading) {
                     Text(if (loading) "Actualizando imagen…" else "Actualizar imagen")
+                }
+            }
+        }
+    }
+
+    if (showExpanded && bitmap != null) {
+        Dialog(onDismissRequest = { showExpanded = false }) {
+            Surface(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(20.dp),
+                color = Color.Black
+            ) {
+                Column {
+                    Image(
+                        bitmap = bitmap!!.asImageBitmap(),
+                        contentDescription = "Vista ampliada de ${camera.name}",
+                        modifier = Modifier.fillMaxWidth().heightIn(min = 260.dp, max = 620.dp),
+                        contentScale = ContentScale.Fit
+                    )
+                    TextButton(
+                        onClick = { showExpanded = false },
+                        modifier = Modifier.align(Alignment.End).padding(8.dp)
+                    ) { Text("Cerrar") }
                 }
             }
         }
