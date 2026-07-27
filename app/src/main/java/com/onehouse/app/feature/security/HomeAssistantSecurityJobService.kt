@@ -24,7 +24,9 @@ class HomeAssistantSecurityJobService : JobService() {
                     is HomeAssistantSecurityClient.Result.Success -> {
                         HomeAssistantSecuritySnapshotStore(applicationContext).write(result.snapshot)
                         val processed = HomeAssistantSecurityEventStore(applicationContext).process(result.snapshot)
-                        HomeAssistantSecurityNotificationManager(applicationContext).notify(processed.newEvents)
+                        val monitoringPreferences = HomeAssistantSecurityMonitoringPreferences(applicationContext)
+                        HomeAssistantSecurityNotificationManager(applicationContext)
+                            .notify(monitoringPreferences.filterNotificationEvents(processed.newEvents))
                     }
                     is HomeAssistantSecurityClient.Result.Failure -> Unit
                 }

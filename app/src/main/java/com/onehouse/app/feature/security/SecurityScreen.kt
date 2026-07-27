@@ -42,6 +42,7 @@ fun SecurityScreen(onBack: () -> Unit) {
     val snapshotStore = remember { HomeAssistantSecuritySnapshotStore(context.applicationContext) }
     val eventStore = remember { HomeAssistantSecurityEventStore(context.applicationContext) }
     val notificationManager = remember { HomeAssistantSecurityNotificationManager(context.applicationContext) }
+    val monitoringPreferences = remember { HomeAssistantSecurityMonitoringPreferences(context.applicationContext) }
     var settings by remember { mutableStateOf(store.read()) }
     var baseUrl by remember { mutableStateOf(settings.baseUrl) }
     var accessToken by remember { mutableStateOf(settings.accessToken) }
@@ -52,6 +53,7 @@ fun SecurityScreen(onBack: () -> Unit) {
     var securityEvents by remember { mutableStateOf(eventStore.readEvents()) }
     var notificationsEnabled by remember { mutableStateOf(notificationManager.enabled) }
     var notificationPermissionGranted by remember { mutableStateOf(notificationManager.hasPermission()) }
+    var monitoringOptions by remember { mutableStateOf(monitoringPreferences.read()) }
     val notificationPermissionLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestPermission()
     ) { granted ->
@@ -86,7 +88,7 @@ fun SecurityScreen(onBack: () -> Unit) {
                     snapshotStore.write(result.snapshot)
                     val processed = eventStore.process(result.snapshot)
                     securityEvents = processed.events
-                    notificationManager.notify(processed.newEvents)
+                    notificationManager.notify(monitoringPreferences.filterNotificationEvents(processed.newEvents))
                     if (!silent) {
                         sensorMessage = if (snapshot.openings.isEmpty() && snapshot.motions.isEmpty() && snapshot.cameras.isEmpty()) {
                             "No se encontraron sensores ni cámaras compatibles"
@@ -211,6 +213,11 @@ fun SecurityScreen(onBack: () -> Unit) {
             SecurityNotificationsCard(
                 enabled = notificationsEnabled,
                 permissionGranted = notificationPermissionGranted,
+                monitoringOptions = monitoringOptions,
+                onMonitoringOptionsChange = { updated ->
+                    monitoringOptions = updated
+                    monitoringPreferences.write(updated)
+                },
                 onEnabledChange = { enabled ->
                     if (!enabled) {
                         notificationsEnabled = false
@@ -235,7 +242,14 @@ fun SecurityScreen(onBack: () -> Unit) {
             Spacer(Modifier.height(22.dp))
             SectionTitle("Cámaras")
             Spacer(Modifier.height(10.dp))
-            CameraSection(snapshot.cameras, settings, baseUrl, accessToken)
+            CameraSection(
+                cameras = snapshot.cameras,
+                settings = settings,
+                baseUrl = baseUrl,
+                accessToken = accessToken,
+                autoRefreshEnabled = monitoringOptions.cameraAutoRefreshEnabled,
+                refreshToken = snapshot.fetchedAtEpochMillis
+            )
 
             Spacer(Modifier.height(22.dp))
             SecurityEventHistory(
@@ -254,36 +268,94 @@ fun SecurityScreen(onBack: () -> Unit) {
 private fun SecurityNotificationsCard(
     enabled: Boolean,
     permissionGranted: Boolean,
+    monitoringOptions: HomeAssistantSecurityMonitoringOptions,
+    onMonitoringOptionsChange: (HomeAssistantSecurityMonitoringOptions) -> Unit,
     onEnabledChange: (Boolean) -> Unit
 ) {
     SectionTitle("Avisos de seguridad")
     Spacer(Modifier.height(10.dp))
     OneHouseCard(modifier = Modifier.fillMaxWidth()) {
-        Row(
-            modifier = Modifier.fillMaxWidth().padding(18.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Column(Modifier.weight(1f)) {
-                Text(
-                    "Notificaciones en el móvil",
-                    color = TextoPrincipal,
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.SemiBold
-                )
-                Spacer(Modifier.height(5.dp))
-                Text(
-                    when {
-                        enabled -> "Vigilancia activa. Con la pantalla abierta se comprueba cada 30 s y en segundo plano aproximadamente cada 15 min."
-                        !permissionGranted -> "Activa el permiso para recibir alertas de seguridad."
-                        else -> "Los avisos están desactivados."
-                    },
-                    color = TextoSecundario,
-                    style = MaterialTheme.typography.bodySmall
-                )
+        Column(Modifier.fillMaxWidth().padding(18.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Column(Modifier.weight(1f)) {
+                    Text(
+                        "Notificaciones en el móvil",
+                        color = TextoPrincipal,
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                    Spacer(Modifier.height(5.dp))
+                    Text(
+                        when {
+                            enabled -> "Vigilancia activa. Con la pantalla abierta se comprueba cada 30 s y en segundo plano aproximadamente cada 15 min."
+                            !permissionGranted -> "Activa el permiso para recibir alertas de seguridad."
+                            else -> "Los avisos están desactivados."
+                        },
+                        color = TextoSecundario,
+                        style = MaterialTheme.typography.bodySmall
+                    )
+                }
+                Spacer(Modifier.width(12.dp))
+                Switch(checked = enabled, onCheckedChange = onEnabledChange)
             }
-            Spacer(Modifier.width(12.dp))
-            Switch(checked = enabled, onCheckedChange = onEnabledChange)
+
+            HorizontalDivider(
+                modifier = Modifier.padding(vertical = 14.dp),
+                color = TextoDesactivado.copy(alpha = 0.25f)
+            )
+            Text(
+                "ELEMENTOS SUPERVISADOS",
+                color = AzulClaro,
+                style = MaterialTheme.typography.labelMedium,
+                fontWeight = FontWeight.Bold,
+                letterSpacing = 0.8.sp
+            )
+            Spacer(Modifier.height(8.dp))
+            MonitoringOptionRow(
+                title = "Puertas y ventanas",
+                detail = "Generar avisos cuando se detecte una apertura.",
+                checked = monitoringOptions.openingsEnabled,
+                onCheckedChange = { onMonitoringOptionsChange(monitoringOptions.copy(openingsEnabled = it)) }
+            )
+            MonitoringOptionRow(
+                title = "Movimiento",
+                detail = "Generar avisos cuando un sensor detecte presencia.",
+                checked = monitoringOptions.motionEnabled,
+                onCheckedChange = { onMonitoringOptionsChange(monitoringOptions.copy(motionEnabled = it)) }
+            )
+            MonitoringOptionRow(
+                title = "Actualizar cámaras automáticamente",
+                detail = "Renovar las imágenes durante cada actualización de Seguridad.",
+                checked = monitoringOptions.cameraAutoRefreshEnabled,
+                onCheckedChange = { onMonitoringOptionsChange(monitoringOptions.copy(cameraAutoRefreshEnabled = it)) },
+                showDivider = false
+            )
         }
+    }
+}
+
+@Composable
+private fun MonitoringOptionRow(
+    title: String,
+    detail: String,
+    checked: Boolean,
+    onCheckedChange: (Boolean) -> Unit,
+    showDivider: Boolean = true
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Column(Modifier.weight(1f)) {
+            Text(title, color = TextoPrincipal, fontWeight = FontWeight.SemiBold)
+            Spacer(Modifier.height(3.dp))
+            Text(detail, color = TextoSecundario, style = MaterialTheme.typography.bodySmall)
+        }
+        Spacer(Modifier.width(12.dp))
+        Switch(checked = checked, onCheckedChange = onCheckedChange)
+    }
+    if (showDivider) {
+        HorizontalDivider(color = TextoDesactivado.copy(alpha = 0.16f))
     }
 }
 
@@ -407,7 +479,9 @@ private fun CameraSection(
     cameras: List<SecurityCameraEntity>,
     settings: HomeAssistantSettings,
     baseUrl: String,
-    accessToken: String
+    accessToken: String,
+    autoRefreshEnabled: Boolean,
+    refreshToken: Long
 ) {
     if (cameras.isEmpty()) {
         val status = when (settings.lastStatus) {
@@ -426,13 +500,19 @@ private fun CameraSection(
     }
 
     cameras.forEachIndexed { index, camera ->
-        SecurityCameraCard(camera, baseUrl, accessToken)
+        SecurityCameraCard(camera, baseUrl, accessToken, autoRefreshEnabled, refreshToken)
         if (index != cameras.lastIndex) Spacer(Modifier.height(12.dp))
     }
 }
 
 @Composable
-private fun SecurityCameraCard(camera: SecurityCameraEntity, baseUrl: String, accessToken: String) {
+private fun SecurityCameraCard(
+    camera: SecurityCameraEntity,
+    baseUrl: String,
+    accessToken: String,
+    autoRefreshEnabled: Boolean,
+    refreshToken: Long
+) {
     var bitmap by remember(camera.entityId, baseUrl) { mutableStateOf<android.graphics.Bitmap?>(null) }
     var imageMessage by remember(camera.entityId, baseUrl) { mutableStateOf("Cargando imagen…") }
     var loading by remember(camera.entityId, baseUrl) { mutableStateOf(false) }
@@ -457,7 +537,9 @@ private fun SecurityCameraCard(camera: SecurityCameraEntity, baseUrl: String, ac
         }
     }
 
-    LaunchedEffect(camera.entityId, camera.available, baseUrl, accessToken) { loadImage() }
+    LaunchedEffect(camera.entityId, camera.available, baseUrl, accessToken, autoRefreshEnabled, refreshToken) {
+        if (bitmap == null || autoRefreshEnabled) loadImage()
+    }
 
     OneHouseCard(Modifier.fillMaxWidth()) {
         Column(Modifier.padding(16.dp)) {
