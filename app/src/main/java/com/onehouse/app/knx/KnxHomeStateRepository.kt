@@ -27,21 +27,30 @@ data class KnxHomeSnapshot(
         }
     }
 
+    /**
+     * Devuelve únicamente un estado confirmado por el objeto de lectura.
+     *
+     * Cuando el dispositivo dispone de dirección de estado nunca usamos como
+     * respaldo la dirección de mando: un GroupValueWrite antiguo podría hacer
+     * aparecer una luz encendida aunque el actuador esté realmente apagado.
+     */
     fun booleanValue(device: ImportedKnxDevice): Boolean? =
-        device.readAddresses.asSequence()
-            .mapNotNull { states[it.toString()]?.booleanValue }
+        stateAddresses(device)
+            .asSequence()
+            .mapNotNull { address -> states[address.toString()]?.takeIf(StateFreshness::isTrusted) }
+            .mapNotNull { state -> state.booleanValue }
             .firstOrNull()
-            ?: device.writeAddresses.asSequence()
-                .mapNotNull { states[it.toString()]?.booleanValue }
-                .firstOrNull()
 
     fun numericValue(device: ImportedKnxDevice): Float? {
-        val state = (device.readAddresses + device.writeAddresses)
+        val state = stateAddresses(device)
             .asSequence()
-            .mapNotNull { states[it.toString()] }
+            .mapNotNull { address -> states[address.toString()]?.takeIf(StateFreshness::isTrusted) }
             .firstOrNull() ?: return null
         return KnxValueDecoder.decode(state.rawValue, device.resolvedDpt)
     }
+
+    private fun stateAddresses(device: ImportedKnxDevice) =
+        device.readAddresses.ifEmpty { device.writeAddresses }
 
     companion object {
         private fun normalize(value: String): String = value
@@ -84,6 +93,10 @@ class KnxHomeStateRepository(context: Context) {
         ?.let(KnxDeviceFactory::create)
         .orEmpty()
 
+    init {
+        InitialKnxStateRefresh.ensureStarted(appContext, devices)
+    }
+
     val stateFlow: Flow<KnxHomeSnapshot> = stateRepository.stateFlow.map { states ->
         buildSnapshot(devices, states)
     }
@@ -95,9 +108,10 @@ class KnxHomeStateRepository(context: Context) {
         states: Map<String, KnxStateRepository.State>
     ): KnxHomeSnapshot {
         fun stateFor(device: ImportedKnxDevice): KnxStateRepository.State? =
-            (device.readAddresses + device.writeAddresses)
+            device.readAddresses
+                .ifEmpty { device.writeAddresses }
                 .asSequence()
-                .mapNotNull { states[it.toString()] }
+                .mapNotNull { states[it.toString()]?.takeIf(StateFreshness::isTrusted) }
                 .firstOrNull()
 
         val lights = devices.filter { it.controlKind == ControlKind.BOOLEAN_SWITCH }
@@ -108,7 +122,8 @@ class KnxHomeStateRepository(context: Context) {
             value != null && value < 95f
         }
 
-        fun findByAddress(address: String): KnxStateRepository.State? = states[address]
+        fun findByAddress(address: String): KnxStateRepository.State? =
+            states[address]?.takeIf(StateFreshness::isTrusted)
         fun floatAt(address: String, dpt: String) = KnxValueDecoder.decode(findByAddress(address)?.rawValue, dpt)
         fun boolAt(address: String) = findByAddress(address)?.booleanValue
         fun byteAt(address: String) = KnxValueDecoder.decode(findByAddress(address)?.rawValue, "20.102")?.toInt()
@@ -146,6 +161,77 @@ class KnxHomeStateRepository(context: Context) {
                 fanSpeed = fan
             )
         )
+    }
+}
+
+private object StateFreshness {
+    private val processStartedAtMillis = System.currentTimeMillis()
+    private const val STARTUP_GRACE_MILLIS = 5_000L
+
+    /**
+     * Descarta la caché heredada de ejecuciones anteriores, pero conserva para
+     * siempre los estados confirmados durante la sesión actual.
+     */
+    fun isTrusted(state: KnxStateRepository.State): Boolean =
+        state.timestampMillis >= processStartedAtMillis - STARTUP_GRACE_MILLIS
+}
+
+/**
+ * Refresca una vez por proyecto todos los objetos de lectura sin bloquear la UI.
+ * Los dispositivos de clima se consultan primero para que sus cinco valores
+ * aparezcan cuanto antes; después se leen luces, persianas y el resto.
+ */
+private object InitialKnxStateRefresh {
+    private val lock = Any()
+    private var activeReader: KnxBulkStateReader? = null
+    private var activeSignature: String? = null
+    private var completedSignature: String? = null
+
+    fun ensureStarted(context: Context, devices: List<ImportedKnxDevice>) {
+        val readable = devices.filter { it.canRead }
+        if (readable.isEmpty()) return
+
+        val signature = readable
+            .flatMap { device -> device.readAddresses.map { it.toString() } }
+            .distinct()
+            .sorted()
+            .joinToString("|")
+
+        synchronized(lock) {
+            if (signature == activeSignature || signature == completedSignature) return
+
+            activeReader?.close()
+            val reader = KnxBulkStateReader(context.applicationContext)
+            activeReader = reader
+            activeSignature = signature
+
+            val prioritized = readable.sortedBy { device ->
+                when {
+                    device.controlKind == ControlKind.CLIMATE -> 0
+                    device.name.contains("daikin", ignoreCase = true) -> 0
+                    device.name.contains("termostato", ignoreCase = true) -> 0
+                    device.controlKind == ControlKind.TEMPERATURE -> 1
+                    device.controlKind == ControlKind.BOOLEAN_SWITCH -> 2
+                    device.controlKind == ControlKind.BLIND -> 3
+                    else -> 4
+                }
+            }
+
+            reader.read(
+                devices = prioritized,
+                onProgress = { },
+                onComplete = {
+                    synchronized(lock) {
+                        if (activeReader === reader) {
+                            completedSignature = signature
+                            activeSignature = null
+                            activeReader = null
+                        }
+                    }
+                    reader.close()
+                }
+            )
+        }
     }
 }
 

@@ -1,0 +1,8 @@
+OneHouse - Entrega 22
+
+- Las luces con dirección de estado usan exclusivamente la dirección de lectura.
+- Se evita mostrar como estado real un GroupValueWrite antiguo de la dirección de mando.
+- Se descarta la caché procedente de ejecuciones anteriores hasta recibir confirmación KNX en la sesión actual.
+- Se inicia una lectura secuencial automática una sola vez por proyecto.
+- La sincronización prioriza climatización, temperatura, luces y persianas.
+- La portada y las estancias siguen consumiendo el mismo KnxHomeSnapshot.
