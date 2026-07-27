@@ -294,8 +294,19 @@ internal fun EnergySummaryCard(
         )
         Spacer(Modifier.height(12.dp))
         Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-            CompactMetric("Año", "${formatNumber(summary.yearConsumption)} ${summary.type.unit}", Modifier.weight(1f))
-            CompactMetric("Coste", "${formatNumber(summary.yearCost)} €", Modifier.weight(1f))
+            val showsCost = summary.type != MeterType.ACS && summary.type != MeterType.CLIMATIZATION
+            CompactMetric(
+                "Año",
+                "${formatNumber(summary.yearConsumption)} ${summary.type.unit}",
+                Modifier.weight(1f)
+            )
+            if (showsCost) {
+                CompactMetric(
+                    "Coste",
+                    "${formatNumber(summary.yearCost)} €",
+                    Modifier.weight(1f)
+                )
+            }
         }
         Spacer(Modifier.height(10.dp))
         TrendLabel(summary.yearVariationPercent)
