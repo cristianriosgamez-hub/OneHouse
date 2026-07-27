@@ -1,33 +1,14 @@
 package com.onehouse.app.feature.security
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.OutlinedTextFieldDefaults
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -39,138 +20,110 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.onehouse.app.design.AzulClaro
-import com.onehouse.app.design.AzulOneHouse
-import com.onehouse.app.design.FondoInferior
-import com.onehouse.app.design.FondoMedio
-import com.onehouse.app.design.FondoSuperior
-import com.onehouse.app.design.OneHouseCard
-import com.onehouse.app.design.TextoDesactivado
-import com.onehouse.app.design.TextoPrincipal
-import com.onehouse.app.design.TextoSecundario
+import com.onehouse.app.design.*
 
 @Composable
 fun SecurityScreen(onBack: () -> Unit) {
     val context = LocalContext.current
     val store = remember { HomeAssistantSettingsStore(context.applicationContext) }
+    val snapshotStore = remember { HomeAssistantSecuritySnapshotStore(context.applicationContext) }
     var settings by remember { mutableStateOf(store.read()) }
     var baseUrl by remember { mutableStateOf(settings.baseUrl) }
     var accessToken by remember { mutableStateOf(settings.accessToken) }
     var urlError by remember { mutableStateOf<String?>(null) }
+    var snapshot by remember { mutableStateOf(HomeAssistantSecuritySnapshot()) }
+    var loadingSensors by remember { mutableStateOf(false) }
+    var sensorMessage by remember { mutableStateOf("Pulsa actualizar para leer los sensores") }
 
     fun persist(status: HomeAssistantConnectionStatus, message: String, tested: Boolean) {
         settings = HomeAssistantSettings(
-            baseUrl = baseUrl.trim(),
-            accessToken = accessToken.trim(),
-            lastStatus = status,
+            baseUrl = baseUrl.trim(), accessToken = accessToken.trim(), lastStatus = status,
             lastMessage = message,
             lastTestEpochMillis = if (tested) System.currentTimeMillis() else settings.lastTestEpochMillis
         )
         store.write(settings)
     }
 
+    fun refreshSensors() {
+        if (baseUrl.isBlank() || accessToken.isBlank()) {
+            sensorMessage = "Configura primero Home Assistant"
+            return
+        }
+        loadingSensors = true
+        sensorMessage = "Leyendo sensores…"
+        HomeAssistantSecurityClient.fetch(baseUrl, accessToken) { result ->
+            loadingSensors = false
+            when (result) {
+                is HomeAssistantSecurityClient.Result.Success -> {
+                    snapshot = result.snapshot
+                    snapshotStore.write(result.snapshot)
+                    sensorMessage = if (snapshot.openings.isEmpty() && snapshot.motions.isEmpty()) {
+                        "No se encontraron sensores de apertura o movimiento"
+                    } else "Sensores actualizados correctamente"
+                    persist(HomeAssistantConnectionStatus.CONNECTED, "Conectado correctamente con Home Assistant", true)
+                }
+                is HomeAssistantSecurityClient.Result.Failure -> {
+                    sensorMessage = result.message
+                    persist(HomeAssistantConnectionStatus.FAILED, result.message, true)
+                }
+            }
+        }
+    }
+
     Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(
-                Brush.verticalGradient(
-                    colors = listOf(FondoSuperior, FondoMedio, FondoInferior, Color.Black)
-                )
-            )
+        modifier = Modifier.fillMaxSize().background(
+            Brush.verticalGradient(listOf(FondoSuperior, FondoMedio, FondoInferior, Color.Black))
+        )
     ) {
         Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .verticalScroll(rememberScrollState())
+            modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState())
                 .padding(horizontal = 20.dp, vertical = 24.dp)
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Surface(
-                    onClick = onBack,
-                    shape = CircleShape,
-                    color = AzulOneHouse.copy(alpha = 0.16f)
-                ) {
-                    Text(
-                        text = "‹",
-                        color = TextoPrincipal,
-                        fontSize = 34.sp,
-                        modifier = Modifier.padding(horizontal = 15.dp, vertical = 4.dp)
-                    )
+                Surface(onClick = onBack, shape = CircleShape, color = AzulOneHouse.copy(alpha = 0.16f)) {
+                    Text("‹", color = TextoPrincipal, fontSize = 34.sp, modifier = Modifier.padding(horizontal = 15.dp, vertical = 4.dp))
                 }
                 Spacer(Modifier.size(14.dp))
                 Column {
-                    Text(
-                        text = "Seguridad",
-                        color = TextoPrincipal,
-                        style = MaterialTheme.typography.headlineMedium,
-                        fontWeight = FontWeight.Bold
-                    )
-                    Text(
-                        text = "Sensores y cámaras Xiaomi",
-                        color = TextoSecundario,
-                        style = MaterialTheme.typography.bodyMedium
-                    )
+                    Text("Seguridad", color = TextoPrincipal, style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
+                    Text("Sensores Xiaomi mediante Home Assistant", color = TextoSecundario)
                 }
             }
 
             Spacer(Modifier.height(24.dp))
-            GeneralSecurityStatusCard(settings)
+            GeneralSecurityStatusCard(settings, snapshot, sensorMessage)
 
             Spacer(Modifier.height(22.dp))
             SectionTitle("Conexión con Home Assistant")
             Spacer(Modifier.height(10.dp))
             OneHouseCard(modifier = Modifier.fillMaxWidth()) {
-                Column(modifier = Modifier.padding(18.dp)) {
-                    Text(
-                        text = "Servidor local",
-                        color = TextoPrincipal,
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.SemiBold
-                    )
+                Column(Modifier.padding(18.dp)) {
+                    Text("Servidor local", color = TextoPrincipal, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
                     Spacer(Modifier.height(6.dp))
-                    Text(
-                        text = "Introduce la dirección y un token de larga duración creado en Home Assistant.",
-                        color = TextoSecundario,
-                        style = MaterialTheme.typography.bodySmall
-                    )
+                    Text("Introduce la dirección y un token de larga duración.", color = TextoSecundario, style = MaterialTheme.typography.bodySmall)
                     Spacer(Modifier.height(16.dp))
                     OutlinedTextField(
                         value = baseUrl,
                         onValueChange = {
-                            baseUrl = it
-                            urlError = null
-                            persist(
-                                HomeAssistantConnectionStatus.NOT_TESTED,
-                                "Cambios pendientes de comprobar",
-                                tested = false
-                            )
+                            baseUrl = it; urlError = null
+                            persist(HomeAssistantConnectionStatus.NOT_TESTED, "Cambios pendientes de comprobar", false)
                         },
-                        modifier = Modifier.fillMaxWidth(),
-                        label = { Text("Dirección Home Assistant") },
-                        placeholder = { Text("http://192.168.1.20:8123") },
-                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth(), label = { Text("Dirección Home Assistant") },
+                        placeholder = { Text("http://192.168.1.20:8123") }, singleLine = true,
                         isError = urlError != null,
                         supportingText = urlError?.let { message -> { Text(message) } },
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri),
-                        colors = securityTextFieldColors()
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri), colors = securityTextFieldColors()
                     )
                     Spacer(Modifier.height(12.dp))
                     OutlinedTextField(
                         value = accessToken,
                         onValueChange = {
                             accessToken = it
-                            persist(
-                                HomeAssistantConnectionStatus.NOT_TESTED,
-                                "Cambios pendientes de comprobar",
-                                tested = false
-                            )
+                            persist(HomeAssistantConnectionStatus.NOT_TESTED, "Cambios pendientes de comprobar", false)
                         },
-                        modifier = Modifier.fillMaxWidth(),
-                        label = { Text("Token de acceso") },
-                        placeholder = { Text("Token de larga duración") },
-                        singleLine = true,
-                        visualTransformation = PasswordVisualTransformation(),
-                        colors = securityTextFieldColors()
+                        modifier = Modifier.fillMaxWidth(), label = { Text("Token de acceso") },
+                        placeholder = { Text("Token de larga duración") }, singleLine = true,
+                        visualTransformation = PasswordVisualTransformation(), colors = securityTextFieldColors()
                     )
                     Spacer(Modifier.height(16.dp))
                     Button(
@@ -178,34 +131,17 @@ fun SecurityScreen(onBack: () -> Unit) {
                             val validation = HomeAssistantConnectionTester.validateBaseUrl(baseUrl)
                             urlError = validation
                             when {
-                                validation != null -> persist(
-                                    HomeAssistantConnectionStatus.FAILED,
-                                    validation,
-                                    tested = true
-                                )
-                                accessToken.isBlank() -> persist(
-                                    HomeAssistantConnectionStatus.FAILED,
-                                    "Introduce el token de acceso",
-                                    tested = true
-                                )
+                                validation != null -> persist(HomeAssistantConnectionStatus.FAILED, validation, true)
+                                accessToken.isBlank() -> persist(HomeAssistantConnectionStatus.FAILED, "Introduce el token de acceso", true)
                                 else -> {
-                                    persist(
-                                        HomeAssistantConnectionStatus.TESTING,
-                                        "Comprobando conexión…",
-                                        tested = false
-                                    )
+                                    persist(HomeAssistantConnectionStatus.TESTING, "Comprobando conexión…", false)
                                     HomeAssistantConnectionTester.test(baseUrl, accessToken) { result ->
                                         when (result) {
-                                            HomeAssistantConnectionTester.Result.Success -> persist(
-                                                HomeAssistantConnectionStatus.CONNECTED,
-                                                "Conectado correctamente con Home Assistant",
-                                                tested = true
-                                            )
-                                            is HomeAssistantConnectionTester.Result.Failure -> persist(
-                                                HomeAssistantConnectionStatus.FAILED,
-                                                result.message,
-                                                tested = true
-                                            )
+                                            HomeAssistantConnectionTester.Result.Success -> {
+                                                persist(HomeAssistantConnectionStatus.CONNECTED, "Conectado correctamente con Home Assistant", true)
+                                                refreshSensors()
+                                            }
+                                            is HomeAssistantConnectionTester.Result.Failure -> persist(HomeAssistantConnectionStatus.FAILED, result.message, true)
                                         }
                                     }
                                 }
@@ -214,189 +150,122 @@ fun SecurityScreen(onBack: () -> Unit) {
                         modifier = Modifier.fillMaxWidth(),
                         enabled = settings.lastStatus != HomeAssistantConnectionStatus.TESTING,
                         colors = ButtonDefaults.buttonColors(containerColor = AzulOneHouse)
-                    ) {
-                        Text(
-                            text = if (settings.lastStatus == HomeAssistantConnectionStatus.TESTING) {
-                                "Comprobando…"
-                            } else {
-                                "Guardar y comprobar"
-                            }
-                        )
-                    }
+                    ) { Text(if (settings.lastStatus == HomeAssistantConnectionStatus.TESTING) "Comprobando…" else "Guardar y comprobar") }
                     Spacer(Modifier.height(10.dp))
-                    Text(
-                        text = "El token se guarda cifrado con Android Keystore y no se incluye en la interfaz.",
-                        color = TextoDesactivado,
-                        style = MaterialTheme.typography.bodySmall
-                    )
+                    Text("El token se guarda cifrado con Android Keystore.", color = TextoDesactivado, style = MaterialTheme.typography.bodySmall)
                 }
             }
 
-            Spacer(Modifier.height(22.dp))
-            SectionTitle("Puertas y ventanas")
-            Spacer(Modifier.height(10.dp))
-            SecurityDeviceCard(
-                symbol = "▣",
-                title = "Sensores de apertura",
-                status = deviceStatus(settings),
-                detail = "Se mostrarán aquí las puertas y ventanas vinculadas."
-            )
+            Spacer(Modifier.height(18.dp))
+            Button(
+                onClick = { refreshSensors() }, modifier = Modifier.fillMaxWidth(),
+                enabled = !loadingSensors && settings.lastStatus == HomeAssistantConnectionStatus.CONNECTED,
+                colors = ButtonDefaults.buttonColors(containerColor = AzulOneHouse.copy(alpha = 0.85f))
+            ) { Text(if (loadingSensors) "Actualizando…" else "Actualizar sensores") }
 
             Spacer(Modifier.height(22.dp))
-            SectionTitle("Movimiento")
-            Spacer(Modifier.height(10.dp))
-            SecurityDeviceCard(
-                symbol = "◉",
-                title = "Sensores de movimiento",
-                status = deviceStatus(settings),
-                detail = "Se mostrarán aquí el estado y la última detección."
-            )
+            SensorSection("Puertas y ventanas", "▣", snapshot.openings, SecurityEntityCategory.OPENING, settings)
+            Spacer(Modifier.height(22.dp))
+            SensorSection("Movimiento", "◉", snapshot.motions, SecurityEntityCategory.MOTION, settings)
 
             Spacer(Modifier.height(22.dp))
             SectionTitle("Cámaras")
             Spacer(Modifier.height(10.dp))
-            SecurityDeviceCard(
-                symbol = "▰",
-                title = "Cámaras Xiaomi",
-                status = deviceStatus(settings),
-                detail = "La visualización dependerá de la compatibilidad del modelo."
-            )
-
-            Spacer(Modifier.height(26.dp))
-            Text(
-                text = "Esta versión únicamente configura y comprueba Home Assistant. La lectura de entidades Xiaomi se añadirá en el siguiente paso.",
-                color = TextoDesactivado,
-                style = MaterialTheme.typography.bodySmall
-            )
-            Spacer(Modifier.height(20.dp))
+            SecurityDeviceCard("▰", "Cámaras Xiaomi", "Pendiente", "La compatibilidad de vídeo se revisará en la siguiente fase.", TextoDesactivado)
+            Spacer(Modifier.height(24.dp))
         }
     }
 }
 
 @Composable
-private fun GeneralSecurityStatusCard(settings: HomeAssistantSettings) {
-    val statusColor = when (settings.lastStatus) {
-        HomeAssistantConnectionStatus.CONNECTED -> Color(0xFF61D88B)
-        HomeAssistantConnectionStatus.FAILED -> Color(0xFFFF6B6B)
-        HomeAssistantConnectionStatus.TESTING -> AzulClaro
-        HomeAssistantConnectionStatus.NOT_CONFIGURED,
-        HomeAssistantConnectionStatus.NOT_TESTED -> TextoDesactivado
+private fun GeneralSecurityStatusCard(settings: HomeAssistantSettings, snapshot: HomeAssistantSecuritySnapshot, message: String) {
+    val hasAlerts = snapshot.alertCount > 0
+    val statusColor = when {
+        settings.lastStatus == HomeAssistantConnectionStatus.FAILED -> Color(0xFFFF6B6B)
+        hasAlerts -> Color(0xFFFFB74D)
+        settings.lastStatus == HomeAssistantConnectionStatus.CONNECTED -> Color(0xFF61D88B)
+        settings.lastStatus == HomeAssistantConnectionStatus.TESTING -> AzulClaro
+        else -> TextoDesactivado
     }
-    val title = when (settings.lastStatus) {
-        HomeAssistantConnectionStatus.CONNECTED -> "Conectado"
-        HomeAssistantConnectionStatus.FAILED -> "Sin conexión"
-        HomeAssistantConnectionStatus.TESTING -> "Comprobando"
-        HomeAssistantConnectionStatus.NOT_TESTED -> "Sin comprobar"
-        HomeAssistantConnectionStatus.NOT_CONFIGURED -> "Sin configurar"
+    val title = when {
+        settings.lastStatus == HomeAssistantConnectionStatus.FAILED -> "Sin conexión"
+        hasAlerts -> "Atención: ${snapshot.alertCount} sensor(es) activo(s)"
+        settings.lastStatus == HomeAssistantConnectionStatus.CONNECTED && snapshot.fetchedAtEpochMillis > 0 -> "Todo correcto"
+        settings.lastStatus == HomeAssistantConnectionStatus.CONNECTED -> "Conectado"
+        settings.lastStatus == HomeAssistantConnectionStatus.TESTING -> "Comprobando"
+        settings.lastStatus == HomeAssistantConnectionStatus.NOT_TESTED -> "Sin comprobar"
+        else -> "Sin configurar"
     }
-
-    OneHouseCard(modifier = Modifier.fillMaxWidth()) {
-        Column(modifier = Modifier.padding(20.dp)) {
-            Text(
-                text = "ESTADO GENERAL",
-                color = AzulClaro,
-                style = MaterialTheme.typography.labelMedium,
-                fontWeight = FontWeight.Bold,
-                letterSpacing = 1.sp
-            )
+    OneHouseCard(Modifier.fillMaxWidth()) {
+        Column(Modifier.padding(20.dp)) {
+            Text("ESTADO GENERAL", color = AzulClaro, style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold, letterSpacing = 1.sp)
             Spacer(Modifier.height(12.dp))
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Box(
-                    modifier = Modifier
-                        .size(12.dp)
-                        .clip(CircleShape)
-                        .background(statusColor)
-                )
+                Box(Modifier.size(12.dp).clip(CircleShape).background(statusColor))
                 Spacer(Modifier.size(10.dp))
-                Text(
-                    text = title,
-                    color = TextoPrincipal,
-                    style = MaterialTheme.typography.titleLarge,
-                    fontWeight = FontWeight.SemiBold
-                )
+                Text(title, color = TextoPrincipal, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.SemiBold)
             }
             Spacer(Modifier.height(7.dp))
-            Text(
-                text = settings.lastMessage,
-                color = TextoSecundario,
-                style = MaterialTheme.typography.bodyMedium
-            )
+            Text(message, color = TextoSecundario, style = MaterialTheme.typography.bodyMedium)
         }
     }
 }
 
-private fun deviceStatus(settings: HomeAssistantSettings): String = when (settings.lastStatus) {
-    HomeAssistantConnectionStatus.CONNECTED -> "Conexión preparada"
-    HomeAssistantConnectionStatus.FAILED -> "Sin conexión"
-    HomeAssistantConnectionStatus.TESTING -> "Comprobando"
-    HomeAssistantConnectionStatus.NOT_TESTED -> "Sin comprobar"
-    HomeAssistantConnectionStatus.NOT_CONFIGURED -> "Sin configurar"
+@Composable
+private fun SensorSection(title: String, symbol: String, entities: List<SecurityEntity>, category: SecurityEntityCategory, settings: HomeAssistantSettings) {
+    SectionTitle(title)
+    Spacer(Modifier.height(10.dp))
+    if (entities.isEmpty()) {
+        val status = when (settings.lastStatus) {
+            HomeAssistantConnectionStatus.CONNECTED -> "Sin sensores encontrados"
+            HomeAssistantConnectionStatus.FAILED -> "Sin conexión"
+            else -> "Sin comprobar"
+        }
+        SecurityDeviceCard(symbol, if (category == SecurityEntityCategory.OPENING) "Sensores de apertura" else "Sensores de movimiento", status, "Los dispositivos compatibles aparecerán aquí.", TextoDesactivado)
+    } else {
+        entities.forEachIndexed { index, entity ->
+            val activeText = when {
+                !entity.available -> "No disponible"
+                category == SecurityEntityCategory.OPENING && entity.active -> "Abierto"
+                category == SecurityEntityCategory.OPENING -> "Cerrado"
+                entity.active -> "Movimiento detectado"
+                else -> "Sin movimiento"
+            }
+            val color = when {
+                !entity.available -> TextoDesactivado
+                entity.active -> Color(0xFFFFB74D)
+                else -> Color(0xFF61D88B)
+            }
+            SecurityDeviceCard(symbol, entity.name, activeText, "Último cambio: ${entity.lastChanged}", color)
+            if (index != entities.lastIndex) Spacer(Modifier.height(10.dp))
+        }
+    }
 }
 
 @Composable
 private fun securityTextFieldColors() = OutlinedTextFieldDefaults.colors(
-    focusedTextColor = TextoPrincipal,
-    unfocusedTextColor = TextoPrincipal,
-    focusedBorderColor = AzulClaro,
-    unfocusedBorderColor = AzulOneHouse.copy(alpha = 0.55f),
-    focusedLabelColor = AzulClaro,
-    unfocusedLabelColor = TextoSecundario,
-    cursorColor = AzulClaro
+    focusedTextColor = TextoPrincipal, unfocusedTextColor = TextoPrincipal,
+    focusedBorderColor = AzulClaro, unfocusedBorderColor = AzulOneHouse.copy(alpha = 0.55f),
+    focusedLabelColor = AzulClaro, unfocusedLabelColor = TextoSecundario, cursorColor = AzulClaro
 )
 
-@Composable
-private fun SectionTitle(text: String) {
-    Text(
-        text = text,
-        color = TextoPrincipal,
-        style = MaterialTheme.typography.titleMedium,
-        fontWeight = FontWeight.SemiBold
-    )
+@Composable private fun SectionTitle(text: String) {
+    Text(text, color = TextoPrincipal, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
 }
 
 @Composable
-private fun SecurityDeviceCard(
-    symbol: String,
-    title: String,
-    status: String,
-    detail: String
-) {
-    OneHouseCard(modifier = Modifier.fillMaxWidth()) {
-        Row(
-            modifier = Modifier.padding(18.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(14.dp)
-        ) {
-            Surface(
-                color = AzulOneHouse.copy(alpha = 0.16f),
-                shape = RoundedCornerShape(16.dp)
-            ) {
-                Text(
-                    text = symbol,
-                    color = AzulClaro,
-                    fontSize = 25.sp,
-                    modifier = Modifier.padding(horizontal = 15.dp, vertical = 12.dp)
-                )
+private fun SecurityDeviceCard(symbol: String, title: String, status: String, detail: String, statusColor: Color) {
+    OneHouseCard(Modifier.fillMaxWidth()) {
+        Row(Modifier.padding(18.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
+            Surface(color = AzulOneHouse.copy(alpha = 0.16f), shape = RoundedCornerShape(16.dp)) {
+                Text(symbol, color = AzulClaro, fontSize = 25.sp, modifier = Modifier.padding(horizontal = 15.dp, vertical = 12.dp))
             }
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = title,
-                    color = TextoPrincipal,
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.SemiBold
-                )
+            Column(Modifier.weight(1f)) {
+                Text(title, color = TextoPrincipal, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
                 Spacer(Modifier.height(3.dp))
-                Text(
-                    text = status,
-                    color = TextoDesactivado,
-                    style = MaterialTheme.typography.labelLarge
-                )
+                Text(status, color = statusColor, style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.SemiBold)
                 Spacer(Modifier.height(5.dp))
-                Text(
-                    text = detail,
-                    color = TextoSecundario,
-                    style = MaterialTheme.typography.bodySmall
-                )
+                Text(detail, color = TextoSecundario, style = MaterialTheme.typography.bodySmall)
             }
         }
     }

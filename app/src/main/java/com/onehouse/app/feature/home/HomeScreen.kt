@@ -64,6 +64,8 @@ import com.onehouse.app.feature.weather.WeatherUiState
 import com.onehouse.app.feature.weather.rememberWeatherState
 import com.onehouse.app.feature.home.state.HomeDashboardUiState
 import com.onehouse.app.feature.home.state.HomeStateMapper
+import com.onehouse.app.feature.security.HomeAssistantSecuritySnapshotStore
+import com.onehouse.app.feature.security.SecuritySummary
 import com.onehouse.app.knx.KnxHomeSnapshot
 import com.onehouse.app.knx.KnxHomeStateRepository
 import java.util.Locale
@@ -80,15 +82,18 @@ fun HomeScreen(
     val homeState by homeRepository.stateFlow.collectAsState(initial = homeRepository.snapshot())
     val dashboardState = remember(homeState) { HomeStateMapper.dashboard(homeState) }
     val settingsDataStore = remember(context) { SettingsDataStore(context) }
+    val securitySnapshotStore = remember(context) { HomeAssistantSecuritySnapshotStore(context) }
     val lifecycleOwner = LocalLifecycleOwner.current
     var connectionStatus by remember {
         mutableStateOf(settingsDataStore.read().lastConnectionStatus)
     }
+    var securitySummary by remember { mutableStateOf(securitySnapshotStore.readSummary()) }
 
     DisposableEffect(lifecycleOwner, settingsDataStore) {
         val observer = LifecycleEventObserver { _, event ->
             if (event == Lifecycle.Event.ON_RESUME) {
                 connectionStatus = settingsDataStore.read().lastConnectionStatus
+                securitySummary = securitySnapshotStore.readSummary()
             }
         }
         lifecycleOwner.lifecycle.addObserver(observer)
@@ -131,7 +136,7 @@ fun HomeScreen(
             ClimateHeroCard(dashboardState)
 
             Spacer(modifier = Modifier.height(16.dp))
-            QuickStatusGrid(exteriorWeather, dashboardState, onSecuritySelected)
+            QuickStatusGrid(exteriorWeather, dashboardState, securitySummary, onSecuritySelected)
 
             Spacer(modifier = Modifier.height(26.dp))
             Row(
@@ -256,6 +261,7 @@ private fun ClimateHeroCard(homeState: HomeDashboardUiState) {
 private fun QuickStatusGrid(
     weather: WeatherUiState,
     homeState: HomeDashboardUiState,
+    securitySummary: SecuritySummary,
     onSecuritySelected: () -> Unit
 ) {
     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -297,12 +303,23 @@ private fun QuickStatusGrid(
             symbolColor = AmarilloEstado,
             modifier = Modifier.weight(1f).height(146.dp)
         )
+        val securityValue = when {
+            securitySummary.updatedAt == 0L -> "Sin datos"
+            securitySummary.openCount > 0 -> "${securitySummary.openCount} puerta(s) abierta(s)"
+            securitySummary.motionCount > 0 -> "Movimiento detectado"
+            else -> "Todo correcto"
+        }
+        val securityColor = when {
+            securitySummary.updatedAt == 0L -> TextoDesactivado
+            securitySummary.openCount > 0 || securitySummary.motionCount > 0 -> AmarilloEstado
+            else -> VerdeEstado
+        }
         OneHouseInfoCard(
             title = "Seguridad",
-            value = "Sin configurar",
-            detail = "Sensores Xiaomi",
+            value = securityValue,
+            detail = if (securitySummary.updatedAt == 0L) "Sensores Xiaomi" else "${securitySummary.entityCount} sensores",
             symbol = "⌂",
-            valueColor = TextoDesactivado,
+            valueColor = securityColor,
             symbolColor = AzulClaro,
             modifier = Modifier.weight(1f).height(146.dp),
             onClick = onSecuritySelected
