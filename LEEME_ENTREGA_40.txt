@@ -1,0 +1,10 @@
+ONEHOUSE - ENTREGA 40 - v1.6.10
+
+ARMADO CON RETARDO Y DESARMADO PROTEGIDO
+
+- Al activar la seguridad comienza una cuenta atrás de 30 segundos.
+- Durante la cuenta atrás no se generan notificaciones de apertura ni movimiento.
+- Al finalizar, la seguridad queda armada automáticamente.
+- Al intentar desarmar aparece una confirmación para evitar pulsaciones accidentales.
+- El estado pendiente se conserva aunque se cierre la aplicación.
+- No se modifica KNX, cámaras, climatización, consumos ni estancias.

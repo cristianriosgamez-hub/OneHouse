@@ -54,6 +54,8 @@ fun SecurityScreen(onBack: () -> Unit) {
     var notificationsEnabled by remember { mutableStateOf(notificationManager.enabled) }
     var notificationPermissionGranted by remember { mutableStateOf(notificationManager.hasPermission()) }
     var monitoringOptions by remember { mutableStateOf(monitoringPreferences.read()) }
+    var nowEpochMillis by remember { mutableLongStateOf(System.currentTimeMillis()) }
+    var showDisarmConfirmation by remember { mutableStateOf(false) }
     val notificationPermissionLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestPermission()
     ) { granted ->
@@ -118,6 +120,32 @@ fun SecurityScreen(onBack: () -> Unit) {
         }
     }
 
+    LaunchedEffect(monitoringOptions.armedEnabled, monitoringOptions.armActiveAtEpochMillis) {
+        while (monitoringOptions.armedEnabled && nowEpochMillis < monitoringOptions.armActiveAtEpochMillis) {
+            nowEpochMillis = System.currentTimeMillis()
+            delay(1_000)
+        }
+        nowEpochMillis = System.currentTimeMillis()
+    }
+
+    if (showDisarmConfirmation) {
+        AlertDialog(
+            onDismissRequest = { showDisarmConfirmation = false },
+            title = { Text("Desarmar seguridad") },
+            text = { Text("¿Confirmas que quieres desactivar la vigilancia y las alertas de seguridad?") },
+            confirmButton = {
+                TextButton(onClick = {
+                    val updated = monitoringOptions.copy(armedEnabled = false, armActiveAtEpochMillis = 0L)
+                    monitoringOptions = updated
+                    monitoringPreferences.write(updated)
+                    HomeAssistantSecurityBackgroundScheduler.setEnabled(context.applicationContext, false)
+                    showDisarmConfirmation = false
+                }) { Text("Desarmar") }
+            },
+            dismissButton = { TextButton(onClick = { showDisarmConfirmation = false }) { Text("Cancelar") } }
+        )
+    }
+
     Box(
         modifier = Modifier.fillMaxSize().background(
             Brush.verticalGradient(listOf(FondoSuperior, FondoMedio, FondoInferior, Color.Black))
@@ -139,7 +167,7 @@ fun SecurityScreen(onBack: () -> Unit) {
             }
 
             Spacer(Modifier.height(24.dp))
-            GeneralSecurityStatusCard(settings, snapshot, sensorMessage, monitoringOptions.armedEnabled)
+            GeneralSecurityStatusCard(settings, snapshot, sensorMessage, monitoringOptions.isEffectivelyArmed(nowEpochMillis))
 
             Spacer(Modifier.height(22.dp))
             SectionTitle("Conexión con Home Assistant")
@@ -215,14 +243,25 @@ fun SecurityScreen(onBack: () -> Unit) {
             Spacer(Modifier.height(22.dp))
             SecurityArmedCard(
                 armed = monitoringOptions.armedEnabled,
+                secondsUntilActive = if (monitoringOptions.armedEnabled) {
+                    ((monitoringOptions.armActiveAtEpochMillis - nowEpochMillis + 999L) / 1000L).coerceAtLeast(0L)
+                } else 0L,
                 onArmedChange = { armed ->
-                    val updated = monitoringOptions.copy(armedEnabled = armed)
-                    monitoringOptions = updated
-                    monitoringPreferences.write(updated)
-                    HomeAssistantSecurityBackgroundScheduler.setEnabled(
-                        context.applicationContext,
-                        armed && notificationsEnabled && notificationManager.hasPermission()
-                    )
+                    if (!armed) {
+                        showDisarmConfirmation = true
+                    } else {
+                        val updated = monitoringOptions.copy(
+                            armedEnabled = true,
+                            armActiveAtEpochMillis = System.currentTimeMillis() + 30_000L
+                        )
+                        monitoringOptions = updated
+                        nowEpochMillis = System.currentTimeMillis()
+                        monitoringPreferences.write(updated)
+                        HomeAssistantSecurityBackgroundScheduler.setEnabled(
+                            context.applicationContext,
+                            notificationsEnabled && notificationManager.hasPermission()
+                        )
+                    }
                 }
             )
 
@@ -291,8 +330,10 @@ fun SecurityScreen(onBack: () -> Unit) {
 @Composable
 private fun SecurityArmedCard(
     armed: Boolean,
+    secondsUntilActive: Long,
     onArmedChange: (Boolean) -> Unit
 ) {
+    val arming = armed && secondsUntilActive > 0
     SectionTitle("Modo de seguridad")
     Spacer(Modifier.height(10.dp))
     OneHouseCard(modifier = Modifier.fillMaxWidth()) {
@@ -315,17 +356,22 @@ private fun SecurityArmedCard(
             Spacer(Modifier.width(14.dp))
             Column(Modifier.weight(1f)) {
                 Text(
-                    if (armed) "Seguridad armada" else "Seguridad desarmada",
+                    when {
+                        arming -> "Armando seguridad"
+                        armed -> "Seguridad armada"
+                        else -> "Seguridad desarmada"
+                    },
                     color = TextoPrincipal,
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.SemiBold
                 )
                 Spacer(Modifier.height(4.dp))
                 Text(
-                    if (armed)
-                        "Las aperturas y movimientos configurados pueden generar avisos."
-                    else
-                        "Los sensores siguen visibles, pero no se generan alertas ni vigilancia en segundo plano.",
+                    when {
+                        arming -> "Tiempo para salir: ${secondsUntilActive} s. Las alertas se activarán al finalizar."
+                        armed -> "Las aperturas y movimientos configurados pueden generar avisos."
+                        else -> "Los sensores siguen visibles, pero no se generan alertas ni vigilancia en segundo plano."
+                    },
                     color = TextoSecundario,
                     style = MaterialTheme.typography.bodySmall
                 )
