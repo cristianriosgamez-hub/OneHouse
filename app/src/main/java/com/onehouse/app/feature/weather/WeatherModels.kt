@@ -36,7 +36,7 @@ data class WeatherUiState(
     val sunrise: String = "--:--",
     val sunset: String = "--:--",
     val daylight: String = "--",
-    val indoorTemperature: String = "23.5°C",
+    val indoorTemperatureC: Float? = null,
     val forecast: List<DailyForecast> = emptyList(),
     val isLoading: Boolean = true,
     val errorMessage: String? = null
@@ -45,6 +45,7 @@ data class WeatherUiState(
     val feelsLike: String get() = feelsLikeC?.let { "%.1f°C".format(it) } ?: "--°C"
     val high: String get() = highC?.let { "%.0f°".format(it) } ?: "--°"
     val low: String get() = lowC?.let { "%.0f°".format(it) } ?: "--°"
+    val indoorTemperature: String get() = indoorTemperatureC?.let { "%.1f°C".format(it) } ?: "-- °C"
 
     val metrics: List<WeatherMetric>
         get() = listOf(

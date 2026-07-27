@@ -1,11 +1,16 @@
 package com.onehouse.app.feature.weather
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.runtime.setValue
+import com.onehouse.app.feature.home.state.HomeStateMapper
+import com.onehouse.app.feature.rooms.detail.RoomType
+import com.onehouse.app.knx.KnxHomeStateRepository
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
@@ -146,18 +151,25 @@ object OpenMeteoWeatherRepository : WeatherRepository {
 
 @Composable
 fun rememberWeatherState(forceRefreshKey: Any? = Unit): WeatherUiState {
-    var state by remember { mutableStateOf(WeatherUiState()) }
+    val context = LocalContext.current
+    val homeRepository = remember { KnxHomeStateRepository(context) }
+    val homeSnapshot by homeRepository.stateFlow.collectAsState(initial = homeRepository.snapshot())
+    val diningTemperature = HomeStateMapper.room(homeSnapshot, RoomType.DINING_ROOM).temperatureCelsius
+
+    var weatherState by remember { mutableStateOf(WeatherUiState()) }
 
     LaunchedEffect(forceRefreshKey) {
         var firstLoad = true
         while (isActive) {
-            state = OpenMeteoWeatherRepository.loadWeather(forceRefresh = !firstLoad)
+            weatherState = OpenMeteoWeatherRepository.loadWeather(forceRefresh = !firstLoad)
             firstLoad = false
             delay(15 * 60 * 1000L)
         }
     }
 
-    return state
+    // La meteorología exterior llega de Open-Meteo. La temperatura interior se
+    // obtiene siempre del mismo estado KNX usado por la estancia Comedor.
+    return weatherState.copy(indoorTemperatureC = diningTemperature)
 }
 
 fun weatherCondition(code: Int): Pair<String, String> = when (code) {
