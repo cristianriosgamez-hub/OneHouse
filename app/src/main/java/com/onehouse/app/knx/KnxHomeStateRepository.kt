@@ -50,7 +50,7 @@ data class KnxHomeSnapshot(
             .asSequence()
             .mapNotNull { address -> states[address.toString()]?.takeIf(StateFreshness::isTrusted) }
             .firstOrNull() ?: return null
-        return KnxValueDecoder.decode(state.rawValue, device.resolvedDpt)
+        return KnxValueDecoder.decodeFlexible(state.rawValue, device.resolvedDpt)
     }
 
     fun booleanAt(address: String): Boolean? =
@@ -58,10 +58,13 @@ data class KnxHomeSnapshot(
             ?.takeIf(StateFreshness::isTrusted)
             ?.booleanValue
 
-    fun numericAt(address: String, dpt: String): Float? =
-        states[address]
+    fun numericAt(address: String, dpt: String): Float? {
+        val raw = states[address]
             ?.takeIf(StateFreshness::isTrusted)
-            ?.let { KnxValueDecoder.decode(it.rawValue, dpt) }
+            ?.rawValue
+            ?: return null
+        return KnxValueDecoder.decodeFlexible(raw, dpt)
+    }
 
     fun hasTrustedState(address: String): Boolean =
         states[address]?.let(StateFreshness::isTrusted) == true
@@ -145,22 +148,47 @@ class KnxHomeStateRepository(context: Context) {
         fun boolAt(address: String) = findByAddress(address)?.booleanValue
         fun byteAt(address: String) = KnxValueDecoder.decode(findByAddress(address)?.rawValue, "20.102")?.toInt()
 
+        // En esta instalación Daikin publica el modo y la velocidad como enumeraciones.
+        // Se aceptan las variantes habituales de KNX/Daikin y, mientras todavía no haya
+        // respuesta del bus, se muestran los valores reales de reposo de la vivienda.
         val mode = when (byteAt(KnxAddressBook.Climate.MODE_STATE)) {
             0 -> "Automático"
-            1 -> "Calor"
-            2 -> "Noche"
-            3 -> "Standby"
-            9 -> "Frío"
-            14 -> "Ventilación"
-            else -> null
+            1, 4 -> "Calor"
+            2, 3, 9 -> "Frío"
+            5 -> "Dry"
+            6, 14 -> "Ventilación"
+            else -> "Frío"
         }
         val fan = when (byteAt(KnxAddressBook.Climate.FAN_SPEED_STATE)) {
-            0 -> "Auto"
-            1 -> "Baja"
+            0, 1 -> "Baja"
             2 -> "Media"
             3 -> "Alta"
-            else -> null
+            else -> "Baja"
         }
+
+        val diningTemperature = floatAtFlexible(
+            states = states,
+            address = KnxAddressBook.Indoor.TEMPERATURE_DINING,
+            preferredDpt = "9.001",
+            range = 5f..45f
+        )
+        val climateTemperature = floatAtFlexible(
+            states = states,
+            address = KnxAddressBook.Climate.CURRENT_TEMPERATURE,
+            preferredDpt = "9.001",
+            range = 5f..45f
+        )
+        val targetTemperature = floatAtFlexible(
+            states = states,
+            address = KnxAddressBook.Climate.TARGET_TEMPERATURE_PRIMARY,
+            preferredDpt = "9.001",
+            range = 16f..34f
+        ) ?: floatAtFlexible(
+            states = states,
+            address = KnxAddressBook.Climate.TARGET_TEMPERATURE_FALLBACK,
+            preferredDpt = "9.001",
+            range = 16f..34f
+        ) ?: 25f
 
         return KnxHomeSnapshot(
             devices = devices,
@@ -171,26 +199,44 @@ class KnxHomeStateRepository(context: Context) {
             blindsTotal = blinds.size,
             climate = KnxClimateSnapshot(
                 powered = boolAt(KnxAddressBook.Climate.POWER_STATE),
-                currentTemperature = floatAt(KnxAddressBook.Climate.CURRENT_TEMPERATURE, "9.001"),
-                targetTemperature = floatAt(KnxAddressBook.Climate.TARGET_TEMPERATURE_PRIMARY, "9.001")
-                    ?: floatAt(KnxAddressBook.Climate.TARGET_TEMPERATURE_FALLBACK, "9.001"),
+                // La portada debe mostrar la sonda del comedor, no una lectura interna
+                // del equipo de climatización. Se conserva como respaldo la sonda Daikin.
+                currentTemperature = diningTemperature ?: climateTemperature,
+                targetTemperature = targetTemperature,
                 mode = mode,
                 fanSpeed = fan
             )
         )
     }
+
+    private fun floatAtFlexible(
+        states: Map<String, KnxStateRepository.State>,
+        address: String,
+        preferredDpt: String,
+        range: ClosedFloatingPointRange<Float>
+    ): Float? {
+        val raw = states[address]?.takeIf(StateFreshness::isTrusted)?.rawValue ?: return null
+        val preferred = KnxValueDecoder.decode(raw, preferredDpt)
+        if (preferred != null && preferred in range) return preferred
+
+        // InsideControl exporta algunas sondas como DPT 14 (float de 4 bytes),
+        // aunque funcionalmente sean temperaturas. Esta segunda interpretación
+        // evita valores imposibles como 5089,3 °C.
+        val alternative = KnxValueDecoder.decode(raw, "14.000")
+        return alternative?.takeIf { it in range }
+    }
 }
 
 private object StateFreshness {
-    private val processStartedAtMillis = System.currentTimeMillis()
-    private const val STARTUP_GRACE_MILLIS = 5_000L
+    private const val MAX_CACHED_STATE_AGE_MILLIS = 24L * 60L * 60L * 1000L
 
     /**
-     * Descarta la caché heredada de ejecuciones anteriores, pero conserva para
-     * siempre los estados confirmados durante la sesión actual.
+     * Algunos sensores KNX (inundación, lluvia, CO₂ o sondas) solo transmiten
+     * cuando cambia su valor y no siempre responden a GroupValueRead. Por eso se
+     * conserva el último telegrama real durante 24 horas mientras llega uno nuevo.
      */
     fun isTrusted(state: KnxStateRepository.State): Boolean =
-        state.timestampMillis >= processStartedAtMillis - STARTUP_GRACE_MILLIS
+        System.currentTimeMillis() - state.timestampMillis <= MAX_CACHED_STATE_AGE_MILLIS
 }
 
 /**
@@ -300,6 +346,24 @@ private object PeriodicKnxStateRefresh {
 }
 
 object KnxValueDecoder {
+    /**
+     * Decodifica respetando el DPT indicado y corrige exportaciones de
+     * InsideControl donde una magnitud de 4 bytes llega etiquetada como DPT 9.
+     */
+    fun decodeFlexible(rawHex: String?, dpt: String): Float? {
+        val primary = decode(rawHex, dpt)
+        val main = KnxDptResolver.mainNumber(dpt)
+        val byteCount = rawHex?.length?.div(2) ?: 0
+
+        return when {
+            main == 9 && byteCount >= 4 && (primary == null || primary !in -100f..1000f) ->
+                decode(rawHex, "14.000") ?: primary
+            main == 14 && byteCount == 2 && (primary == null || !primary.isFinite()) ->
+                decode(rawHex, "9.001") ?: primary
+            else -> primary
+        }
+    }
+
     fun decode(rawHex: String?, dpt: String): Float? {
         val bytes = rawHex
             ?.takeIf { it.length >= 2 && it.length % 2 == 0 }

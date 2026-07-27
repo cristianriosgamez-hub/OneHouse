@@ -24,7 +24,7 @@ class SharedPreferencesClimateScheduleRepository(
     )
 
     override fun load(): ClimateScheduleState {
-        val enabled = preferences.getBoolean(KEY_GLOBAL_ENABLED, true)
+        val enabled = preferences.getBoolean(KEY_GLOBAL_ENABLED, false)
         val serializedEvents = preferences.getStringSet(KEY_EVENTS, emptySet()).orEmpty()
 
         val events = serializedEvents.mapNotNull(::decodeEvent)

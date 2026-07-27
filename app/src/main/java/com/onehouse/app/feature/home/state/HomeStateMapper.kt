@@ -75,7 +75,13 @@ object HomeStateMapper {
                 device.name.contains("temperatura ambiente", ignoreCase = true) ||
                 device.name.contains("temperatura", ignoreCase = true)
         }
-        val roomTemperature = temperatureDevice?.let(snapshot::numericValue)
+        val importedRoomTemperature = temperatureDevice?.let(snapshot::numericValue)
+        val explicitRoomTemperature = when (roomType) {
+            RoomType.DINING_ROOM -> snapshot.numericAt(KnxAddressBook.Indoor.TEMPERATURE_DINING, "9.001")
+            RoomType.SUITE -> snapshot.numericAt(KnxAddressBook.Indoor.TEMPERATURE_SUITE, "9.001")
+            else -> null
+        }
+        val roomTemperature = explicitRoomTemperature ?: importedRoomTemperature
 
         // Entrada y Habitación 1 no tienen climatización en la UI.
         val roomHasClimate = roomType in CLIMATE_ROOMS && devices.any { device ->
@@ -113,7 +119,12 @@ object HomeStateMapper {
                 addAll(device.writeAddresses.map { it.toString() })
             }
             when (roomType) {
-                RoomType.DINING_ROOM -> addAll(listOf(KnxAddressBook.Indoor.CO2_DINING, KnxAddressBook.Indoor.HUMIDITY_DINING))
+                RoomType.DINING_ROOM -> addAll(listOf(
+                    KnxAddressBook.Indoor.TEMPERATURE_DINING,
+                    KnxAddressBook.Indoor.CO2_DINING,
+                    KnxAddressBook.Indoor.HUMIDITY_DINING
+                ))
+                RoomType.SUITE -> add(KnxAddressBook.Indoor.TEMPERATURE_SUITE)
                 RoomType.ENTRANCE -> add(KnxAddressBook.Indoor.PIR_BLOCK_ENTRANCE)
                 RoomType.KITCHEN -> add(KnxAddressBook.Indoor.FLOOD_KITCHEN)
                 RoomType.BATHROOM -> add(KnxAddressBook.Indoor.FLOOD_BATHROOM)

@@ -22,7 +22,7 @@ data class ClimateScheduleEvent(
 }
 
 data class ClimateScheduleState(
-    val globallyEnabled: Boolean = true,
+    val globallyEnabled: Boolean = false,
     val events: List<ClimateScheduleEvent> = emptyList()
 )
 
