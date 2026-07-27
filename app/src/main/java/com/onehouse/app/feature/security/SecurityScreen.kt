@@ -36,8 +36,6 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
-private const val ENTRY_DELAY_MILLIS = 20_000L
-
 @Composable
 fun SecurityScreen(onBack: () -> Unit) {
     val context = LocalContext.current
@@ -103,7 +101,9 @@ fun SecurityScreen(onBack: () -> Unit) {
                         .filter { it.category == SecurityEntityCategory.OPENING && it.active }
                         .forEach { openingEvent ->
                             coroutineScope.launch {
-                                delay(ENTRY_DELAY_MILLIS)
+                                val entryDelayMillis = monitoringPreferences.read().entryDelaySeconds
+                                    .coerceAtLeast(0) * 1_000L
+                                if (entryDelayMillis > 0L) delay(entryDelayMillis)
                                 if (!monitoringPreferences.read().isEffectivelyArmed()) return@launch
                                 HomeAssistantSecurityClient.fetch(baseUrl, accessToken) { verification ->
                                     if (verification is HomeAssistantSecurityClient.Result.Success) {
@@ -269,13 +269,24 @@ fun SecurityScreen(onBack: () -> Unit) {
                 secondsUntilActive = if (monitoringOptions.armedEnabled) {
                     ((monitoringOptions.armActiveAtEpochMillis - nowEpochMillis + 999L) / 1000L).coerceAtLeast(0L)
                 } else 0L,
+                exitDelaySeconds = monitoringOptions.exitDelaySeconds,
+                entryDelaySeconds = monitoringOptions.entryDelaySeconds,
+                onDelayOptionsChange = { exitDelaySeconds, entryDelaySeconds ->
+                    val updated = monitoringOptions.copy(
+                        exitDelaySeconds = exitDelaySeconds,
+                        entryDelaySeconds = entryDelaySeconds
+                    )
+                    monitoringOptions = updated
+                    monitoringPreferences.write(updated)
+                },
                 onArmedChange = { armed ->
                     if (!armed) {
                         showDisarmConfirmation = true
                     } else {
                         val updated = monitoringOptions.copy(
                             armedEnabled = true,
-                            armActiveAtEpochMillis = System.currentTimeMillis() + 30_000L
+                            armActiveAtEpochMillis = System.currentTimeMillis() +
+                                monitoringOptions.exitDelaySeconds.coerceAtLeast(0) * 1_000L
                         )
                         monitoringOptions = updated
                         nowEpochMillis = System.currentTimeMillis()
@@ -354,53 +365,129 @@ fun SecurityScreen(onBack: () -> Unit) {
 private fun SecurityArmedCard(
     armed: Boolean,
     secondsUntilActive: Long,
+    exitDelaySeconds: Int,
+    entryDelaySeconds: Int,
+    onDelayOptionsChange: (exitDelaySeconds: Int, entryDelaySeconds: Int) -> Unit,
     onArmedChange: (Boolean) -> Unit
 ) {
     val arming = armed && secondsUntilActive > 0
     SectionTitle("Modo de seguridad")
     Spacer(Modifier.height(10.dp))
     OneHouseCard(modifier = Modifier.fillMaxWidth()) {
-        Row(
-            modifier = Modifier.fillMaxWidth().padding(18.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Box(
-                modifier = Modifier
-                    .size(44.dp)
-                    .clip(CircleShape)
-                    .background(
-                        if (armed) Color(0xFF61D88B).copy(alpha = 0.18f)
-                        else TextoDesactivado.copy(alpha = 0.14f)
-                    ),
-                contentAlignment = Alignment.Center
-            ) {
-                Text(if (armed) "●" else "○", color = if (armed) Color(0xFF61D88B) else TextoDesactivado, fontSize = 22.sp)
+        Column(modifier = Modifier.fillMaxWidth().padding(18.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Box(
+                    modifier = Modifier
+                        .size(44.dp)
+                        .clip(CircleShape)
+                        .background(
+                            if (armed) Color(0xFF61D88B).copy(alpha = 0.18f)
+                            else TextoDesactivado.copy(alpha = 0.14f)
+                        ),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(if (armed) "●" else "○", color = if (armed) Color(0xFF61D88B) else TextoDesactivado, fontSize = 22.sp)
+                }
+                Spacer(Modifier.width(14.dp))
+                Column(Modifier.weight(1f)) {
+                    Text(
+                        when {
+                            arming -> "Armando seguridad"
+                            armed -> "Seguridad armada"
+                            else -> "Seguridad desarmada"
+                        },
+                        color = TextoPrincipal,
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                    Spacer(Modifier.height(4.dp))
+                    Text(
+                        when {
+                            arming -> "Tiempo para salir: ${secondsUntilActive} s. Las alertas se activarán al finalizar."
+                            armed -> "Las aperturas disponen de ${entryDelaySeconds} s para desarmar antes del aviso. El movimiento genera alerta inmediata."
+                            else -> "Los sensores siguen visibles, pero no se generan alertas ni vigilancia en segundo plano."
+                        },
+                        color = TextoSecundario,
+                        style = MaterialTheme.typography.bodySmall
+                    )
+                }
+                Spacer(Modifier.width(12.dp))
+                Switch(checked = armed, onCheckedChange = onArmedChange)
             }
-            Spacer(Modifier.width(14.dp))
-            Column(Modifier.weight(1f)) {
+
+            HorizontalDivider(
+                modifier = Modifier.padding(vertical = 14.dp),
+                color = TextoDesactivado.copy(alpha = 0.25f)
+            )
+            Text(
+                "RETARDOS",
+                color = AzulClaro,
+                style = MaterialTheme.typography.labelMedium,
+                fontWeight = FontWeight.Bold,
+                letterSpacing = 0.8.sp
+            )
+            Spacer(Modifier.height(10.dp))
+            SecurityDelaySelector(
+                title = "Salida",
+                detail = "Tiempo para abandonar la vivienda antes de armar.",
+                selectedSeconds = exitDelaySeconds,
+                values = listOf(0, 15, 30, 60),
+                enabled = !armed,
+                onSelected = { onDelayOptionsChange(it, entryDelaySeconds) }
+            )
+            Spacer(Modifier.height(14.dp))
+            SecurityDelaySelector(
+                title = "Entrada",
+                detail = "Tiempo para desarmar tras abrir una puerta o ventana.",
+                selectedSeconds = entryDelaySeconds,
+                values = listOf(0, 10, 20, 30),
+                enabled = !armed,
+                onSelected = { onDelayOptionsChange(exitDelaySeconds, it) }
+            )
+            if (armed) {
+                Spacer(Modifier.height(8.dp))
                 Text(
-                    when {
-                        arming -> "Armando seguridad"
-                        armed -> "Seguridad armada"
-                        else -> "Seguridad desarmada"
-                    },
-                    color = TextoPrincipal,
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.SemiBold
-                )
-                Spacer(Modifier.height(4.dp))
-                Text(
-                    when {
-                        arming -> "Tiempo para salir: ${secondsUntilActive} s. Las alertas se activarán al finalizar."
-                        armed -> "Las aperturas disponen de 20 s para desarmar antes del aviso. El movimiento genera alerta inmediata."
-                        else -> "Los sensores siguen visibles, pero no se generan alertas ni vigilancia en segundo plano."
-                    },
-                    color = TextoSecundario,
+                    "Desarma la seguridad para modificar los retardos.",
+                    color = TextoDesactivado,
                     style = MaterialTheme.typography.bodySmall
                 )
             }
-            Spacer(Modifier.width(12.dp))
-            Switch(checked = armed, onCheckedChange = onArmedChange)
+        }
+    }
+}
+
+@Composable
+private fun SecurityDelaySelector(
+    title: String,
+    detail: String,
+    selectedSeconds: Int,
+    values: List<Int>,
+    enabled: Boolean,
+    onSelected: (Int) -> Unit
+) {
+    Text(title, color = TextoPrincipal, fontWeight = FontWeight.SemiBold)
+    Spacer(Modifier.height(2.dp))
+    Text(detail, color = TextoSecundario, style = MaterialTheme.typography.bodySmall)
+    Spacer(Modifier.height(8.dp))
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        values.forEach { seconds ->
+            val selected = seconds == selectedSeconds
+            OutlinedButton(
+                onClick = { onSelected(seconds) },
+                modifier = Modifier.weight(1f),
+                enabled = enabled,
+                contentPadding = PaddingValues(horizontal = 4.dp, vertical = 8.dp),
+                colors = ButtonDefaults.outlinedButtonColors(
+                    containerColor = if (selected) AzulOneHouse.copy(alpha = 0.22f) else Color.Transparent,
+                    contentColor = if (selected) AzulClaro else TextoSecundario,
+                    disabledContentColor = if (selected) AzulClaro.copy(alpha = 0.55f) else TextoDesactivado
+                )
+            ) {
+                Text(if (seconds == 0) "Sin" else "${seconds}s", fontSize = 12.sp)
+            }
         }
     }
 }

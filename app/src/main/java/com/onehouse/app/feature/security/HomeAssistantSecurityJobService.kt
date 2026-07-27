@@ -11,10 +11,6 @@ import java.util.concurrent.Executors
 class HomeAssistantSecurityJobService : JobService() {
     private val executor = Executors.newSingleThreadExecutor()
 
-    private companion object {
-        const val ENTRY_DELAY_MILLIS = 20_000L
-    }
-
     override fun onStartJob(params: JobParameters?): Boolean {
         val jobParams = params ?: return false
         executor.execute {
@@ -37,7 +33,9 @@ class HomeAssistantSecurityJobService : JobService() {
                             it.category == SecurityEntityCategory.OPENING && it.active
                         }
                         if (delayedOpenings.isNotEmpty()) {
-                            Thread.sleep(ENTRY_DELAY_MILLIS)
+                            val entryDelayMillis = monitoringPreferences.read().entryDelaySeconds
+                                .coerceAtLeast(0) * 1_000L
+                            if (entryDelayMillis > 0L) Thread.sleep(entryDelayMillis)
                             if (monitoringPreferences.read().isEffectivelyArmed()) {
                                 when (val verification = HomeAssistantSecurityClient.fetchBlocking(settings.baseUrl, settings.accessToken)) {
                                     is HomeAssistantSecurityClient.Result.Success -> {

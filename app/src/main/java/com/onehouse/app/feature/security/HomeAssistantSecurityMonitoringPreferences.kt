@@ -7,7 +7,9 @@ data class HomeAssistantSecurityMonitoringOptions(
     val armActiveAtEpochMillis: Long = 0L,
     val openingsEnabled: Boolean = true,
     val motionEnabled: Boolean = true,
-    val cameraAutoRefreshEnabled: Boolean = true
+    val cameraAutoRefreshEnabled: Boolean = true,
+    val exitDelaySeconds: Int = 30,
+    val entryDelaySeconds: Int = 20
 )
 
 class HomeAssistantSecurityMonitoringPreferences(context: Context) {
@@ -18,7 +20,9 @@ class HomeAssistantSecurityMonitoringPreferences(context: Context) {
         armActiveAtEpochMillis = preferences.getLong(KEY_ARM_ACTIVE_AT, 0L),
         openingsEnabled = preferences.getBoolean(KEY_OPENINGS, true),
         motionEnabled = preferences.getBoolean(KEY_MOTION, true),
-        cameraAutoRefreshEnabled = preferences.getBoolean(KEY_CAMERAS, true)
+        cameraAutoRefreshEnabled = preferences.getBoolean(KEY_CAMERAS, true),
+        exitDelaySeconds = preferences.getInt(KEY_EXIT_DELAY_SECONDS, 30),
+        entryDelaySeconds = preferences.getInt(KEY_ENTRY_DELAY_SECONDS, 20)
     )
 
     fun write(options: HomeAssistantSecurityMonitoringOptions) {
@@ -28,6 +32,8 @@ class HomeAssistantSecurityMonitoringPreferences(context: Context) {
             .putBoolean(KEY_OPENINGS, options.openingsEnabled)
             .putBoolean(KEY_MOTION, options.motionEnabled)
             .putBoolean(KEY_CAMERAS, options.cameraAutoRefreshEnabled)
+            .putInt(KEY_EXIT_DELAY_SECONDS, options.exitDelaySeconds)
+            .putInt(KEY_ENTRY_DELAY_SECONDS, options.entryDelaySeconds)
             .apply()
     }
 
@@ -49,6 +55,8 @@ class HomeAssistantSecurityMonitoringPreferences(context: Context) {
         const val KEY_OPENINGS = "openings_enabled"
         const val KEY_MOTION = "motion_enabled"
         const val KEY_CAMERAS = "camera_auto_refresh_enabled"
+        const val KEY_EXIT_DELAY_SECONDS = "exit_delay_seconds"
+        const val KEY_ENTRY_DELAY_SECONDS = "entry_delay_seconds"
     }
 }
 
