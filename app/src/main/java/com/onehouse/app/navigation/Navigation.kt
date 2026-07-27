@@ -18,6 +18,7 @@ import com.onehouse.app.feature.maintenance.MaintenanceScreen
 import com.onehouse.app.feature.more.MoreScreen
 import com.onehouse.app.feature.rooms.RoomsScreen
 import com.onehouse.app.feature.settings.SettingsScreen
+import com.onehouse.app.feature.security.SecurityScreen
 import com.onehouse.app.feature.rooms.detail.RoomDetailScreen
 import com.onehouse.app.feature.rooms.detail.RoomType
 import com.onehouse.app.feature.rooms.roomItemForName
@@ -40,7 +41,8 @@ private enum class InternalScreen {
     CONSUMPTION,
     MAINTENANCE,
     SETTINGS,
-    IMPORT_PROJECT
+    IMPORT_PROJECT,
+    SECURITY
 }
 
 @Composable
@@ -129,6 +131,16 @@ fun OneHouseNavigation() {
             return
         }
 
+        InternalScreen.SECURITY -> {
+            SecurityScreen(
+                onBack = {
+                    internalScreen = InternalScreen.MAIN
+                    selectedSection = OneHouseSection.HOME
+                }
+            )
+            return
+        }
+
         InternalScreen.ENTRANCE,
         InternalScreen.HALLWAY,
         InternalScreen.STORAGE,
@@ -177,7 +189,8 @@ fun OneHouseNavigation() {
             when (selectedSection) {
                 OneHouseSection.HOME -> HomeScreen(
                     favoriteRooms = favoriteRoomNames.mapNotNull(::roomItemForName).take(4),
-                    onFavoriteSelected = openRoomByName
+                    onFavoriteSelected = openRoomByName,
+                    onSecuritySelected = { internalScreen = InternalScreen.SECURITY }
                 )
 
                 OneHouseSection.ROOMS -> RoomsScreen(

@@ -1,0 +1,28 @@
+ONEHOUSE — ENTREGA 30 / v1.6.0 SEGURIDAD VISUAL
+Base utilizada: OneHouse(66).zip
+
+CAMBIOS
+- La tarjeta Seguridad de Inicio ahora es pulsable.
+- Se elimina el estado fijo/dummy “Todo correcto”.
+- Mientras no exista integración real se muestra “Sin configurar”.
+- Nueva pantalla Seguridad con secciones:
+  * Estado general
+  * Puertas y ventanas
+  * Sensores de movimiento
+  * Cámaras Xiaomi
+- Todos los estados son informativos y no contienen datos simulados.
+- Preparada para la futura conexión con Home Assistant.
+- Versión actualizada de 1.5.0 a 1.6.0 (versionCode 25).
+
+NO SE HA MODIFICADO
+- KNX
+- Direcciones de grupo
+- Luces, persianas, climatización, consumos o estancias
+- Configuración de red existente
+
+INSTALACIÓN
+Copiar la carpeta app sobre la raíz del proyecto y aceptar la sustitución.
+Después ejecutar Clean Project y Rebuild Project.
+
+NOTA DE COMPILACIÓN
+No fue posible compilar en el entorno de entrega porque el wrapper intenta descargar Gradle 9.5.0 y no hay acceso de red a services.gradle.org.

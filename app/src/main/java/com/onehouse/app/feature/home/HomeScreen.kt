@@ -71,7 +71,8 @@ import java.util.Locale
 @Composable
 fun HomeScreen(
     favoriteRooms: List<RoomItem>,
-    onFavoriteSelected: (String) -> Unit
+    onFavoriteSelected: (String) -> Unit,
+    onSecuritySelected: () -> Unit
 ) {
     val exteriorWeather = rememberWeatherState()
     val context = LocalContext.current
@@ -130,7 +131,7 @@ fun HomeScreen(
             ClimateHeroCard(dashboardState)
 
             Spacer(modifier = Modifier.height(16.dp))
-            QuickStatusGrid(exteriorWeather, dashboardState)
+            QuickStatusGrid(exteriorWeather, dashboardState, onSecuritySelected)
 
             Spacer(modifier = Modifier.height(26.dp))
             Row(
@@ -252,7 +253,11 @@ private fun ClimateHeroCard(homeState: HomeDashboardUiState) {
 }
 
 @Composable
-private fun QuickStatusGrid(weather: WeatherUiState, homeState: HomeDashboardUiState) {
+private fun QuickStatusGrid(
+    weather: WeatherUiState,
+    homeState: HomeDashboardUiState,
+    onSecuritySelected: () -> Unit
+) {
     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
         OneHouseInfoCard(
             title = "Persianas",
@@ -294,12 +299,13 @@ private fun QuickStatusGrid(weather: WeatherUiState, homeState: HomeDashboardUiS
         )
         OneHouseInfoCard(
             title = "Seguridad",
-            value = "Todo correcto",
-            detail = "Estado general",
-            symbol = "✓",
-            valueColor = VerdeEstado,
-            symbolColor = VerdeEstado,
-            modifier = Modifier.weight(1f).height(146.dp)
+            value = "Sin configurar",
+            detail = "Sensores Xiaomi",
+            symbol = "⌂",
+            valueColor = TextoDesactivado,
+            symbolColor = AzulClaro,
+            modifier = Modifier.weight(1f).height(146.dp),
+            onClick = onSecuritySelected
         )
     }
 }
