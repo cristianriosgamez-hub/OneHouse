@@ -11,7 +11,7 @@ enum class MeterType(
 ) {
     ENDESA("ENDESA", "Electricidad ENDESA", "ENDESA", "kWh", "ϟ"),
     CLIMATIZATION("CLIMATIZATION", "Climatización", "Clima", "MWh", "♨"),
-    ACS("ACS", "Agua caliente sanitaria", "ACS", "m³", "♨"),
+    ACS("ACS", "Agua caliente sanitaria", "ACS", "kW", "♨"),
     AGBAR("AGBAR", "Agua AGBAR", "AGBAR", "m³", "≈");
 
     companion object {

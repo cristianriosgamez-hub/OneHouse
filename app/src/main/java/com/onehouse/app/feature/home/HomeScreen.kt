@@ -20,11 +20,17 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.platform.LocalContext
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
@@ -50,7 +56,10 @@ import com.onehouse.app.design.TextoDesactivado
 import com.onehouse.app.design.TextoPrincipal
 import com.onehouse.app.design.TextoSecundario
 import com.onehouse.app.design.VerdeEstado
+import com.onehouse.app.design.RojoEstado
 import com.onehouse.app.feature.rooms.RoomItem
+import com.onehouse.app.data.knx.KnxConnectionStatus
+import com.onehouse.app.data.knx.SettingsDataStore
 import com.onehouse.app.feature.weather.WeatherUiState
 import com.onehouse.app.feature.weather.rememberWeatherState
 import com.onehouse.app.feature.home.state.HomeDashboardUiState
@@ -69,6 +78,21 @@ fun HomeScreen(
     val homeRepository = remember { KnxHomeStateRepository(context) }
     val homeState by homeRepository.stateFlow.collectAsState(initial = homeRepository.snapshot())
     val dashboardState = remember(homeState) { HomeStateMapper.dashboard(homeState) }
+    val settingsDataStore = remember(context) { SettingsDataStore(context) }
+    val lifecycleOwner = LocalLifecycleOwner.current
+    var connectionStatus by remember {
+        mutableStateOf(settingsDataStore.read().lastConnectionStatus)
+    }
+
+    DisposableEffect(lifecycleOwner, settingsDataStore) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) {
+                connectionStatus = settingsDataStore.read().lastConnectionStatus
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+    }
 
     Box(
         modifier = Modifier
@@ -128,7 +152,7 @@ fun HomeScreen(
             )
 
             Spacer(modifier = Modifier.height(22.dp))
-            ConnectionStatus()
+            ConnectionStatus(connectionStatus)
         }
     }
 }
@@ -323,7 +347,20 @@ private fun FavoriteRooms(
 }
 
 @Composable
-private fun ConnectionStatus() {
+private fun ConnectionStatus(status: KnxConnectionStatus) {
+    val label = when (status) {
+        KnxConnectionStatus.NOT_TESTED -> "No comprobado"
+        KnxConnectionStatus.TESTING -> "Comprobando…"
+        KnxConnectionStatus.CONNECTED -> "Conectado"
+        KnxConnectionStatus.FAILED -> "Sin conexión"
+    }
+    val statusColor = when (status) {
+        KnxConnectionStatus.CONNECTED -> VerdeEstado
+        KnxConnectionStatus.FAILED -> RojoEstado
+        KnxConnectionStatus.TESTING -> AzulClaro
+        KnxConnectionStatus.NOT_TESTED -> TextoDesactivado
+    }
+
     Row(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.Center,
@@ -333,12 +370,12 @@ private fun ConnectionStatus() {
             modifier = Modifier
                 .size(8.dp)
                 .clip(CircleShape)
-                .background(VerdeEstado)
+                .background(statusColor)
         )
         Spacer(modifier = Modifier.size(8.dp))
         Text(
-            text = "Sistema conectado",
-            color = VerdeEstado,
+            text = label,
+            color = statusColor,
             style = MaterialTheme.typography.labelLarge
         )
     }
