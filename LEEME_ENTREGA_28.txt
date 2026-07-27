@@ -1,0 +1,15 @@
+ENTREGA 28 - CIERRE COSTES ACS Y CLIMATIZACIÓN
+Base exacta: OneHouse(65).zip
+
+Cambios:
+1. En las estadísticas de ACS ya no se muestra la tarjeta "Coste 0,00 €".
+2. En las estadísticas de Climatización ya no se muestra la tarjeta "Coste 0,00 €".
+3. En Añadir/Editar lectura de ACS no aparece "Coste opcional (€)".
+4. En Añadir/Editar lectura de Climatización no aparece "Coste opcional (€)".
+5. Las lecturas manuales de ACS y Climatización se guardan con coste nulo.
+
+No se han modificado direcciones KNX, controles, estancias, navegación ni datos históricos.
+
+Instalación:
+Copiar la carpeta app sobre la raíz del proyecto y aceptar la sustitución de los dos archivos.
+Después ejecutar Clean Project y Rebuild Project.

@@ -165,7 +165,9 @@ private fun StatisticsPanel(type: MeterType, state: EnergyDashboardState) {
         Spacer(Modifier.height(14.dp))
         Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
             DetailStat("Total", formatNumber(stats.totalConsumption), type.unit, Modifier.weight(1f))
-            DetailStat("Coste", formatNumber(stats.totalCost), "€", Modifier.weight(1f))
+            if (type != MeterType.ACS && type != MeterType.CLIMATIZATION) {
+                DetailStat("Coste", formatNumber(stats.totalCost), "€", Modifier.weight(1f))
+            }
         }
         Spacer(Modifier.height(10.dp))
         Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -288,7 +290,7 @@ internal fun ReadingEditorDialog(
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                     singleLine = true
                 )
-                if (type != MeterType.ACS) {
+                if (type != MeterType.ACS && type != MeterType.CLIMATIZATION) {
                     OutlinedTextField(
                         value = costText,
                         onValueChange = { costText = it },
@@ -310,7 +312,7 @@ internal fun ReadingEditorDialog(
                 val timestamp = runCatching { inputDateFormat.parse(dateText)?.time }.getOrNull()
                 val meter = meterText.toNormalizedDoubleOrNull()
                 val consumption = consumptionText.toNormalizedDoubleOrNull()
-                val cost = if (type == MeterType.ACS) null else costText.toNormalizedDoubleOrNull()
+                val cost = if (type == MeterType.ACS || type == MeterType.CLIMATIZATION) null else costText.toNormalizedDoubleOrNull()
                 when {
                     timestamp == null -> error = "La fecha no es válida."
                     meter == null && consumption == null -> error = "Introduce la lectura o el consumo del periodo."
