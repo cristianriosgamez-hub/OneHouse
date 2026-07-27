@@ -31,9 +31,12 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.onehouse.app.design.*
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+
+private const val ENTRY_DELAY_MILLIS = 20_000L
 
 @Composable
 fun SecurityScreen(onBack: () -> Unit) {
@@ -43,6 +46,7 @@ fun SecurityScreen(onBack: () -> Unit) {
     val eventStore = remember { HomeAssistantSecurityEventStore(context.applicationContext) }
     val notificationManager = remember { HomeAssistantSecurityNotificationManager(context.applicationContext) }
     val monitoringPreferences = remember { HomeAssistantSecurityMonitoringPreferences(context.applicationContext) }
+    val coroutineScope = rememberCoroutineScope()
     var settings by remember { mutableStateOf(store.read()) }
     var baseUrl by remember { mutableStateOf(settings.baseUrl) }
     var accessToken by remember { mutableStateOf(settings.accessToken) }
@@ -93,7 +97,26 @@ fun SecurityScreen(onBack: () -> Unit) {
                     snapshotStore.write(result.snapshot)
                     val processed = eventStore.process(result.snapshot)
                     securityEvents = processed.events
-                    notificationManager.notify(monitoringPreferences.filterNotificationEvents(processed.newEvents))
+                    val notificationEvents = monitoringPreferences.filterNotificationEvents(processed.newEvents)
+                    notificationManager.notify(notificationEvents.filter { it.category == SecurityEntityCategory.MOTION })
+                    notificationEvents
+                        .filter { it.category == SecurityEntityCategory.OPENING && it.active }
+                        .forEach { openingEvent ->
+                            coroutineScope.launch {
+                                delay(ENTRY_DELAY_MILLIS)
+                                if (!monitoringPreferences.read().isEffectivelyArmed()) return@launch
+                                HomeAssistantSecurityClient.fetch(baseUrl, accessToken) { verification ->
+                                    if (verification is HomeAssistantSecurityClient.Result.Success) {
+                                        val remainsOpen = verification.snapshot.openings.any {
+                                            it.entityId == openingEvent.entityId && it.available && it.active
+                                        }
+                                        if (remainsOpen && monitoringPreferences.read().isEffectivelyArmed()) {
+                                            notificationManager.notify(listOf(openingEvent))
+                                        }
+                                    }
+                                }
+                            }
+                        }
                     if (!silent) {
                         sensorMessage = if (snapshot.openings.isEmpty() && snapshot.motions.isEmpty() && snapshot.cameras.isEmpty()) {
                             "No se encontraron sensores ni cámaras compatibles"
@@ -369,7 +392,7 @@ private fun SecurityArmedCard(
                 Text(
                     when {
                         arming -> "Tiempo para salir: ${secondsUntilActive} s. Las alertas se activarán al finalizar."
-                        armed -> "Las aperturas y movimientos configurados pueden generar avisos."
+                        armed -> "Las aperturas disponen de 20 s para desarmar antes del aviso. El movimiento genera alerta inmediata."
                         else -> "Los sensores siguen visibles, pero no se generan alertas ni vigilancia en segundo plano."
                     },
                     color = TextoSecundario,

@@ -11,6 +11,10 @@ import java.util.concurrent.Executors
 class HomeAssistantSecurityJobService : JobService() {
     private val executor = Executors.newSingleThreadExecutor()
 
+    private companion object {
+        const val ENTRY_DELAY_MILLIS = 20_000L
+    }
+
     override fun onStartJob(params: JobParameters?): Boolean {
         val jobParams = params ?: return false
         executor.execute {
@@ -25,8 +29,29 @@ class HomeAssistantSecurityJobService : JobService() {
                         HomeAssistantSecuritySnapshotStore(applicationContext).write(result.snapshot)
                         val processed = HomeAssistantSecurityEventStore(applicationContext).process(result.snapshot)
                         val monitoringPreferences = HomeAssistantSecurityMonitoringPreferences(applicationContext)
-                        HomeAssistantSecurityNotificationManager(applicationContext)
-                            .notify(monitoringPreferences.filterNotificationEvents(processed.newEvents))
+                        val notificationManager = HomeAssistantSecurityNotificationManager(applicationContext)
+                        val notificationEvents = monitoringPreferences.filterNotificationEvents(processed.newEvents)
+                        notificationManager.notify(notificationEvents.filter { it.category == SecurityEntityCategory.MOTION })
+
+                        val delayedOpenings = notificationEvents.filter {
+                            it.category == SecurityEntityCategory.OPENING && it.active
+                        }
+                        if (delayedOpenings.isNotEmpty()) {
+                            Thread.sleep(ENTRY_DELAY_MILLIS)
+                            if (monitoringPreferences.read().isEffectivelyArmed()) {
+                                when (val verification = HomeAssistantSecurityClient.fetchBlocking(settings.baseUrl, settings.accessToken)) {
+                                    is HomeAssistantSecurityClient.Result.Success -> {
+                                        val stillOpenIds = verification.snapshot.openings
+                                            .filter { it.available && it.active }
+                                            .mapTo(mutableSetOf()) { it.entityId }
+                                        notificationManager.notify(
+                                            delayedOpenings.filter { it.entityId in stillOpenIds }
+                                        )
+                                    }
+                                    is HomeAssistantSecurityClient.Result.Failure -> Unit
+                                }
+                            }
+                        }
                     }
                     is HomeAssistantSecurityClient.Result.Failure -> Unit
                 }

@@ -1,0 +1,17 @@
+ENTREGA 41 - ONEHOUSE v1.6.11
+RETARDO DE ENTRADA PARA PUERTAS Y VENTANAS
+
+Cambios incluidos:
+- Las aperturas detectadas con la seguridad armada disponen de 20 segundos de retardo.
+- Durante ese tiempo se puede desarmar la seguridad sin recibir la alerta.
+- Al finalizar el retardo se vuelve a consultar Home Assistant.
+- La notificación solo se genera si la puerta o ventana continúa abierta.
+- Los avisos de movimiento siguen siendo inmediatos.
+- El mismo comportamiento se aplica con la pantalla abierta y en vigilancia en segundo plano.
+- No se modifica KNX, cámaras, climatización, consumos ni estancias.
+
+Versión:
+- versionName: 1.6.11
+- versionCode: 36
+
+Sustituir únicamente los archivos incluidos manteniendo sus rutas.
