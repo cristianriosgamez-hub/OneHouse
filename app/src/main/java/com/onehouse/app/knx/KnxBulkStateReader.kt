@@ -26,14 +26,27 @@ class KnxBulkStateReader(context: Context) : Closeable {
 
     fun read(
         devices: List<ImportedKnxDevice>,
+        extraReadAddresses: List<String> = emptyList(),
         onProgress: (Progress) -> Unit,
         onComplete: (Progress) -> Unit
     ) {
         cancel()
         cancelled.set(false)
-        val commands = devices
+        val importedCommands = devices
             .flatMap { it.commands }
             .filter { it.type == KnxCommandType.READ }
+
+        val explicitCommands = extraReadAddresses.mapNotNull { address ->
+            runCatching {
+                KnxCommand(
+                    type = KnxCommandType.READ,
+                    destination = KnxGroupAddress.parse(address),
+                    dpt = "unknown"
+                )
+            }.getOrNull()
+        }
+
+        val commands = (importedCommands + explicitCommands)
             .distinctBy { it.destination.toString() }
 
         if (commands.isEmpty()) {

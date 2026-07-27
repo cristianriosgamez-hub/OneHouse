@@ -1,0 +1,20 @@
+OneHouse v1.6.13 REV1 - Corrección de sincronización KNX
+
+Archivos modificados:
+- app/build.gradle.kts
+- app/src/main/java/com/onehouse/app/knx/KnxBulkStateReader.kt
+- app/src/main/java/com/onehouse/app/knx/KnxHomeStateRepository.kt
+- app/src/main/java/com/onehouse/app/feature/rooms/detail/RoomDetailScreen.kt
+- app/src/main/java/com/onehouse/app/feature/terrace/TerraceScreen.kt
+
+Correcciones:
+1. Los interruptores mantienen el estado solicitado hasta que el estado real del mismo objeto KNX lo confirma.
+2. Los telegramas de otros objetos ya no reinician todos los botones de una estancia.
+3. La luz de terraza aplica la misma confirmación real.
+4. Lectura secuencial de estados KNX al iniciar y cada 60 segundos.
+5. Refresco explícito de climatización, temperaturas, humedad, CO2 y sensores de terraza.
+6. Las posiciones de persianas se vuelven a consultar en cada ciclo.
+
+Versión:
+- versionCode 39
+- versionName 1.6.13 REV1

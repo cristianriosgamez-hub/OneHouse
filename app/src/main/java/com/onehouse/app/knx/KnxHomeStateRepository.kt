@@ -1,6 +1,8 @@
 package com.onehouse.app.knx
 
 import android.content.Context
+import android.os.Handler
+import android.os.Looper
 import com.onehouse.app.device.ControlKind
 import com.onehouse.app.device.ImportedKnxDevice
 import com.onehouse.app.importer.InsideControlProjectRepository
@@ -109,7 +111,7 @@ class KnxHomeStateRepository(context: Context) {
         .orEmpty()
 
     init {
-        InitialKnxStateRefresh.ensureStarted(appContext, devices)
+        PeriodicKnxStateRefresh.ensureStarted(appContext, devices)
     }
 
     val stateFlow: Flow<KnxHomeSnapshot> = stateRepository.stateFlow.map { states ->
@@ -192,61 +194,108 @@ private object StateFreshness {
 }
 
 /**
- * Refresca una vez por proyecto todos los objetos de lectura sin bloquear la UI.
- * Los dispositivos de clima se consultan primero para que sus cinco valores
- * aparezcan cuanto antes; después se leen luces, persianas y el resto.
+ * Mantiene actualizados los objetos KNX de lectura mientras la aplicación está
+ * activa. Las lecturas se realizan de forma secuencial para no saturar el túnel
+ * KNX/IP y se repiten cada minuto al terminar el ciclo anterior.
  */
-private object InitialKnxStateRefresh {
+private object PeriodicKnxStateRefresh {
+    private const val REFRESH_INTERVAL_MILLIS = 60_000L
     private val lock = Any()
+    private val handler = Handler(Looper.getMainLooper())
     private var activeReader: KnxBulkStateReader? = null
     private var activeSignature: String? = null
-    private var completedSignature: String? = null
+    private var scheduledSignature: String? = null
+    private var scheduledRunnable: Runnable? = null
+
+    private val explicitStateAddresses = listOf(
+        KnxAddressBook.Climate.POWER_STATE,
+        KnxAddressBook.Climate.CURRENT_TEMPERATURE,
+        KnxAddressBook.Climate.MODE_STATE,
+        KnxAddressBook.Climate.FAN_SPEED_STATE,
+        KnxAddressBook.Climate.TARGET_TEMPERATURE_PRIMARY,
+        KnxAddressBook.Climate.TARGET_TEMPERATURE_FALLBACK,
+        KnxAddressBook.Indoor.CO2_DINING,
+        KnxAddressBook.Indoor.HUMIDITY_DINING,
+        KnxAddressBook.Indoor.TEMPERATURE_DINING,
+        KnxAddressBook.Indoor.TEMPERATURE_SUITE,
+        KnxAddressBook.Indoor.PIR_BLOCK_ENTRANCE,
+        KnxAddressBook.Indoor.FLOOD_KITCHEN,
+        KnxAddressBook.Indoor.FLOOD_BATHROOM,
+        KnxAddressBook.Terrace.LUMINOSITY,
+        KnxAddressBook.Terrace.EXCESSIVE_WIND,
+        KnxAddressBook.Terrace.WIND_SPEED,
+        KnxAddressBook.Terrace.RAINING
+    ).distinct()
 
     fun ensureStarted(context: Context, devices: List<ImportedKnxDevice>) {
         val readable = devices.filter { it.canRead }
-        if (readable.isEmpty()) return
+        if (readable.isEmpty() && explicitStateAddresses.isEmpty()) return
 
-        val signature = readable
-            .flatMap { device -> device.readAddresses.map { it.toString() } }
+        val signature = (
+            readable.flatMap { device -> device.readAddresses.map { it.toString() } } +
+                explicitStateAddresses
+            )
             .distinct()
             .sorted()
             .joinToString("|")
 
         synchronized(lock) {
-            if (signature == activeSignature || signature == completedSignature) return
+            if (signature == activeSignature || signature == scheduledSignature) return
+            startCycleLocked(context.applicationContext, readable, signature)
+        }
+    }
 
-            activeReader?.close()
-            val reader = KnxBulkStateReader(context.applicationContext)
-            activeReader = reader
-            activeSignature = signature
+    private fun startCycleLocked(
+        context: Context,
+        readable: List<ImportedKnxDevice>,
+        signature: String
+    ) {
+        scheduledRunnable?.let(handler::removeCallbacks)
+        scheduledRunnable = null
+        scheduledSignature = null
+        activeReader?.close()
 
-            val prioritized = readable.sortedBy { device ->
-                when {
-                    device.controlKind == ControlKind.CLIMATE -> 0
-                    device.name.contains("daikin", ignoreCase = true) -> 0
-                    device.name.contains("termostato", ignoreCase = true) -> 0
-                    device.controlKind == ControlKind.TEMPERATURE -> 1
-                    device.controlKind == ControlKind.BOOLEAN_SWITCH -> 2
-                    device.controlKind == ControlKind.BLIND -> 3
-                    else -> 4
-                }
+        val reader = KnxBulkStateReader(context)
+        activeReader = reader
+        activeSignature = signature
+
+        val prioritized = readable.sortedBy { device ->
+            when {
+                device.controlKind == ControlKind.CLIMATE -> 0
+                device.name.contains("daikin", ignoreCase = true) -> 0
+                device.name.contains("termostato", ignoreCase = true) -> 0
+                device.controlKind == ControlKind.TEMPERATURE -> 1
+                device.controlKind == ControlKind.BOOLEAN_SWITCH -> 2
+                device.controlKind == ControlKind.BLIND -> 3
+                else -> 4
             }
+        }
 
-            reader.read(
-                devices = prioritized,
-                onProgress = { },
-                onComplete = {
-                    synchronized(lock) {
-                        if (activeReader === reader) {
-                            completedSignature = signature
-                            activeSignature = null
-                            activeReader = null
+        reader.read(
+            devices = prioritized,
+            extraReadAddresses = explicitStateAddresses,
+            onProgress = { },
+            onComplete = {
+                reader.close()
+                synchronized(lock) {
+                    if (activeReader !== reader) return@synchronized
+                    activeReader = null
+                    activeSignature = null
+
+                    val next = Runnable {
+                        synchronized(lock) {
+                            if (scheduledSignature != signature) return@synchronized
+                            scheduledRunnable = null
+                            scheduledSignature = null
+                            startCycleLocked(context, readable, signature)
                         }
                     }
-                    reader.close()
+                    scheduledRunnable = next
+                    scheduledSignature = signature
+                    handler.postDelayed(next, REFRESH_INTERVAL_MILLIS)
                 }
-            )
-        }
+            }
+        )
     }
 }
 

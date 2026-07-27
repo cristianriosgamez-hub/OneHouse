@@ -46,9 +46,17 @@ fun RoomDetailScreen(roomType: RoomType, onBack: () -> Unit) {
     var lastBlindCommand by remember(roomType) { mutableStateOf(BlindCommand.STOP) }
     val pendingLights = remember(roomType) { mutableStateMapOf<String, Boolean>() }
 
-    // Un telegrama nuevo siempre tiene prioridad sobre la predicción local del interruptor.
-    LaunchedEffect(homeSnapshot.states) {
-        pendingLights.clear()
+    // Conserva la predicción local hasta que el estado real del mismo dispositivo
+    // confirme el valor solicitado. Los telegramas de otros objetos ya no hacen
+    // volver el botón prematuramente a su estado anterior.
+    LaunchedEffect(homeSnapshot.states, roomState.lights) {
+        pendingLights.keys.toList().forEach { deviceId ->
+            val confirmed = roomState.lights.firstOrNull { it.device.id == deviceId }
+            val requested = pendingLights[deviceId]
+            if (confirmed != null && requested != null && confirmed.isOn == requested) {
+                pendingLights.remove(deviceId)
+            }
+        }
     }
     LaunchedEffect(roomType) { contentVisible = true }
 
@@ -125,7 +133,9 @@ fun RoomDetailScreen(roomType: RoomType, onBack: () -> Unit) {
                         onEnabledChange = { requested ->
                             pendingLights[stateKey] = requested
                             realLight?.device?.let { device ->
-                                executeBoolean(commandExecutor, device, requested)
+                                executeBoolean(commandExecutor, device, requested) { success ->
+                                    if (!success) pendingLights.remove(stateKey)
+                                }
                             }
                         }
                     )
@@ -142,7 +152,9 @@ fun RoomDetailScreen(roomType: RoomType, onBack: () -> Unit) {
                             enabled = enabled,
                             onEnabledChange = { requested ->
                                 pendingLights[light.device.id] = requested
-                                executeBoolean(commandExecutor, light.device, requested)
+                                executeBoolean(commandExecutor, light.device, requested) { success ->
+                                    if (!success) pendingLights.remove(light.device.id)
+                                }
                             }
                         )
                     }
@@ -206,11 +218,17 @@ fun RoomDetailScreen(roomType: RoomType, onBack: () -> Unit) {
 private fun executeBoolean(
     executor: KnxCommandExecutor,
     device: ImportedKnxDevice,
-    enabled: Boolean
+    enabled: Boolean,
+    onFinished: (Boolean) -> Unit
 ) {
     val type = if (enabled) KnxCommandType.ON else KnxCommandType.OFF
-    device.commands.firstOrNull { it.type == type }?.let { command ->
-        executor.execute(command) { }
+    val command = device.commands.firstOrNull { it.type == type }
+    if (command == null) {
+        onFinished(false)
+        return
+    }
+    executor.execute(command) { result ->
+        onFinished(result is KnxCommandExecutor.Result.Success)
     }
 }
 

@@ -26,6 +26,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -78,6 +79,12 @@ fun TerraceScreen(onBack: () -> Unit) {
     var pendingLight by remember(lightDevice?.id) { mutableStateOf<Boolean?>(null) }
     val lightOn = pendingLight ?: realLightOn
 
+    LaunchedEffect(realLightOn, pendingLight) {
+        if (pendingLight != null && realLightOn == pendingLight) {
+            pendingLight = null
+        }
+    }
+
     DisposableEffect(executor) {
         onDispose { executor.close() }
     }
@@ -120,7 +127,9 @@ fun TerraceScreen(onBack: () -> Unit) {
                         pendingLight = requested
                         val type = if (requested) KnxCommandType.ON else KnxCommandType.OFF
                         device.commands.firstOrNull { it.type == type }?.let { command ->
-                            executor.execute(command) { pendingLight = null }
+                            executor.execute(command) { result ->
+                                if (result is KnxCommandExecutor.Result.Failure) pendingLight = null
+                            }
                         } ?: run { pendingLight = null }
                     }
                 }
