@@ -1,0 +1,24 @@
+CORRECCIÓN CONTROLES VISUALES DE ESTANCIAS
+
+Proyecto base revisado: OneHouse (2)(10).zip
+
+Archivo sustituido:
+app/src/main/java/com/onehouse/app/feature/rooms/detail/RoomDetailScreen.kt
+
+Qué se corrige:
+- Las luces vuelven a mostrarse siempre en todas las estancias.
+- Las persianas vuelven a mostrarse siempre en Cocina, Habitación 1, Comedor y Suite.
+- Se mantienen visibles la temperatura de Comedor y Suite y los sensores existentes.
+- Los dispositivos KNX reales importados siguen enlazándose a cada control cuando están disponibles.
+- No se ha borrado ni modificado ninguna dirección KNX, repositorio, comando o lógica de comunicación.
+- Si el proyecto KNX todavía no está cargado o no ha devuelto datos, el control visual permanece visible.
+- Cualquier dispositivo KNX adicional no previsto también continúa mostrándose.
+
+Instalación:
+1. Copiar la carpeta app de este ZIP sobre la raíz del proyecto.
+2. Aceptar la sustitución del archivo.
+3. Clean Project y Rebuild Project.
+4. Desinstalar la APK anterior del móvil e instalar la nueva.
+
+Nota de validación:
+No se pudo ejecutar Gradle en este entorno porque el wrapper intenta descargar Gradle 9.5.0 y no hay acceso de red. La corrección está limitada a un único archivo Kotlin.

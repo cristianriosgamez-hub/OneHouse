@@ -1,0 +1,27 @@
+CORRECCIÓN ENTREGA 23 V2
+
+La captura recibida demuestra que Android Studio compiló los archivos antiguos:
+- ClimateScreen antiguo: muestra "Estado real KNX" y "Objetos de estado".
+- RoomDetailScreen antiguo: oculta la temperatura cuando KNX todavía no tiene valor.
+
+Este ZIP NO lleva una carpeta OneHouse exterior. Debe extraerse directamente en la RAÍZ del proyecto abierto en Android Studio, donde ya existen las carpetas app, gradle, etc.
+
+Archivos sustituidos:
+1. app/src/main/java/com/onehouse/app/feature/climate/ClimateScreen.kt
+2. app/src/main/java/com/onehouse/app/feature/climate/ClimateComponents.kt
+3. app/src/main/java/com/onehouse/app/feature/rooms/detail/RoomDetailScreen.kt
+
+Resultado esperado:
+- Climatización vuelve al diseño premium.
+- Los controles quedan preparados para mostrar los valores reales de KNX, sin datos dummy.
+- Comedor y Suite muestran siempre la tarjeta "Temperatura interior"; mientras no haya lectura KNX aparece "-- °C".
+
+Después de sustituir:
+1. Android Studio > Build > Clean Project.
+2. Build > Rebuild Project.
+3. Desinstalar del móvil la APK anterior.
+4. Instalar la APK nueva.
+
+Comprobación rápida antes de compilar:
+- Buscar el texto "Estado real KNX" dentro de ClimateScreen.kt. NO debe aparecer.
+- Buscar "AmbientTemperatures(" dentro de ClimateScreen.kt. SÍ debe aparecer.

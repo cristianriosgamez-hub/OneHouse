@@ -106,53 +106,29 @@ fun RoomDetailScreen(roomType: RoomType, onBack: () -> Unit) {
                     }
                 }
 
-                val expectedLights = expectedLightControls(roomType)
-                val matchedDeviceIds = mutableSetOf<String>()
-
-                expectedLights.forEachIndexed { index, spec ->
+                roomState.lights.forEachIndexed { index, light ->
                     if (index > 0) Spacer(Modifier.height(12.dp))
-                    val realLight = roomState.lights.firstOrNull { light ->
-                        light.device.id !in matchedDeviceIds && spec.matches(light.device.name)
-                    }
-                    realLight?.device?.id?.let(matchedDeviceIds::add)
-
-                    val stateKey = realLight?.device?.id ?: "visual:${roomType.name}:${spec.title}"
-                    val enabled = pendingLights[stateKey] ?: realLight?.isOn ?: false
+                    val enabled = pendingLights[light.device.id] ?: light.isOn
                     RoomLightCard(
-                        title = spec.title,
-                        symbol = spec.symbol,
+                        title = light.device.name,
+                        symbol = when (index) {
+                            1 -> "☼"
+                            2 -> "♧"
+                            else -> "☼"
+                        },
                         enabled = enabled,
                         onEnabledChange = { requested ->
-                            pendingLights[stateKey] = requested
-                            realLight?.device?.let { device ->
-                                executeBoolean(commandExecutor, device, requested)
-                            }
+                            pendingLights[light.device.id] = requested
+                            executeBoolean(commandExecutor, light.device, requested)
                         }
                     )
                 }
 
-                // Cualquier objeto KNX adicional importado sigue mostrándose y conserva su mando.
-                roomState.lights
-                    .filterNot { it.device.id in matchedDeviceIds }
-                    .forEachIndexed { index, light ->
-                        if (expectedLights.isNotEmpty() || index > 0) Spacer(Modifier.height(12.dp))
-                        val enabled = pendingLights[light.device.id] ?: light.isOn
-                        RoomLightCard(
-                            title = light.device.name,
-                            enabled = enabled,
-                            onEnabledChange = { requested ->
-                                pendingLights[light.device.id] = requested
-                                executeBoolean(commandExecutor, light.device, requested)
-                            }
-                        )
-                    }
-
-                if (roomHasBlind(roomType)) {
+                roomState.blind?.let { blind ->
                     Spacer(Modifier.height(12.dp))
-                    val blind = roomState.blind
                     RoomBlindCard(
                         lastCommand = lastBlindCommand,
-                        positionPercent = blind?.positionPercent,
+                        positionPercent = blind.positionPercent,
                         onCommand = { command ->
                             lastBlindCommand = command
                             val type = when (command) {
@@ -160,7 +136,7 @@ fun RoomDetailScreen(roomType: RoomType, onBack: () -> Unit) {
                                 BlindCommand.STOP -> KnxCommandType.STOP
                                 BlindCommand.DOWN -> KnxCommandType.DOWN
                             }
-                            blind?.device?.commands?.firstOrNull { it.type == type }?.let { knxCommand ->
+                            blind.device.commands.firstOrNull { it.type == type }?.let { knxCommand ->
                                 commandExecutor.execute(knxCommand) { }
                             }
                         }
@@ -225,68 +201,3 @@ private fun roomImage(roomType: RoomType): Int? = when (roomType) {
     RoomType.HALLWAY -> R.drawable.room_hallway
     RoomType.STORAGE -> R.drawable.room_storage
 }
-
-
-private data class ExpectedLightControl(
-    val title: String,
-    val aliases: List<String>,
-    val symbol: String = "☼"
-) {
-    fun matches(deviceName: String): Boolean {
-        val normalizedName = normalizeControlName(deviceName)
-        return aliases.any { alias ->
-            val normalizedAlias = normalizeControlName(alias)
-            normalizedName.contains(normalizedAlias) || normalizedAlias.contains(normalizedName)
-        }
-    }
-}
-
-private fun expectedLightControls(roomType: RoomType): List<ExpectedLightControl> = when (roomType) {
-    RoomType.ENTRANCE -> listOf(
-        ExpectedLightControl("Luz", listOf("luz entrada", "entrada", "luz"))
-    )
-    RoomType.HALLWAY -> listOf(
-        ExpectedLightControl("Luz", listOf("luz pasillo", "pasillo", "luz"))
-    )
-    RoomType.STORAGE -> listOf(
-        ExpectedLightControl("Luz", listOf("luz trastero", "trastero", "luz"))
-    )
-    RoomType.BATHROOM -> listOf(
-        ExpectedLightControl("Luz", listOf("luz baño", "luz bano", "baño", "bano", "luz"))
-    )
-    RoomType.KITCHEN -> listOf(
-        ExpectedLightControl("Luz", listOf("luz cocina", "cocina")),
-        ExpectedLightControl("Luz vitrocerámica", listOf("vitroceramica", "vitro", "encimera"), "♧")
-    )
-    RoomType.BEDROOM_1 -> listOf(
-        ExpectedLightControl("Luz", listOf("luz habitacion 1", "luz dormitorio 1", "luz principal", "techo")),
-        ExpectedLightControl("Luz lámpara", listOf("lampara", "luz lampara"), "♧")
-    )
-    RoomType.DINING_ROOM -> listOf(
-        ExpectedLightControl("Luz salón", listOf("luz salon", "salon")),
-        ExpectedLightControl("Luz comedor", listOf("luz comedor", "comedor")),
-        ExpectedLightControl("Luz lámpara", listOf("lampara", "luz lampara"), "♧")
-    )
-    RoomType.SUITE -> listOf(
-        ExpectedLightControl("Luz", listOf("luz suite", "luz principal", "techo")),
-        ExpectedLightControl("Mesita 1", listOf("mesita 1", "mesita izquierda", "cabecero 1"), "♧"),
-        ExpectedLightControl("Mesita 2", listOf("mesita 2", "mesita derecha", "cabecero 2"), "♧")
-    )
-}
-
-private fun roomHasBlind(roomType: RoomType): Boolean = roomType in setOf(
-    RoomType.KITCHEN,
-    RoomType.BEDROOM_1,
-    RoomType.DINING_ROOM,
-    RoomType.SUITE
-)
-
-private fun normalizeControlName(value: String): String = value
-    .lowercase()
-    .replace("á", "a")
-    .replace("é", "e")
-    .replace("í", "i")
-    .replace("ó", "o")
-    .replace("ú", "u")
-    .replace("ñ", "n")
-    .trim()
