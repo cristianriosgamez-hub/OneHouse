@@ -47,6 +47,7 @@ import com.onehouse.app.design.FondoSuperior
 import com.onehouse.app.design.FondoTarjeta
 import com.onehouse.app.design.TextoPrincipal
 import com.onehouse.app.design.TextoSecundario
+import com.onehouse.app.device.ControlKind
 import com.onehouse.app.device.ImportedKnxDevice
 import com.onehouse.app.knx.KnxCommand
 import com.onehouse.app.knx.KnxCommandExecutor
@@ -58,6 +59,7 @@ import com.onehouse.app.knx.KnxTelegramEvent
 import com.onehouse.app.knx.KnxTelegramMonitorRepository
 import com.onehouse.app.knx.KnxSessionStatisticsRepository
 import com.onehouse.app.knx.KnxStateRepository
+import com.onehouse.app.knx.KnxValueDecoder
 import com.onehouse.app.knx.communicationStatus
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -93,7 +95,10 @@ fun DeviceControlScreen(device: ImportedKnxDevice, onBack: () -> Unit) {
         monitorRepository,
         device.id
     ) {
-        val addresses = (device.writeAddresses + device.readAddresses)
+        val stateAddresses = device.readAddresses.ifEmpty { device.writeAddresses }
+            .map { it.toString() }
+            .toSet()
+        val monitoredAddresses = (device.writeAddresses + device.readAddresses)
             .map { it.toString() }
             .toSet()
 
@@ -104,15 +109,13 @@ fun DeviceControlScreen(device: ImportedKnxDevice, onBack: () -> Unit) {
         }
 
         val busStateObservation = busStateRepository.observe { states ->
-            val latestBusState = addresses
+            val latestBusState = stateAddresses
                 .mapNotNull(states::get)
                 .maxByOrNull { it.timestampMillis }
                 ?: return@observe
 
-            val displayValue = latestBusState.booleanValue?.let { value ->
-                if (value) "Encendido" else "Apagado"
-            } ?: latestBusState.rawValue
-            ?: return@observe
+            val displayValue = formatDeviceState(device, latestBusState)
+                ?: return@observe
 
             mainHandler.post {
                 if (
@@ -137,7 +140,7 @@ fun DeviceControlScreen(device: ImportedKnxDevice, onBack: () -> Unit) {
         val monitorObservation = monitorRepository.observe { events ->
             mainHandler.post {
                 telegramEvents = events
-                    .filter { it.groupAddress in addresses }
+                    .filter { it.groupAddress in monitoredAddresses }
                     .take(8)
             }
         }
@@ -185,6 +188,9 @@ fun DeviceControlScreen(device: ImportedKnxDevice, onBack: () -> Unit) {
     val onCommand = device.commands.firstOrNull { it.type == KnxCommandType.ON }
     val offCommand = device.commands.firstOrNull { it.type == KnxCommandType.OFF }
     val toggleCommand = device.commands.firstOrNull { it.type == KnxCommandType.TOGGLE }
+    val upCommand = device.commands.firstOrNull { it.type == KnxCommandType.UP }
+    val stopCommand = device.commands.firstOrNull { it.type == KnxCommandType.STOP }
+    val downCommand = device.commands.firstOrNull { it.type == KnxCommandType.DOWN }
     val readCommand = device.commands.firstOrNull { it.type == KnxCommandType.READ }
     val assumedOn = deviceState.value == "Encendido"
 
@@ -257,7 +263,29 @@ fun DeviceControlScreen(device: ImportedKnxDevice, onBack: () -> Unit) {
                 }
             }
 
-            if (onCommand != null && offCommand != null) {
+            if (device.controlKind == ControlKind.BLIND &&
+                upCommand != null && stopCommand != null && downCommand != null
+            ) {
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Button(
+                        onClick = { run(upCommand) },
+                        enabled = !isBusy,
+                        colors = ButtonDefaults.buttonColors(containerColor = AzulOneHouse),
+                        modifier = Modifier.weight(1f)
+                    ) { Text("↑ Subir") }
+                    OutlinedButton(
+                        onClick = { run(stopCommand) },
+                        enabled = !isBusy,
+                        modifier = Modifier.weight(1f)
+                    ) { Text("■ Stop") }
+                    Button(
+                        onClick = { run(downCommand) },
+                        enabled = !isBusy,
+                        colors = ButtonDefaults.buttonColors(containerColor = AzulOneHouse),
+                        modifier = Modifier.weight(1f)
+                    ) { Text("↓ Bajar") }
+                }
+            } else if (onCommand != null && offCommand != null) {
                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                     Button(
                         onClick = { run(onCommand) },
@@ -269,7 +297,7 @@ fun DeviceControlScreen(device: ImportedKnxDevice, onBack: () -> Unit) {
                         Text("Apagar")
                     }
                 }
-            } else if (toggleCommand != null) {
+            } else if (toggleCommand != null && device.controlKind == ControlKind.BOOLEAN_SWITCH) {
                 Button(
                     onClick = { run(toggleCommand, !assumedOn) },
                     enabled = !isBusy,
@@ -313,7 +341,9 @@ fun DeviceControlScreen(device: ImportedKnxDevice, onBack: () -> Unit) {
                 onClear = { monitorRepository.clear() }
             )
 
-            if (onCommand == null && offCommand == null && toggleCommand == null) {
+            if (onCommand == null && offCommand == null && toggleCommand == null &&
+                upCommand == null && stopCommand == null && downCommand == null
+            ) {
                 Text(
                     "En esta entrega el envío real está habilitado para luces e interruptores DPT 1.x. El resto de controles se incorporará con su codificación DPT específica.",
                     color = TextoSecundario,
@@ -323,6 +353,21 @@ fun DeviceControlScreen(device: ImportedKnxDevice, onBack: () -> Unit) {
             Spacer(modifier = Modifier.height(8.dp))
         }
     }
+}
+
+private fun formatDeviceState(
+    device: ImportedKnxDevice,
+    state: KnxStateRepository.State
+): String? = when (device.controlKind) {
+    ControlKind.BOOLEAN_SWITCH -> state.booleanValue?.let { if (it) "Encendido" else "Apagado" }
+    ControlKind.BLIND -> KnxValueDecoder.decode(state.rawValue, "5.001")
+        ?.let { "Altura %.0f %%".format(it) }
+    ControlKind.TEMPERATURE -> KnxValueDecoder.decode(state.rawValue, device.resolvedDpt)
+        ?.let { "%.1f °C".format(it) }
+    ControlKind.CLIMATE -> KnxValueDecoder.decode(state.rawValue, device.resolvedDpt)
+        ?.let { "%.1f".format(it) }
+        ?: state.booleanValue?.let { if (it) "Activo" else "Inactivo" }
+    else -> state.rawValue
 }
 
 @Composable

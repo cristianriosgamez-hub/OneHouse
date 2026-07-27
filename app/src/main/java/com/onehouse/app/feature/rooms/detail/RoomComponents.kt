@@ -280,19 +280,58 @@ private fun BlindButton(symbol: String, selected: Boolean, onClick: () -> Unit) 
 }
 
 @Composable
-internal fun RoomFloodSensorCard(floodDetected: Boolean) {
-    val accent = if (floodDetected) RoomRed else RoomGreen
+internal fun RoomSensorValueCard(
+    title: String,
+    value: String?,
+    unit: String,
+    symbol: String,
+    accent: Color = RoomBlue,
+    waitingLabel: String = "Esperando datos KNX"
+) {
+    RoomPremiumCard {
+        Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            RoomIconBox(symbol = symbol, accent = accent)
+            Spacer(Modifier.size(14.dp))
+            Column(modifier = Modifier.weight(1f)) {
+                Text(title, color = TextoPrincipal, fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
+                Text(
+                    if (value == null) waitingLabel else "Estado real KNX",
+                    color = TextoSecundario,
+                    fontSize = 11.sp
+                )
+            }
+            Text(
+                value?.let { "$it $unit".trim() } ?: "--",
+                color = if (value == null) TextoSecundario else accent,
+                fontSize = 21.sp,
+                fontWeight = FontWeight.SemiBold
+            )
+        }
+    }
+}
+
+@Composable
+internal fun RoomFloodSensorCard(floodDetected: Boolean?) {
+    val accent = when (floodDetected) {
+        true -> RoomRed
+        false -> RoomGreen
+        null -> TextoSecundario
+    }
     RoomPremiumCard {
         Column {
             Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                RoomIconBox(symbol = "◉", accent = RoomRed)
+                RoomIconBox(symbol = "◉", accent = accent)
                 Spacer(Modifier.size(14.dp))
                 Column(modifier = Modifier.weight(1f)) {
                     Text("Sensor de inundación", color = TextoPrincipal, fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
-                    Text("Estado actual", color = TextoSecundario, fontSize = 11.sp)
+                    Text("Estado real KNX", color = TextoSecundario, fontSize = 11.sp)
                 }
                 Text(
-                    if (floodDetected) "⚠ Alarma" else "✓ Normal",
+                    when (floodDetected) {
+                        true -> "⚠ Alarma"
+                        false -> "✓ Normal"
+                        null -> "--"
+                    },
                     color = accent,
                     fontSize = 15.sp,
                     fontWeight = FontWeight.SemiBold
@@ -307,12 +346,12 @@ internal fun RoomFloodSensorCard(floodDetected: Boolean) {
                     .padding(14.dp)
             ) {
                 Text(
-                    if (floodDetected) {
-                        "Se ha detectado agua. Revisa la estancia inmediatamente."
-                    } else {
-                        "No se ha detectado ninguna fuga de agua. Todo funciona correctamente."
+                    when (floodDetected) {
+                        true -> "Se ha detectado agua. Revisa la estancia inmediatamente."
+                        false -> "No se ha detectado ninguna fuga de agua."
+                        null -> "Esperando el estado del sensor desde el bus KNX."
                     },
-                    color = if (floodDetected) RoomRed else TextoSecundario,
+                    color = if (floodDetected == true) RoomRed else TextoSecundario,
                     fontSize = 12.sp,
                     lineHeight = 17.sp
                 )
@@ -322,8 +361,12 @@ internal fun RoomFloodSensorCard(floodDetected: Boolean) {
 }
 
 @Composable
-internal fun RoomPirCard(blocked: Boolean, onBlockedChange: (Boolean) -> Unit) {
-    val accent = if (blocked) RoomOrange else RoomGreen
+internal fun RoomPirCard(blocked: Boolean?, onBlockedChange: (Boolean) -> Unit) {
+    val accent = when (blocked) {
+        true -> RoomOrange
+        false -> RoomGreen
+        null -> TextoSecundario
+    }
     RoomPremiumCard {
         Column {
             Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
@@ -331,21 +374,31 @@ internal fun RoomPirCard(blocked: Boolean, onBlockedChange: (Boolean) -> Unit) {
                 Spacer(Modifier.size(14.dp))
                 Column(modifier = Modifier.weight(1f)) {
                     Text("Sensor de movimiento PIR", color = TextoPrincipal, fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
-                    Text(if (blocked) "Bloqueado" else "Funcionamiento automático", color = accent, fontSize = 11.sp)
-                }
-                Box(
-                    modifier = Modifier
-                        .background(accent.copy(alpha = 0.12f), RoundedCornerShape(13.dp))
-                        .border(1.dp, accent, RoundedCornerShape(13.dp))
-                        .clickable { onBlockedChange(!blocked) }
-                        .padding(horizontal = 14.dp, vertical = 10.dp)
-                ) {
                     Text(
-                        if (blocked) "Desbloquear" else "Bloquear",
+                        when (blocked) {
+                            true -> "Bloqueado"
+                            false -> "Funcionamiento automático"
+                            null -> "Esperando datos KNX"
+                        },
                         color = accent,
-                        fontSize = 12.sp,
-                        fontWeight = FontWeight.SemiBold
+                        fontSize = 11.sp
                     )
+                }
+                if (blocked != null) {
+                    Box(
+                        modifier = Modifier
+                            .background(accent.copy(alpha = 0.12f), RoundedCornerShape(13.dp))
+                            .border(1.dp, accent, RoundedCornerShape(13.dp))
+                            .clickable { onBlockedChange(!blocked) }
+                            .padding(horizontal = 14.dp, vertical = 10.dp)
+                    ) {
+                        Text(
+                            if (blocked) "Desbloquear" else "Bloquear",
+                            color = accent,
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                    }
                 }
             }
             Spacer(Modifier.height(14.dp))
@@ -357,8 +410,11 @@ internal fun RoomPirCard(blocked: Boolean, onBlockedChange: (Boolean) -> Unit) {
                     .padding(13.dp)
             ) {
                 Text(
-                    if (blocked) "El encendido automático por presencia está desactivado."
-                    else "La luz puede activarse automáticamente cuando el sensor detecta movimiento.",
+                    when (blocked) {
+                        true -> "El encendido automático por presencia está desactivado."
+                        false -> "La luz puede activarse automáticamente cuando el sensor detecta movimiento."
+                        null -> "Esperando el estado del PIR desde el bus KNX."
+                    },
                     color = TextoSecundario,
                     fontSize = 11.sp,
                     lineHeight = 16.sp
@@ -381,10 +437,15 @@ private fun RoomPremiumCard(content: @Composable () -> Unit) {
     Box(
         modifier = Modifier
             .fillMaxWidth()
-            .background(Brush.verticalGradient(listOf(RoomCardTop, RoomCardBottom)), RoundedCornerShape(22.dp))
+            .background(
+                Brush.verticalGradient(listOf(RoomCardTop, RoomCardBottom)),
+                RoundedCornerShape(22.dp)
+            )
             .border(1.dp, BordeTarjeta, RoundedCornerShape(22.dp))
             .padding(17.dp)
-    ) { content() }
+    ) {
+        content()
+    }
 }
 
 @Composable
@@ -392,7 +453,10 @@ private fun RoomIconBox(symbol: String, accent: Color, size: Int = 48) {
     Box(
         modifier = Modifier
             .size(size.dp)
-            .background(accent.copy(alpha = 0.13f), RoundedCornerShape(if (size > 50) 20.dp else 15.dp)),
+            .background(
+                accent.copy(alpha = 0.13f),
+                RoundedCornerShape(if (size > 50) 20.dp else 15.dp)
+            ),
         contentAlignment = Alignment.Center
     ) {
         Text(

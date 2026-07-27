@@ -1,0 +1,9 @@
+Entrega 23 - corrección de compilación
+
+Se restauran las funciones auxiliares eliminadas accidentalmente de RoomComponents.kt:
+- RoomControlAnimated
+- RoomPremiumCard
+- RoomIconBox
+- roomSymbol
+
+Sustituir únicamente el fichero incluido conservando el resto de la Entrega 23.

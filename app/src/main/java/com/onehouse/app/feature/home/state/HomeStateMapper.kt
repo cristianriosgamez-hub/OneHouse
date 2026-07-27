@@ -29,6 +29,10 @@ data class RoomUiState(
     val blind: RoomBlindUiState?,
     val temperatureCelsius: Float?,
     val climate: KnxClimateSnapshot?,
+    val co2Ppm: Float? = null,
+    val humidityPercent: Float? = null,
+    val pirBlocked: Boolean? = null,
+    val floodDetected: Boolean? = null,
     val hasRealState: Boolean
 ) {
     val anyLightOn: Boolean get() = lights.any { it.isOn }
@@ -70,20 +74,52 @@ object HomeStateMapper {
                 device.name.contains("temperatura ambiente", ignoreCase = true) ||
                 device.name.contains("temperatura", ignoreCase = true)
         }
-        val roomTemperature = temperatureDevice?.let { snapshot.numericValue(it) }
+        val roomTemperature = temperatureDevice?.let(snapshot::numericValue)
 
-        val roomHasClimate = devices.any { device ->
+        // Entrada y Habitación 1 no tienen climatización en la UI.
+        val roomHasClimate = roomType in CLIMATE_ROOMS && devices.any { device ->
             device.controlKind == ControlKind.CLIMATE ||
                 device.name.contains("daikin", ignoreCase = true) ||
                 device.name.contains("termostato", ignoreCase = true)
         }
-        val climate = if (roomHasClimate || roomType in CLIMATE_ROOMS) snapshot.climate else null
+        val climate = if (roomHasClimate) snapshot.climate else null
         val temperature = roomTemperature ?: climate?.currentTemperature
 
-        val relevantAddresses = devices.flatMap { device ->
-            device.readAddresses.map { it.toString() } + device.writeAddresses.map { it.toString() }
+        val co2Ppm = if (roomType == RoomType.DINING_ROOM) {
+            snapshot.numericAt("5/1/1", "14.000")
+        } else {
+            null
         }
-        val hasRealState = relevantAddresses.any(snapshot.states::containsKey) ||
+        val humidityPercent = if (roomType == RoomType.DINING_ROOM) {
+            snapshot.numericAt("5/1/2", "5.001")
+        } else {
+            null
+        }
+        val pirBlocked = if (roomType == RoomType.ENTRANCE) {
+            snapshot.booleanAt("5/5/1")
+        } else {
+            null
+        }
+        val floodDetected = when (roomType) {
+            RoomType.KITCHEN -> snapshot.booleanAt("2/4/1")
+            RoomType.BATHROOM -> snapshot.booleanAt("2/4/2")
+            else -> null
+        }
+
+        val relevantAddresses = buildList {
+            devices.forEach { device ->
+                addAll(device.readAddresses.map { it.toString() })
+                addAll(device.writeAddresses.map { it.toString() })
+            }
+            when (roomType) {
+                RoomType.DINING_ROOM -> addAll(listOf("5/1/1", "5/1/2"))
+                RoomType.ENTRANCE -> add("5/5/1")
+                RoomType.KITCHEN -> add("2/4/1")
+                RoomType.BATHROOM -> add("2/4/2")
+                else -> Unit
+            }
+        }
+        val hasRealState = relevantAddresses.any(snapshot::hasTrustedState) ||
             (climate != null && (
                 climate.powered != null ||
                     climate.currentTemperature != null ||
@@ -97,6 +133,10 @@ object HomeStateMapper {
             blind = blind,
             temperatureCelsius = temperature,
             climate = climate,
+            co2Ppm = co2Ppm,
+            humidityPercent = humidityPercent,
+            pirBlocked = pirBlocked,
+            floodDetected = floodDetected,
             hasRealState = hasRealState
         )
     }
@@ -113,8 +153,6 @@ object HomeStateMapper {
     }
 
     private val CLIMATE_ROOMS = setOf(
-        RoomType.ENTRANCE,
-        RoomType.BEDROOM_1,
         RoomType.DINING_ROOM,
         RoomType.SUITE
     )

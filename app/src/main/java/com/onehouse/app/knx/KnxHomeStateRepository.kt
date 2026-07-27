@@ -49,6 +49,19 @@ data class KnxHomeSnapshot(
         return KnxValueDecoder.decode(state.rawValue, device.resolvedDpt)
     }
 
+    fun booleanAt(address: String): Boolean? =
+        states[address]
+            ?.takeIf(StateFreshness::isTrusted)
+            ?.booleanValue
+
+    fun numericAt(address: String, dpt: String): Float? =
+        states[address]
+            ?.takeIf(StateFreshness::isTrusted)
+            ?.let { KnxValueDecoder.decode(it.rawValue, dpt) }
+
+    fun hasTrustedState(address: String): Boolean =
+        states[address]?.let(StateFreshness::isTrusted) == true
+
     private fun stateAddresses(device: ImportedKnxDevice) =
         device.readAddresses.ifEmpty { device.writeAddresses }
 
@@ -247,9 +260,20 @@ object KnxValueDecoder {
             1 -> (bytes.lastOrNull()?.and(1) ?: return null).toFloat()
             5 -> (bytes.lastOrNull() ?: return null) * 100f / 255f
             9 -> decodeDpt9(bytes)
+            14 -> decodeDpt14(bytes)
             20 -> bytes.lastOrNull()?.toFloat()
             else -> bytes.lastOrNull()?.toFloat()
         }
+    }
+
+    private fun decodeDpt14(bytes: List<Int>): Float? {
+        if (bytes.size < 4) return null
+        val start = bytes.size - 4
+        val bits = ((bytes[start].toLong() and 0xFF) shl 24) or
+            ((bytes[start + 1].toLong() and 0xFF) shl 16) or
+            ((bytes[start + 2].toLong() and 0xFF) shl 8) or
+            (bytes[start + 3].toLong() and 0xFF)
+        return Float.fromBits(bits.toInt())
     }
 
     private fun decodeDpt9(bytes: List<Int>): Float? {

@@ -132,15 +132,32 @@ fun RoomDetailScreen(roomType: RoomType, onBack: () -> Unit) {
                     )
                 }
 
+                if (roomType == RoomType.DINING_ROOM) {
+                    Spacer(Modifier.height(12.dp))
+                    RoomSensorValueCard(
+                        title = "CO₂",
+                        value = roomState.co2Ppm?.let { "%.0f".format(it) },
+                        unit = "ppm",
+                        symbol = "CO₂"
+                    )
+                    Spacer(Modifier.height(12.dp))
+                    RoomSensorValueCard(
+                        title = "Humedad relativa",
+                        value = roomState.humidityPercent?.let { "%.0f".format(it) },
+                        unit = "%",
+                        symbol = "≋"
+                    )
+                }
+
                 when (roomType) {
                     RoomType.KITCHEN,
                     RoomType.BATHROOM -> {
                         Spacer(Modifier.height(12.dp))
-                        RoomFloodSensorCard(floodDetected = false)
+                        RoomFloodSensorCard(floodDetected = roomState.floodDetected)
                     }
                     RoomType.ENTRANCE -> {
                         Spacer(Modifier.height(12.dp))
-                        RoomPirCard(blocked = false, onBlockedChange = { })
+                        RoomPirCard(blocked = roomState.pirBlocked, onBlockedChange = { })
                     }
                     else -> Unit
                 }
