@@ -269,8 +269,14 @@ fun SecurityScreen(onBack: () -> Unit) {
                 secondsUntilActive = if (monitoringOptions.armedEnabled) {
                     ((monitoringOptions.armActiveAtEpochMillis - nowEpochMillis + 999L) / 1000L).coerceAtLeast(0L)
                 } else 0L,
+                armMode = monitoringOptions.armMode,
                 exitDelaySeconds = monitoringOptions.exitDelaySeconds,
                 entryDelaySeconds = monitoringOptions.entryDelaySeconds,
+                onArmModeChange = { armMode ->
+                    val updated = monitoringOptions.copy(armMode = armMode)
+                    monitoringOptions = updated
+                    monitoringPreferences.write(updated)
+                },
                 onDelayOptionsChange = { exitDelaySeconds, entryDelaySeconds ->
                     val updated = monitoringOptions.copy(
                         exitDelaySeconds = exitDelaySeconds,
@@ -365,8 +371,10 @@ fun SecurityScreen(onBack: () -> Unit) {
 private fun SecurityArmedCard(
     armed: Boolean,
     secondsUntilActive: Long,
+    armMode: HomeAssistantSecurityArmMode,
     exitDelaySeconds: Int,
     entryDelaySeconds: Int,
+    onArmModeChange: (HomeAssistantSecurityArmMode) -> Unit,
     onDelayOptionsChange: (exitDelaySeconds: Int, entryDelaySeconds: Int) -> Unit,
     onArmedChange: (Boolean) -> Unit
 ) {
@@ -404,7 +412,8 @@ private fun SecurityArmedCard(
                     Text(
                         when {
                             arming -> "Tiempo para salir: ${secondsUntilActive} s. Las alertas se activarán al finalizar."
-                            armed -> "Las aperturas disponen de ${entryDelaySeconds} s para desarmar antes del aviso. El movimiento genera alerta inmediata."
+                            armed && armMode == HomeAssistantSecurityArmMode.HOME -> "Modo En casa: se vigilan puertas y ventanas. Los sensores de movimiento no generan alertas."
+                            armed -> "Modo Total: las aperturas disponen de ${entryDelaySeconds} s para desarmar. El movimiento genera alerta inmediata."
                             else -> "Los sensores siguen visibles, pero no se generan alertas ni vigilancia en segundo plano."
                         },
                         color = TextoSecundario,
@@ -419,6 +428,22 @@ private fun SecurityArmedCard(
                 modifier = Modifier.padding(vertical = 14.dp),
                 color = TextoDesactivado.copy(alpha = 0.25f)
             )
+            Text(
+                "TIPO DE ARMADO",
+                color = AzulClaro,
+                style = MaterialTheme.typography.labelMedium,
+                fontWeight = FontWeight.Bold,
+                letterSpacing = 0.8.sp
+            )
+            Spacer(Modifier.height(10.dp))
+            SecurityArmModeSelector(
+                selectedMode = armMode,
+                enabled = !armed,
+                onSelected = onArmModeChange
+            )
+            Spacer(Modifier.height(14.dp))
+            HorizontalDivider(color = TextoDesactivado.copy(alpha = 0.16f))
+            Spacer(Modifier.height(14.dp))
             Text(
                 "RETARDOS",
                 color = AzulClaro,
@@ -453,6 +478,51 @@ private fun SecurityArmedCard(
                 )
             }
         }
+    }
+}
+
+
+@Composable
+private fun SecurityArmModeSelector(
+    selectedMode: HomeAssistantSecurityArmMode,
+    enabled: Boolean,
+    onSelected: (HomeAssistantSecurityArmMode) -> Unit
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(10.dp)
+    ) {
+        listOf(
+            HomeAssistantSecurityArmMode.TOTAL to Pair("Total", "Puertas, ventanas y movimiento"),
+            HomeAssistantSecurityArmMode.HOME to Pair("En casa", "Solo puertas y ventanas")
+        ).forEach { (mode, labels) ->
+            val selected = mode == selectedMode
+            OutlinedButton(
+                onClick = { onSelected(mode) },
+                modifier = Modifier.weight(1f),
+                enabled = enabled,
+                contentPadding = PaddingValues(horizontal = 8.dp, vertical = 10.dp),
+                colors = ButtonDefaults.outlinedButtonColors(
+                    containerColor = if (selected) AzulOneHouse.copy(alpha = 0.22f) else Color.Transparent,
+                    contentColor = if (selected) AzulClaro else TextoSecundario,
+                    disabledContentColor = if (selected) AzulClaro.copy(alpha = 0.55f) else TextoDesactivado
+                )
+            ) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text(labels.first, fontWeight = FontWeight.SemiBold)
+                    Spacer(Modifier.height(2.dp))
+                    Text(labels.second, fontSize = 10.sp, lineHeight = 12.sp)
+                }
+            }
+        }
+    }
+    if (!enabled) {
+        Spacer(Modifier.height(8.dp))
+        Text(
+            "Desarma la seguridad para cambiar el tipo de armado.",
+            color = TextoDesactivado,
+            style = MaterialTheme.typography.bodySmall
+        )
     }
 }
 

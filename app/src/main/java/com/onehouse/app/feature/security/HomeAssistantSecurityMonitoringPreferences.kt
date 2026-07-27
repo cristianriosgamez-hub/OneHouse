@@ -2,9 +2,15 @@ package com.onehouse.app.feature.security
 
 import android.content.Context
 
+enum class HomeAssistantSecurityArmMode {
+    TOTAL,
+    HOME
+}
+
 data class HomeAssistantSecurityMonitoringOptions(
     val armedEnabled: Boolean = false,
     val armActiveAtEpochMillis: Long = 0L,
+    val armMode: HomeAssistantSecurityArmMode = HomeAssistantSecurityArmMode.TOTAL,
     val openingsEnabled: Boolean = true,
     val motionEnabled: Boolean = true,
     val cameraAutoRefreshEnabled: Boolean = true,
@@ -18,6 +24,12 @@ class HomeAssistantSecurityMonitoringPreferences(context: Context) {
     fun read(): HomeAssistantSecurityMonitoringOptions = HomeAssistantSecurityMonitoringOptions(
         armedEnabled = preferences.getBoolean(KEY_ARMED, false),
         armActiveAtEpochMillis = preferences.getLong(KEY_ARM_ACTIVE_AT, 0L),
+        armMode = runCatching {
+            HomeAssistantSecurityArmMode.valueOf(
+                preferences.getString(KEY_ARM_MODE, HomeAssistantSecurityArmMode.TOTAL.name)
+                    ?: HomeAssistantSecurityArmMode.TOTAL.name
+            )
+        }.getOrDefault(HomeAssistantSecurityArmMode.TOTAL),
         openingsEnabled = preferences.getBoolean(KEY_OPENINGS, true),
         motionEnabled = preferences.getBoolean(KEY_MOTION, true),
         cameraAutoRefreshEnabled = preferences.getBoolean(KEY_CAMERAS, true),
@@ -29,6 +41,7 @@ class HomeAssistantSecurityMonitoringPreferences(context: Context) {
         preferences.edit()
             .putBoolean(KEY_ARMED, options.armedEnabled)
             .putLong(KEY_ARM_ACTIVE_AT, options.armActiveAtEpochMillis)
+            .putString(KEY_ARM_MODE, options.armMode.name)
             .putBoolean(KEY_OPENINGS, options.openingsEnabled)
             .putBoolean(KEY_MOTION, options.motionEnabled)
             .putBoolean(KEY_CAMERAS, options.cameraAutoRefreshEnabled)
@@ -43,7 +56,8 @@ class HomeAssistantSecurityMonitoringPreferences(context: Context) {
         return events.filter { event ->
             when (event.category) {
                 SecurityEntityCategory.OPENING -> options.openingsEnabled
-                SecurityEntityCategory.MOTION -> options.motionEnabled
+                SecurityEntityCategory.MOTION ->
+                    options.motionEnabled && options.armMode == HomeAssistantSecurityArmMode.TOTAL
             }
         }
     }
@@ -52,6 +66,7 @@ class HomeAssistantSecurityMonitoringPreferences(context: Context) {
         const val PREFERENCES_NAME = "onehouse_security_monitoring"
         const val KEY_ARMED = "armed_enabled"
         const val KEY_ARM_ACTIVE_AT = "arm_active_at_epoch_millis"
+        const val KEY_ARM_MODE = "arm_mode"
         const val KEY_OPENINGS = "openings_enabled"
         const val KEY_MOTION = "motion_enabled"
         const val KEY_CAMERAS = "camera_auto_refresh_enabled"

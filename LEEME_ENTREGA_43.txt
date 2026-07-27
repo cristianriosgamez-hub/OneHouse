@@ -1,0 +1,28 @@
+ENTREGA 43 - ONEHOUSE 1.6.13
+MODOS DE ARMADO TOTAL Y EN CASA
+
+Base utilizada:
+- OneHouse 1.6.12 Retardos configurables, confirmada sin errores.
+
+Cambios:
+- Nuevo tipo de armado Total.
+  - Supervisa puertas, ventanas y sensores de movimiento.
+- Nuevo tipo de armado En casa.
+  - Supervisa puertas y ventanas.
+  - Los sensores de movimiento continúan visibles y registrando eventos, pero no generan notificaciones.
+- El modo seleccionado queda guardado en el teléfono.
+- El tipo de armado solo puede cambiarse con la seguridad desarmada.
+- Los retardos configurables de entrada y salida se mantienen.
+- La vigilancia en primer y segundo plano respeta el modo seleccionado.
+
+Versión:
+- versionCode 38
+- versionName 1.6.13
+
+Archivos incluidos:
+- app/build.gradle.kts
+- app/src/main/java/com/onehouse/app/feature/security/HomeAssistantSecurityMonitoringPreferences.kt
+- app/src/main/java/com/onehouse/app/feature/security/SecurityScreen.kt
+- LEEME_ENTREGA_43.txt
+
+No se ha modificado KNX, cámaras, climatización, consumos, estancias ni la conexión de Home Assistant.
