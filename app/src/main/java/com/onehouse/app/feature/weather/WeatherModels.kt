@@ -46,6 +46,17 @@ data class WeatherUiState(
     val high: String get() = highC?.let { "%.0f°".format(it) } ?: "--°"
     val low: String get() = lowC?.let { "%.0f°".format(it) } ?: "--°"
     val indoorTemperature: String get() = indoorTemperatureC?.let { "%.1f°C".format(it) } ?: "-- °C"
+    val indoorComfort: String
+        get() = when (val value = indoorTemperatureC) {
+            null -> "Sin datos"
+            else -> when {
+                value < 18f -> "Frío"
+                value < 21f -> "Fresco"
+                value <= 26f -> "Confort"
+                value <= 28f -> "Cálido"
+                else -> "Calor"
+            }
+        }
 
     val metrics: List<WeatherMetric>
         get() = listOf(

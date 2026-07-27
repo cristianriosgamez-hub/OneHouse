@@ -63,10 +63,7 @@ fun ClimateScheduleScreen(
     }
 
     var state by remember {
-        mutableStateOf(
-            repository.load().takeIf { it.events.isNotEmpty() }
-                ?: ClimateScheduleState(events = defaultClimateEvents())
-        )
+        mutableStateOf(repository.load())
     }
     var expandedDay by remember { mutableStateOf<DayOfWeek?>(DayOfWeek.MONDAY) }
     var editingDay by remember { mutableStateOf<DayOfWeek?>(null) }
@@ -735,34 +732,6 @@ private fun SelectionRow(
         }
     }
 }
-
-private fun defaultClimateEvents(): List<ClimateScheduleEvent> =
-    listOf(
-        ClimateScheduleEvent(
-            id = 7001,
-            dayOfWeek = DayOfWeek.MONDAY,
-            hour = 8,
-            minute = 0,
-            targetTemperature = 22f,
-            mode = ClimateMode.HEAT
-        ),
-        ClimateScheduleEvent(
-            id = 7002,
-            dayOfWeek = DayOfWeek.MONDAY,
-            hour = 18,
-            minute = 0,
-            targetTemperature = 24f,
-            mode = ClimateMode.COLD,
-            fanSpeed = FanSpeed.HIGH
-        ),
-        ClimateScheduleEvent(
-            id = 7003,
-            dayOfWeek = DayOfWeek.MONDAY,
-            hour = 23,
-            minute = 0,
-            powerOn = false
-        )
-    )
 
 private fun dayLabel(day: DayOfWeek): String =
     day.getDisplayName(TextStyle.FULL, Locale("es", "ES"))

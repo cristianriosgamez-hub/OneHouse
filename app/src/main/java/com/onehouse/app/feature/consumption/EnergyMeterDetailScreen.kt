@@ -288,13 +288,15 @@ internal fun ReadingEditorDialog(
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                     singleLine = true
                 )
-                OutlinedTextField(
-                    value = costText,
-                    onValueChange = { costText = it },
-                    label = { Text("Coste opcional (€)") },
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                    singleLine = true
-                )
+                if (type != MeterType.ACS) {
+                    OutlinedTextField(
+                        value = costText,
+                        onValueChange = { costText = it },
+                        label = { Text("Coste opcional (€)") },
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                        singleLine = true
+                    )
+                }
                 OutlinedTextField(
                     value = noteText,
                     onValueChange = { noteText = it },
@@ -308,7 +310,7 @@ internal fun ReadingEditorDialog(
                 val timestamp = runCatching { inputDateFormat.parse(dateText)?.time }.getOrNull()
                 val meter = meterText.toNormalizedDoubleOrNull()
                 val consumption = consumptionText.toNormalizedDoubleOrNull()
-                val cost = costText.toNormalizedDoubleOrNull()
+                val cost = if (type == MeterType.ACS) null else costText.toNormalizedDoubleOrNull()
                 when {
                     timestamp == null -> error = "La fecha no es válida."
                     meter == null && consumption == null -> error = "Introduce la lectura o el consumo del periodo."

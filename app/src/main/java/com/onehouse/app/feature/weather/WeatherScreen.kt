@@ -160,12 +160,25 @@ private fun WeatherHeroCard(state: WeatherUiState) {
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
                         Text("Temperatura interior", color = TextoPrincipal, fontSize = 11.sp)
                         Text(state.indoorTemperature, color = WeatherBlue, fontSize = 23.sp, fontWeight = FontWeight.Medium)
-                        Text("Confort ●", color = WeatherGreen, fontSize = 11.sp)
+                        Text(
+                            text = "${state.indoorComfort} ●",
+                            color = indoorComfortColor(state.indoorTemperatureC),
+                            fontSize = 11.sp
+                        )
                     }
                 }
             }
         }
     }
+}
+
+private fun indoorComfortColor(value: Float?): Color = when {
+    value == null -> TextoSecundario
+    value < 18f -> WeatherBlue
+    value < 21f -> WeatherBlue
+    value <= 26f -> WeatherGreen
+    value <= 28f -> WeatherOrange
+    else -> Color(0xFFFF5A5F)
 }
 
 @Composable

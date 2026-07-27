@@ -1,0 +1,21 @@
+ENTREGA 27 - CIERRE DE FASE CONSUMOS / PROGRAMACION / CONFORT
+
+Cambios realizados:
+1. ACS usa kW también en todo el histórico importado desde Excel.
+2. Se incrementa la versión del histórico a 3 para actualizar instalaciones ya existentes.
+3. En las lecturas ACS no aparece el campo "Coste opcional (€)" y se guarda sin coste.
+4. La programación semanal de climatización inicia vacía, sin eventos de ejemplo.
+5. El estado de confort de Tiempo depende de la temperatura KNX real del Comedor:
+   - Sin lectura: Sin datos
+   - < 18 °C: Frío
+   - 18 a < 21 °C: Fresco
+   - 21 a 26 °C: Confort
+   - > 26 a 28 °C: Cálido
+   - > 28 °C: Calor
+
+No se han cambiado direcciones KNX, luces, persianas, sensores ni comandos.
+
+Instalación:
+- Copiar la carpeta app sobre la raíz del proyecto y aceptar sustituciones.
+- Build > Clean Project
+- Build > Rebuild Project

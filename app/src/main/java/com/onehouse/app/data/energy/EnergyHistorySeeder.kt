@@ -39,7 +39,7 @@ class EnergyHistorySeeder(
     companion object {
         private const val PREFERENCES_NAME = "energy_history_seed"
         private const val KEY_DATASET_VERSION = "dataset_version"
-        private const val DATASET_VERSION = 2
+        private const val DATASET_VERSION = 3
     }
 }
 

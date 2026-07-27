@@ -112,18 +112,20 @@ internal fun EnergyReadingDialog(
                     singleLine = true
                 )
 
-                OutlinedTextField(
-                    value = costText,
-                    onValueChange = {
-                        costText = it
-                        errorMessage = null
-                    },
-                    label = { Text("Coste opcional (€)") },
-                    keyboardOptions = KeyboardOptions(
-                        keyboardType = KeyboardType.Decimal
-                    ),
-                    singleLine = true
-                )
+                if (type != MeterType.ACS) {
+                    OutlinedTextField(
+                        value = costText,
+                        onValueChange = {
+                            costText = it
+                            errorMessage = null
+                        },
+                        label = { Text("Coste opcional (€)") },
+                        keyboardOptions = KeyboardOptions(
+                            keyboardType = KeyboardType.Decimal
+                        ),
+                        singleLine = true
+                    )
+                }
 
                 OutlinedTextField(
                     value = noteText,
@@ -154,7 +156,7 @@ internal fun EnergyReadingDialog(
 
                     val meterValue = meterText.toNormalizedDoubleOrNull()
                     val consumption = consumptionText.toNormalizedDoubleOrNull()
-                    val cost = costText.toNormalizedDoubleOrNull()
+                    val cost = if (type == MeterType.ACS) null else costText.toNormalizedDoubleOrNull()
 
                     errorMessage = when {
                         timestamp == null -> "La fecha no es válida."
