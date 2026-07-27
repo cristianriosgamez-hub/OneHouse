@@ -46,7 +46,10 @@ class KnxBulkStateReader(context: Context) : Closeable {
             }.getOrNull()
         }
 
-        val commands = (importedCommands + explicitCommands)
+        // Las direcciones visibles y críticas se consultan primero. En la REV3
+        // se añadían al final de toda la importación y podían tardar mucho en
+        // aparecer cuando había objetos que no respondían.
+        val commands = (explicitCommands + importedCommands)
             .distinctBy { it.destination.toString() }
 
         if (commands.isEmpty()) {
@@ -69,7 +72,10 @@ class KnxBulkStateReader(context: Context) : Closeable {
             onProgress(Progress(index, commands.size, failures, command.destination.toString()))
             val executor = KnxCommandExecutor(appContext)
             activeExecutor = executor
-            executor.execute(command) { result ->
+            // En una lectura masiva no repetimos inmediatamente una dirección
+            // sin respuesta: ese segundo timeout bloqueaba toda la cola. Las
+            // direcciones pendientes se recuperan en la siguiente pasada.
+            executor.execute(command, retryReadOnce = false) { result ->
                 executor.close()
                 if (activeExecutor === executor) activeExecutor = null
                 if (cancelled.get()) return@execute

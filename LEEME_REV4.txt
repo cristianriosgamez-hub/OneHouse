@@ -1,0 +1,35 @@
+OneHouse v1.6.13 REV4 - Arranque rápido KNX
+
+BASE:
+- Generado exclusivamente sobre OneHouse v1.6.13 REV3 aportada por el usuario.
+
+OBJETIVO:
+- Mostrar antes los datos KNX visibles al abrir la aplicación.
+- Evitar que una dirección sin respuesta bloquee dos veces seguidas toda la carga.
+
+CAMBIOS:
+1. Las direcciones KNX críticas se consultan antes que el resto:
+   - Temperatura Comedor y Suite
+   - Humedad y CO2
+   - Estado, consigna, modo y velocidad del clima
+   - PIR e inundación
+   - Luminosidad, viento y lluvia
+2. Las direcciones de estado de las luces se incorporan a la prioridad inicial.
+3. En la lectura masiva se elimina el reintento inmediato por dirección.
+   - Una dirección que no responde no consume un segundo timeout consecutivo.
+   - Se recupera en la siguiente pasada.
+4. Tras la primera pasada se programa una recuperación rápida y después se vuelve al refresco normal de 60 segundos.
+5. No se añaden valores ficticios. Sin respuesta real KNX se mantiene "---" o "Sin datos".
+
+VERSION:
+- versionCode: 42
+- versionName: 1.6.13 REV4
+
+ARCHIVOS MODIFICADOS:
+- app/build.gradle.kts
+- app/src/main/java/com/onehouse/app/knx/KnxBulkStateReader.kt
+- app/src/main/java/com/onehouse/app/knx/KnxCommandExecutor.kt
+- app/src/main/java/com/onehouse/app/knx/KnxHomeStateRepository.kt
+
+NOTA DE COMPILACION:
+No se ha podido ejecutar Gradle en este entorno porque el wrapper necesita descargar Gradle 9.5.0 y no hay acceso de red a services.gradle.org.

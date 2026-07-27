@@ -45,11 +45,12 @@ class KnxCommandExecutor(context: Context) : Closeable {
     fun execute(
         command: KnxCommand,
         toggleValue: Boolean? = null,
+        retryReadOnce: Boolean = true,
         onResult: (Result) -> Unit
     ) {
         queuedOperation?.close()
         queuedOperation = KnxTelegramQueue.enqueue { done ->
-            executeQueued(command, toggleValue) { result ->
+            executeQueued(command, toggleValue, retryReadOnce) { result ->
                 onResult(result)
                 done()
             }
@@ -59,6 +60,7 @@ class KnxCommandExecutor(context: Context) : Closeable {
     private fun executeQueued(
         command: KnxCommand,
         toggleValue: Boolean?,
+        retryReadOnce: Boolean,
         onResult: (Result) -> Unit
     ) {
         val telegram = telegramFor(command, toggleValue)
@@ -121,7 +123,8 @@ class KnxCommandExecutor(context: Context) : Closeable {
                             if (command.type == KnxCommandType.READ &&
                                 operation is KnxConnectionManager.OperationResult.Success &&
                                 operation.incoming == null &&
-                                number == 1
+                                number == 1 &&
+                                retryReadOnce
                             ) {
                                 connectionManager.disconnect()
                                 attempt(2)

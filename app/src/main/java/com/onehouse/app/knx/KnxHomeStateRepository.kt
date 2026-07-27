@@ -239,12 +239,14 @@ private object StateFreshness {
  */
 private object PeriodicKnxStateRefresh {
     private const val REFRESH_INTERVAL_MILLIS = 60_000L
+    private const val STARTUP_RETRY_DELAY_MILLIS = 4_000L
     private val lock = Any()
     private val handler = Handler(Looper.getMainLooper())
     private var activeReader: KnxBulkStateReader? = null
     private var activeSignature: String? = null
     private var scheduledSignature: String? = null
     private var scheduledRunnable: Runnable? = null
+    private var fastRetrySignature: String? = null
 
     private val explicitStateAddresses = listOf(
         KnxAddressBook.Climate.POWER_STATE,
@@ -310,9 +312,19 @@ private object PeriodicKnxStateRefresh {
             }
         }
 
+        // Además de los sensores globales, adelantamos las direcciones de estado
+        // de las luces. Así, al abrir la app, los interruptores visibles y el
+        // contador de la portada se pintan antes de recorrer todo el proyecto.
+        val startupPriorityAddresses = (
+            explicitStateAddresses +
+                prioritized
+                    .filter { it.controlKind == ControlKind.BOOLEAN_SWITCH }
+                    .flatMap { device -> device.readAddresses.map { it.toString() } }
+            ).distinct()
+
         reader.read(
             devices = prioritized,
-            extraReadAddresses = explicitStateAddresses,
+            extraReadAddresses = startupPriorityAddresses,
             onProgress = { },
             onComplete = {
                 reader.close()
@@ -331,7 +343,16 @@ private object PeriodicKnxStateRefresh {
                     }
                     scheduledRunnable = next
                     scheduledSignature = signature
-                    handler.postDelayed(next, REFRESH_INTERVAL_MILLIS)
+                    // Primera recuperación rápida: algunos actuadores/sensores KNX
+                    // responden solo después de que el túnel ya ha quedado activo.
+                    // Se repite pronto una sola vez; después se vuelve al minuto.
+                    val delay = if (fastRetrySignature != signature) {
+                        fastRetrySignature = signature
+                        STARTUP_RETRY_DELAY_MILLIS
+                    } else {
+                        REFRESH_INTERVAL_MILLIS
+                    }
+                    handler.postDelayed(next, delay)
                 }
             }
         )
