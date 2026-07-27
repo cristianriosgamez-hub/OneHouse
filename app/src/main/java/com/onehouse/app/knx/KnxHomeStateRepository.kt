@@ -23,7 +23,9 @@ data class KnxHomeSnapshot(
         val aliases = roomAliases(roomName)
         return devices.filter { device ->
             val normalized = normalize(device.roomName)
-            aliases.any { alias -> normalized.contains(alias) || alias.contains(normalized) }
+            normalized.isNotBlank() && aliases.any { alias ->
+                normalized.contains(alias) || alias.contains(normalized)
+            }
         }
     }
 
@@ -141,7 +143,7 @@ class KnxHomeStateRepository(context: Context) {
         fun boolAt(address: String) = findByAddress(address)?.booleanValue
         fun byteAt(address: String) = KnxValueDecoder.decode(findByAddress(address)?.rawValue, "20.102")?.toInt()
 
-        val mode = when (byteAt("5/3/4")) {
+        val mode = when (byteAt(KnxAddressBook.Climate.MODE_STATE)) {
             0 -> "Automático"
             1 -> "Calor"
             2 -> "Noche"
@@ -150,7 +152,7 @@ class KnxHomeStateRepository(context: Context) {
             14 -> "Ventilación"
             else -> null
         }
-        val fan = when (byteAt("5/3/5")) {
+        val fan = when (byteAt(KnxAddressBook.Climate.FAN_SPEED_STATE)) {
             0 -> "Auto"
             1 -> "Baja"
             2 -> "Media"
@@ -166,10 +168,10 @@ class KnxHomeStateRepository(context: Context) {
             blindsOpen = blindOpen,
             blindsTotal = blinds.size,
             climate = KnxClimateSnapshot(
-                powered = boolAt("5/3/2"),
-                currentTemperature = floatAt("5/3/3", "9.001"),
-                targetTemperature = floatAt("5/3/10", "9.001")
-                    ?: floatAt("5/3/1", "9.001"),
+                powered = boolAt(KnxAddressBook.Climate.POWER_STATE),
+                currentTemperature = floatAt(KnxAddressBook.Climate.CURRENT_TEMPERATURE, "9.001"),
+                targetTemperature = floatAt(KnxAddressBook.Climate.TARGET_TEMPERATURE_PRIMARY, "9.001")
+                    ?: floatAt(KnxAddressBook.Climate.TARGET_TEMPERATURE_FALLBACK, "9.001"),
                 mode = mode,
                 fanSpeed = fan
             )

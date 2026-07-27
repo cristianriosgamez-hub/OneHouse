@@ -1,5 +1,6 @@
 package com.onehouse.app.feature.climate
 
+import com.onehouse.app.knx.KnxAddressBook
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -58,11 +59,11 @@ fun ClimateScreen(onBack: () -> Unit) {
     val selectedFanSpeed = climate.fanSpeed.toFanSpeed()
     val enabled = climate.powered == true
 
-    val diningTemperature = snapshot.numericAt("5/1/3", "9.001")
-        ?: snapshot.numericAt("5/3/3", "9.001")
-    val suiteTemperature = snapshot.numericAt("5/1/4", "9.001")
-    val humidity = snapshot.numericAt("5/1/2", "5.001")?.toInt()
-    val co2Ppm = snapshot.numericAt("5/1/1", "14.000")?.toInt()
+    val diningTemperature = snapshot.numericAt(KnxAddressBook.Indoor.TEMPERATURE_DINING, "9.001")
+        ?: snapshot.numericAt(KnxAddressBook.Climate.CURRENT_TEMPERATURE, "9.001")
+    val suiteTemperature = snapshot.numericAt(KnxAddressBook.Indoor.TEMPERATURE_SUITE, "9.001")
+    val humidity = snapshot.numericAt(KnxAddressBook.Indoor.HUMIDITY_DINING, "5.001")?.toInt()
+    val co2Ppm = snapshot.numericAt(KnxAddressBook.Indoor.CO2_DINING, "14.000")?.toInt()
 
     Column(
         modifier = Modifier

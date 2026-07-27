@@ -1,0 +1,42 @@
+ONEHOUSE - ENTREGA 25 - AUDITORÍA KNX
+Base revisada: OneHouse(63)
+
+OBJETIVO
+Esta entrega no modifica el diseño ni cambia el funcionamiento de luces,
+persianas, climatización o sensores. Refuerza la seguridad del código KNX
+antes de realizar pruebas reales sobre el bus.
+
+CAMBIOS
+1. Se crea KnxAddressBook.kt como catálogo único de las direcciones KNX
+   globales utilizadas por OneHouse.
+2. Se sustituyen las direcciones escritas directamente en ClimateScreen,
+   HomeStateMapper, TerraceScreen y KnxHomeStateRepository por referencias
+   al catálogo central.
+3. Se corrige la asignación de dispositivos sin nombre de estancia: un objeto
+   importado con roomName vacío ya no puede aparecer accidentalmente en todas
+   las estancias.
+4. No se ha cambiado ninguna Group Address, DPT, comando, orden Up/Stop/Down,
+   lógica de lectura, lógica de escritura ni diseño visual.
+5. Los dispositivos y sus direcciones importadas desde InsideControl siguen
+   siendo la fuente principal para luces y persianas.
+
+DIRECCIONES CENTRALIZADAS (SIN CAMBIOS)
+Clima: 5/3/2, 5/3/3, 5/3/4, 5/3/5, 5/3/10, 5/3/1
+Ambiente: 5/1/1, 5/1/2, 5/1/3, 5/1/4
+Sensores: 5/5/1, 2/4/1, 2/4/2
+Terraza: 15/0/11, 15/0/13, 15/0/14, 15/0/21
+
+INSTALACIÓN
+Copiar la carpeta app sobre la raíz del proyecto OneHouse y aceptar la
+sustitución de archivos. Después ejecutar Clean Project y Rebuild Project.
+
+COMPROBACIÓN RECOMENDADA
+- Abrir todas las estancias y confirmar que siguen visibles sus controles.
+- Comprobar Comedor y Suite con la temperatura en -- hasta recibir KNX.
+- Abrir Climatización y confirmar que conserva el diseño premium.
+- Abrir Terraza y confirmar que mantiene la luz y sus lecturas.
+
+VALIDACIÓN
+Se ha ejecutado comprobación estática de diferencias y de formato Git sin
+errores. No fue posible compilar en este entorno porque Gradle 9.5.0 no está
+disponible en caché y el entorno no puede descargarlo.

@@ -1,5 +1,6 @@
 package com.onehouse.app.feature.home.state
 
+import com.onehouse.app.knx.KnxAddressBook
 import com.onehouse.app.device.ControlKind
 import com.onehouse.app.device.ImportedKnxDevice
 import com.onehouse.app.feature.rooms.detail.RoomType
@@ -86,23 +87,23 @@ object HomeStateMapper {
         val temperature = roomTemperature ?: climate?.currentTemperature
 
         val co2Ppm = if (roomType == RoomType.DINING_ROOM) {
-            snapshot.numericAt("5/1/1", "14.000")
+            snapshot.numericAt(KnxAddressBook.Indoor.CO2_DINING, "14.000")
         } else {
             null
         }
         val humidityPercent = if (roomType == RoomType.DINING_ROOM) {
-            snapshot.numericAt("5/1/2", "5.001")
+            snapshot.numericAt(KnxAddressBook.Indoor.HUMIDITY_DINING, "5.001")
         } else {
             null
         }
         val pirBlocked = if (roomType == RoomType.ENTRANCE) {
-            snapshot.booleanAt("5/5/1")
+            snapshot.booleanAt(KnxAddressBook.Indoor.PIR_BLOCK_ENTRANCE)
         } else {
             null
         }
         val floodDetected = when (roomType) {
-            RoomType.KITCHEN -> snapshot.booleanAt("2/4/1")
-            RoomType.BATHROOM -> snapshot.booleanAt("2/4/2")
+            RoomType.KITCHEN -> snapshot.booleanAt(KnxAddressBook.Indoor.FLOOD_KITCHEN)
+            RoomType.BATHROOM -> snapshot.booleanAt(KnxAddressBook.Indoor.FLOOD_BATHROOM)
             else -> null
         }
 
@@ -112,10 +113,10 @@ object HomeStateMapper {
                 addAll(device.writeAddresses.map { it.toString() })
             }
             when (roomType) {
-                RoomType.DINING_ROOM -> addAll(listOf("5/1/1", "5/1/2"))
-                RoomType.ENTRANCE -> add("5/5/1")
-                RoomType.KITCHEN -> add("2/4/1")
-                RoomType.BATHROOM -> add("2/4/2")
+                RoomType.DINING_ROOM -> addAll(listOf(KnxAddressBook.Indoor.CO2_DINING, KnxAddressBook.Indoor.HUMIDITY_DINING))
+                RoomType.ENTRANCE -> add(KnxAddressBook.Indoor.PIR_BLOCK_ENTRANCE)
+                RoomType.KITCHEN -> add(KnxAddressBook.Indoor.FLOOD_KITCHEN)
+                RoomType.BATHROOM -> add(KnxAddressBook.Indoor.FLOOD_BATHROOM)
                 else -> Unit
             }
         }

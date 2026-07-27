@@ -1,5 +1,6 @@
 package com.onehouse.app.feature.terrace
 
+import com.onehouse.app.knx.KnxAddressBook
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -103,10 +104,10 @@ fun TerraceScreen(onBack: () -> Unit) {
             Spacer(Modifier.height(16.dp))
 
             KnxExteriorSensorsCard(
-                luminosity = snapshot.numericAt("15/0/11", "14.000"),
-                windSpeed = snapshot.numericAt("15/0/14", "9.005"),
-                excessiveWind = snapshot.booleanAt("15/0/13"),
-                raining = snapshot.booleanAt("15/0/21")
+                luminosity = snapshot.numericAt(KnxAddressBook.Terrace.LUMINOSITY, "14.000"),
+                windSpeed = snapshot.numericAt(KnxAddressBook.Terrace.WIND_SPEED, "9.005"),
+                excessiveWind = snapshot.booleanAt(KnxAddressBook.Terrace.EXCESSIVE_WIND),
+                raining = snapshot.booleanAt(KnxAddressBook.Terrace.RAINING)
             )
 
             Spacer(Modifier.height(16.dp))
