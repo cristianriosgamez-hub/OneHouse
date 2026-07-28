@@ -1,0 +1,27 @@
+ONEHOUSE v1.9.1 - ESCENAS INTELIGENTES FASE 2
+
+ARCHIVOS A SUSTITUIR
+- app/build.gradle.kts
+- app/src/main/java/com/onehouse/app/feature/scenes/SceneModels.kt
+- app/src/main/java/com/onehouse/app/feature/scenes/SceneRepository.kt
+- app/src/main/java/com/onehouse/app/feature/scenes/SceneExecutionEngine.kt
+- app/src/main/java/com/onehouse/app/feature/scenes/ScenesScreen.kt
+
+CAMBIOS
+- Pausa configurable después de cada acción: 0, 0.5, 1, 2, 5 o 10 segundos.
+- Opción por escena para detenerse al primer error o continuar con las acciones restantes.
+- Resultado final con acciones correctas y fallidas.
+- Vista previa y listado muestran las pausas configuradas.
+- Persistencia compatible con escenas creadas en v1.9.0.
+- Las acciones siguen limitadas a DPT 1.x para no enviar telegramas KNX no validados.
+
+NO SE MODIFICA
+- Direcciones KNX.
+- DPT existentes.
+- Motor central KNX.
+- Navegación.
+- Resto de pantallas.
+
+VERSION
+versionCode = 64
+versionName = "1.9.1 Escenas Inteligentes Fase 2"

@@ -36,7 +36,8 @@ class SharedPreferencesSceneRepository(context: Context) : SceneRepository {
                 clean(action.name),
                 action.groupAddress,
                 action.dpt,
-                action.type.name
+                action.type.name,
+                action.delayAfterMillis
             ).joinToString("^")
         }
         return listOf(
@@ -46,13 +47,19 @@ class SharedPreferencesSceneRepository(context: Context) : SceneRepository {
             scene.enabled,
             scene.lastExecutionMillis ?: "",
             scene.executionCount,
+            scene.stopOnError,
             actions
         ).joinToString("|")
     }
 
     private fun decodeScene(raw: String): SmartScene? = runCatching {
-        val parts = raw.split('|', limit = 7)
+        val parts = raw.split('|')
         if (parts.size < 7) return@runCatching null
+
+        val isNewFormat = parts.size >= 8
+        val stopOnError = if (isNewFormat) parts[6].toBooleanStrictOrNull() ?: true else true
+        val actionsRaw = if (isNewFormat) parts.subList(7, parts.size).joinToString("|") else parts[6]
+
         SmartScene(
             id = parts[0].toLong(),
             name = parts[1],
@@ -60,7 +67,8 @@ class SharedPreferencesSceneRepository(context: Context) : SceneRepository {
             enabled = parts[3].toBoolean(),
             lastExecutionMillis = parts[4].toLongOrNull(),
             executionCount = parts[5].toInt(),
-            actions = if (parts[6].isBlank()) emptyList() else parts[6].split('~').mapNotNull(::decodeAction)
+            stopOnError = stopOnError,
+            actions = if (actionsRaw.isBlank()) emptyList() else actionsRaw.split('~').mapNotNull(::decodeAction)
         )
     }.getOrNull()
 
@@ -72,7 +80,8 @@ class SharedPreferencesSceneRepository(context: Context) : SceneRepository {
             name = parts[1],
             groupAddress = parts[2],
             dpt = parts[3],
-            type = SceneActionType.valueOf(parts[4])
+            type = SceneActionType.valueOf(parts[4]),
+            delayAfterMillis = parts.getOrNull(5)?.toLongOrNull()?.coerceIn(0L, MAX_DELAY_MILLIS) ?: 0L
         )
     }.getOrNull()
 
@@ -83,5 +92,6 @@ class SharedPreferencesSceneRepository(context: Context) : SceneRepository {
 
     private companion object {
         const val KEY_COUNT = "scene_count"
+        const val MAX_DELAY_MILLIS = 60_000L
     }
 }

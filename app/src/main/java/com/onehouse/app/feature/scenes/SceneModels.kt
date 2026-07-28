@@ -10,7 +10,8 @@ data class SceneAction(
     val name: String,
     val groupAddress: String,
     val dpt: String = "1.001",
-    val type: SceneActionType
+    val type: SceneActionType,
+    val delayAfterMillis: Long = 0L
 )
 
 data class SmartScene(
@@ -18,6 +19,7 @@ data class SmartScene(
     val name: String,
     val description: String = "",
     val enabled: Boolean = true,
+    val stopOnError: Boolean = true,
     val actions: List<SceneAction> = emptyList(),
     val lastExecutionMillis: Long? = null,
     val executionCount: Int = 0

@@ -78,7 +78,7 @@ fun ScenesScreen(onBack: () -> Unit) {
         }
 
         Text(
-            "En esta primera fase se ejecutan de forma secuencial acciones binarias DPT 1.x. La aplicación detiene la escena si una acción falla.",
+            "Las acciones binarias DPT 1.x se ejecutan en orden. Puedes añadir una pausa después de cada acción y decidir si la escena se detiene cuando aparece un error.",
             color = TextoSecundario,
             fontSize = 12.sp
         )
@@ -106,12 +106,31 @@ fun ScenesScreen(onBack: () -> Unit) {
                             if (scene.description.isNotBlank()) {
                                 Text(scene.description, color = TextoSecundario, fontSize = 12.sp)
                             }
-                            Text("${scene.actions.size} acciones", color = TextoDesactivado, fontSize = 11.sp)
+                            Text(
+                                "${scene.actions.size} acciones · ${if (scene.stopOnError) "detener al fallar" else "continuar si falla"}",
+                                color = TextoDesactivado,
+                                fontSize = 11.sp
+                            )
                         }
                         Switch(
                             checked = scene.enabled,
                             onCheckedChange = { enabled ->
                                 persist(state.copy(scenes = state.scenes.map { if (it.id == scene.id) it.copy(enabled = enabled) else it }))
+                            }
+                        )
+                    }
+
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Column(Modifier.weight(1f)) {
+                            Text("Detener escena si una acción falla", color = TextoPrincipal, fontSize = 13.sp)
+                            Text("Desactívalo para intentar ejecutar el resto de acciones", color = TextoDesactivado, fontSize = 11.sp)
+                        }
+                        Switch(
+                            checked = scene.stopOnError,
+                            onCheckedChange = { stopOnError ->
+                                persist(state.copy(scenes = state.scenes.map {
+                                    if (it.id == scene.id) it.copy(stopOnError = stopOnError) else it
+                                }))
                             }
                         )
                     }
@@ -127,7 +146,10 @@ fun ScenesScreen(onBack: () -> Unit) {
                     scene.actions.forEach { action ->
                         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                             Text(
-                                "• ${action.name}: ${action.type.displayName} (${action.groupAddress})",
+                                buildString {
+                                    append("• ${action.name}: ${action.type.displayName} (${action.groupAddress})")
+                                    if (action.delayAfterMillis > 0L) append(" · pausa ${action.delayAfterMillis / 1000.0} s")
+                                },
                                 modifier = Modifier.weight(1f),
                                 color = TextoSecundario,
                                 fontSize = 12.sp
@@ -169,6 +191,8 @@ fun ScenesScreen(onBack: () -> Unit) {
                                         ) else it
                                     }))
                                     message = "${scene.name}: ${result.successfulActions}/${result.totalActions} acciones ejecutadas."
+                                } else if (!scene.stopOnError && result.successfulActions + result.failedActions == result.totalActions) {
+                                    message = "${scene.name}: ${result.successfulActions} correctas y ${result.failedActions} con error. Primer error: ${result.errorMessage}"
                                 } else {
                                     message = "${scene.name}: ${result.successfulActions}/${result.totalActions}. ${result.errorMessage}"
                                 }
@@ -248,7 +272,10 @@ fun ScenesScreen(onBack: () -> Unit) {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     if (scene.actions.isEmpty()) Text("La escena no contiene acciones.")
                     scene.actions.forEachIndexed { index, action ->
-                        Text("${index + 1}. ${action.name}: ${action.type.displayName} · ${action.groupAddress} · DPT ${action.dpt}")
+                        Text(buildString {
+                            append("${index + 1}. ${action.name}: ${action.type.displayName} · ${action.groupAddress} · DPT ${action.dpt}")
+                            if (action.delayAfterMillis > 0L) append(" · pausa ${action.delayAfterMillis / 1000.0} s")
+                        })
                     }
                 }
             },
@@ -285,6 +312,8 @@ private fun AddSceneActionDialog(onDismiss: () -> Unit, onSave: (SceneAction) ->
     var address by remember { mutableStateOf("") }
     var dpt by remember { mutableStateOf("1.001") }
     var typeIndex by remember { mutableIntStateOf(0) }
+    var delayIndex by remember { mutableIntStateOf(0) }
+    val delayOptions = listOf(0L, 500L, 1_000L, 2_000L, 5_000L, 10_000L)
     val valid = name.isNotBlank() &&
         AppKnxConfigurationRepository.isValidGroupAddress(address) &&
         dpt.trim().startsWith("1")
@@ -301,6 +330,13 @@ private fun AddSceneActionDialog(onDismiss: () -> Unit, onSave: (SceneAction) ->
                     onClick = { typeIndex = (typeIndex + 1) % SceneActionType.values().size },
                     modifier = Modifier.fillMaxWidth()
                 ) { Text(SceneActionType.values()[typeIndex].displayName) }
+                OutlinedButton(
+                    onClick = { delayIndex = (delayIndex + 1) % delayOptions.size },
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    val delay = delayOptions[delayIndex]
+                    Text(if (delay == 0L) "Sin pausa posterior" else "Pausa posterior: ${delay / 1000.0} s")
+                }
             }
         },
         confirmButton = {
@@ -310,7 +346,8 @@ private fun AddSceneActionDialog(onDismiss: () -> Unit, onSave: (SceneAction) ->
                         name = name.trim(),
                         groupAddress = address.trim(),
                         dpt = dpt.trim(),
-                        type = SceneActionType.values()[typeIndex]
+                        type = SceneActionType.values()[typeIndex],
+                        delayAfterMillis = delayOptions[delayIndex]
                     )
                 )
             }) { Text("Añadir") }
