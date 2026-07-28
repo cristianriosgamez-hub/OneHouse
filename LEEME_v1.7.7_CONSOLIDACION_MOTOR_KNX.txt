@@ -1,0 +1,24 @@
+OneHouse v1.7.7 - Consolidación Motor KNX
+
+OBJETIVO
+Consolidar el uso real del motor KNX central introducido en las versiones 1.7.5 y 1.7.6.
+
+CAMBIOS
+- KnxHomeStateRepository deja de crear un repositorio KNX propio.
+- KnxBulkStateReader deja de crear un repositorio KNX propio.
+- Portada, estancias, climatización, terraza y lecturas masivas utilizan ahora la misma instancia central.
+- El estado observado por las pantallas se limita a las direcciones realmente usadas por OneHouse.
+- Las actualizaciones recibidas durante una lectura masiva llegan al mismo flujo compartido en tiempo real.
+- Se mantienen la caché central, el filtrado de duplicados y la cola KNX existente.
+
+NO MODIFICADO
+- Direcciones KNX.
+- DPT.
+- Diseño de pantallas.
+- Navegación.
+- Importador InsideControl.
+- Comandos de luces, persianas o climatización.
+
+VERSIÓN
+versionCode = 57
+versionName = 1.7.7 Consolidacion Motor KNX

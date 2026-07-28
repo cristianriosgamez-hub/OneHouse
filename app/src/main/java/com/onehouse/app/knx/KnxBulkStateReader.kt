@@ -24,7 +24,8 @@ class KnxBulkStateReader(context: Context) : Closeable {
 
     private val appContext = context.applicationContext
     private val cancelled = AtomicBoolean(false)
-    private val stateRepository = KnxStateRepository(appContext)
+    private val centralResources = KnxCentralEngine.get(appContext)
+    private val stateRepository = centralResources.stateRepository
     private val deviceStateRepository = KnxDeviceStateRepository(appContext)
     private var connectionManager: KnxConnectionManager? = null
 

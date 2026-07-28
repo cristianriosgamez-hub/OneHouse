@@ -111,7 +111,9 @@ data class KnxClimateSnapshot(
 
 class KnxHomeStateRepository(context: Context) {
     private val appContext = context.applicationContext
-    private val stateRepository = KnxStateRepository(appContext)
+    private val centralResources = KnxCentralEngine.get(appContext)
+    private val stateRepository = centralResources.stateRepository
+    private val subscriptionManager = centralResources.subscriptionManager
     private val appConfiguration = AppKnxConfigurationRepository(appContext).also(KnxAddressBook::apply)
     private val devices: List<ImportedKnxDevice> = appConfiguration.loadProject()
         ?.let(KnxDeviceFactory::create)
@@ -122,11 +124,22 @@ class KnxHomeStateRepository(context: Context) {
         PeriodicKnxStateRefresh.ensureStarted(appContext, devices)
     }
 
-    val stateFlow: Flow<KnxHomeSnapshot> = stateRepository.stateFlow.map { states ->
-        buildSnapshot(devices, states)
-    }
+    val stateFlow: Flow<KnxHomeSnapshot> = subscriptionManager
+        .observe(allObservedAddresses())
+        .map { states ->
+            buildSnapshot(devices, states)
+        }
 
-    fun snapshot(): KnxHomeSnapshot = buildSnapshot(devices, stateRepository.snapshot())
+    fun snapshot(): KnxHomeSnapshot =
+        buildSnapshot(devices, subscriptionManager.snapshot(allObservedAddresses()))
+
+    private fun allObservedAddresses(): Set<String> = buildSet {
+        devices.forEach { device ->
+            device.readAddresses.forEach { add(it.toString()) }
+            device.writeAddresses.forEach { add(it.toString()) }
+        }
+        addAll(PeriodicKnxStateRefresh.explicitStateAddresses())
+    }
 
     private fun buildSnapshot(
         devices: List<ImportedKnxDevice>,
@@ -314,7 +327,7 @@ private object PeriodicKnxStateRefresh {
     private var scheduledRunnable: Runnable? = null
     private var fastRetrySignature: String? = null
 
-    private fun explicitStateAddresses(): List<String> = listOf(
+    fun explicitStateAddresses(): List<String> = listOf(
         KnxAddressBook.Climate.POWER_STATE,
         KnxAddressBook.Climate.CURRENT_TEMPERATURE,
         KnxAddressBook.Climate.MODE_STATE,
