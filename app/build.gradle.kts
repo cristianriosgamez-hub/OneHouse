@@ -16,8 +16,8 @@ android {
         applicationId = "com.onehouse.app"
         minSdk = 29
         targetSdk = 36
-        versionCode = 57
-        versionName = "1.7.7 Consolidacion Motor KNX"
+        versionCode = 58
+        versionName = "1.7.8 Salud Motor KNX"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }

@@ -22,6 +22,7 @@ internal object KnxCentralEngine {
         private val appContext = context.applicationContext
 
         val stateRepository = KnxStateRepository(appContext)
+        val healthRepository = KnxEngineHealthRepository(stateRepository)
         val realtimeDispatcher = KnxRealtimeDispatcher(stateRepository)
         val subscriptionManager = KnxSubscriptionManager(
             stateRepository = stateRepository,
