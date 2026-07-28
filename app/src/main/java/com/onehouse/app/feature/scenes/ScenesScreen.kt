@@ -78,7 +78,7 @@ fun ScenesScreen(onBack: () -> Unit) {
         }
 
         Text(
-            "Las acciones binarias DPT 1.x se ejecutan en orden. Puedes añadir una pausa después de cada acción y decidir si la escena se detiene cuando aparece un error.",
+            "Las escenas admiten luces DPT 1.x, movimiento y posición de persianas, y temperatura objetivo de climatización. Las acciones se ejecutan en orden.",
             color = TextoSecundario,
             fontSize = 12.sp
         )
@@ -147,7 +147,7 @@ fun ScenesScreen(onBack: () -> Unit) {
                         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                             Text(
                                 buildString {
-                                    append("• ${action.name}: ${action.type.displayName} (${action.groupAddress})")
+                                    append("• ${action.name}: ${action.valueDescription} (${action.groupAddress} · DPT ${action.dpt})")
                                     if (action.delayAfterMillis > 0L) append(" · pausa ${action.delayAfterMillis / 1000.0} s")
                                 },
                                 modifier = Modifier.weight(1f),
@@ -273,7 +273,7 @@ fun ScenesScreen(onBack: () -> Unit) {
                     if (scene.actions.isEmpty()) Text("La escena no contiene acciones.")
                     scene.actions.forEachIndexed { index, action ->
                         Text(buildString {
-                            append("${index + 1}. ${action.name}: ${action.type.displayName} · ${action.groupAddress} · DPT ${action.dpt}")
+                            append("${index + 1}. ${action.name}: ${action.valueDescription} · ${action.groupAddress} · DPT ${action.dpt}")
                             if (action.delayAfterMillis > 0L) append(" · pausa ${action.delayAfterMillis / 1000.0} s")
                         })
                     }
@@ -310,26 +310,81 @@ private fun AddSceneDialog(onDismiss: () -> Unit, onSave: (SmartScene) -> Unit) 
 private fun AddSceneActionDialog(onDismiss: () -> Unit, onSave: (SceneAction) -> Unit) {
     var name by remember { mutableStateOf("") }
     var address by remember { mutableStateOf("") }
-    var dpt by remember { mutableStateOf("1.001") }
     var typeIndex by remember { mutableIntStateOf(0) }
+    var numericValue by remember { mutableStateOf("") }
     var delayIndex by remember { mutableIntStateOf(0) }
     val delayOptions = listOf(0L, 500L, 1_000L, 2_000L, 5_000L, 10_000L)
+    val selectedType = SceneActionType.values()[typeIndex]
+    val requiredDpt = when (selectedType) {
+        SceneActionType.ON, SceneActionType.OFF -> "1.001"
+        SceneActionType.BLIND_UP, SceneActionType.BLIND_DOWN -> "1.008"
+        SceneActionType.BLIND_POSITION -> "5.001"
+        SceneActionType.CLIMATE_SETPOINT -> "9.001"
+    }
+    val parsedValue = numericValue.replace(',', '.').toDoubleOrNull()
+    val valueIsValid = when (selectedType) {
+        SceneActionType.BLIND_POSITION -> parsedValue != null && parsedValue in 0.0..100.0
+        SceneActionType.CLIMATE_SETPOINT -> parsedValue != null && parsedValue in 16.0..34.0
+        else -> true
+    }
     val valid = name.isNotBlank() &&
         AppKnxConfigurationRepository.isValidGroupAddress(address) &&
-        dpt.trim().startsWith("1")
+        valueIsValid
 
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text("Nueva acción") },
         text = {
-            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            Column(
+                modifier = Modifier.verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
                 OutlinedTextField(name, { name = it }, label = { Text("Nombre de la acción") }, singleLine = true)
                 OutlinedTextField(address, { address = it }, label = { Text("Dirección KNX X/X/X") }, singleLine = true)
-                OutlinedTextField(dpt, { dpt = it }, label = { Text("DPT de escritura (1.x)") }, singleLine = true)
                 OutlinedButton(
-                    onClick = { typeIndex = (typeIndex + 1) % SceneActionType.values().size },
+                    onClick = {
+                        typeIndex = (typeIndex + 1) % SceneActionType.values().size
+                        numericValue = ""
+                    },
                     modifier = Modifier.fillMaxWidth()
-                ) { Text(SceneActionType.values()[typeIndex].displayName) }
+                ) { Text(selectedType.displayName) }
+
+                OutlinedTextField(
+                    value = requiredDpt,
+                    onValueChange = {},
+                    label = { Text("DPT de escritura") },
+                    readOnly = true,
+                    singleLine = true
+                )
+
+                when (selectedType) {
+                    SceneActionType.BLIND_POSITION -> OutlinedTextField(
+                        value = numericValue,
+                        onValueChange = { numericValue = it },
+                        label = { Text("Posición 0–100 %") },
+                        singleLine = true
+                    )
+                    SceneActionType.CLIMATE_SETPOINT -> OutlinedTextField(
+                        value = numericValue,
+                        onValueChange = { numericValue = it },
+                        label = { Text("Temperatura objetivo 16–34 °C") },
+                        singleLine = true
+                    )
+                    else -> Unit
+                }
+
+                Text(
+                    when (selectedType) {
+                        SceneActionType.BLIND_UP -> "KNX DPT 1.008: subir se envía como 0."
+                        SceneActionType.BLIND_DOWN -> "KNX DPT 1.008: bajar se envía como 1."
+                        SceneActionType.BLIND_POSITION -> "KNX DPT 5.001: 0 % cerrado y 100 % abierto."
+                        SceneActionType.CLIMATE_SETPOINT -> "KNX DPT 9.001: consigna en grados Celsius."
+                        else -> "KNX DPT 1.x: acción binaria."
+                    },
+                    fontSize = 11.sp,
+                    color = TextoSecundario
+                )
+
                 OutlinedButton(
                     onClick = { delayIndex = (delayIndex + 1) % delayOptions.size },
                     modifier = Modifier.fillMaxWidth()
@@ -345,9 +400,14 @@ private fun AddSceneActionDialog(onDismiss: () -> Unit, onSave: (SceneAction) ->
                     SceneAction(
                         name = name.trim(),
                         groupAddress = address.trim(),
-                        dpt = dpt.trim(),
-                        type = SceneActionType.values()[typeIndex],
-                        delayAfterMillis = delayOptions[delayIndex]
+                        dpt = requiredDpt,
+                        type = selectedType,
+                        delayAfterMillis = delayOptions[delayIndex],
+                        numericValue = when (selectedType) {
+                            SceneActionType.BLIND_POSITION,
+                            SceneActionType.CLIMATE_SETPOINT -> parsedValue
+                            else -> null
+                        }
                     )
                 )
             }) { Text("Añadir") }

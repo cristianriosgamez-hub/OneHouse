@@ -64,10 +64,20 @@ class SceneExecutionEngine(context: Context) : Closeable {
 
         val action = scene.actions[index]
         val command = runCatching {
+            val commandType = when (action.type) {
+                SceneActionType.ON -> KnxCommandType.ON
+                SceneActionType.OFF -> KnxCommandType.OFF
+                SceneActionType.BLIND_UP -> KnxCommandType.UP
+                SceneActionType.BLIND_DOWN -> KnxCommandType.DOWN
+                SceneActionType.BLIND_POSITION -> KnxCommandType.POSITION
+                SceneActionType.CLIMATE_SETPOINT -> KnxCommandType.SET_VALUE
+            }
             KnxCommand(
-                type = if (action.type == SceneActionType.ON) KnxCommandType.ON else KnxCommandType.OFF,
+                type = commandType,
                 destination = KnxGroupAddress.parse(action.groupAddress),
-                dpt = action.dpt
+                dpt = action.dpt,
+                requiresValue = action.numericValue != null,
+                valueHint = action.numericValue?.toString()
             )
         }.getOrElse {
             handleFailure(

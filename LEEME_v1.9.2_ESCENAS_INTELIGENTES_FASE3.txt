@@ -1,0 +1,38 @@
+ONEHOUSE v1.9.2 - ESCENAS INTELIGENTES FASE 3
+================================================
+
+Esta entrega amplía las escenas inteligentes con persianas y climatización.
+
+FUNCIONES AÑADIDAS
+------------------
+- Luces y acciones binarias DPT 1.x (compatibilidad mantenida).
+- Persianas subir/bajar mediante DPT 1.008.
+- Posición de persiana de 0 a 100 % mediante DPT 5.001.
+- Temperatura objetivo de climatización de 16 a 34 °C mediante DPT 9.001.
+- Visualización del valor de posición o temperatura en la escena y vista previa.
+- Persistencia compatible con las escenas creadas en v1.9.0 y v1.9.1.
+- Codificación KNX real para valores porcentuales de 8 bits y temperatura DPT9 de 16 bits.
+
+SEGURIDAD Y ESTABILIDAD
+-----------------------
+- No se modifican las direcciones KNX existentes.
+- El usuario introduce la dirección de escritura de cada acción.
+- Los rangos se validan antes de permitir guardar la acción.
+- Se mantiene la ejecución ordenada, las pausas y detener/continuar ante errores.
+- No se añaden valores dummy ni estados inventados.
+
+VERSIÓN
+-------
+versionCode = 65
+versionName = 1.9.2 Escenas Inteligentes Fase 3
+
+ARCHIVOS A SUSTITUIR
+--------------------
+app/build.gradle.kts
+app/src/main/java/com/onehouse/app/feature/scenes/SceneModels.kt
+app/src/main/java/com/onehouse/app/feature/scenes/SceneRepository.kt
+app/src/main/java/com/onehouse/app/feature/scenes/SceneExecutionEngine.kt
+app/src/main/java/com/onehouse/app/feature/scenes/ScenesScreen.kt
+app/src/main/java/com/onehouse/app/knx/KnxTelegram.kt
+app/src/main/java/com/onehouse/app/knx/KnxTelegramEncoder.kt
+app/src/main/java/com/onehouse/app/knx/KnxCommandExecutor.kt

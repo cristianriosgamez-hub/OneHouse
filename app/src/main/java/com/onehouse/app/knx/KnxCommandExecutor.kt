@@ -90,6 +90,10 @@ class KnxCommandExecutor(context: Context) : Closeable {
             KnxCommandType.ON -> "1"
             KnxCommandType.OFF -> "0"
             KnxCommandType.TOGGLE -> if (toggleValue == true) "1" else "0"
+            KnxCommandType.UP -> "0"
+            KnxCommandType.DOWN -> "1"
+            KnxCommandType.POSITION,
+            KnxCommandType.SET_VALUE -> command.valueHint
             else -> null
         }
 
@@ -375,6 +379,18 @@ class KnxCommandExecutor(context: Context) : Closeable {
         KnxCommandType.OFF -> KnxTelegram.GroupValueWriteBoolean(command.destination, false)
         KnxCommandType.TOGGLE -> toggleValue?.let {
             KnxTelegram.GroupValueWriteBoolean(command.destination, it)
+        }
+        KnxCommandType.UP -> KnxTelegram.GroupValueWriteBoolean(command.destination, false)
+        KnxCommandType.DOWN -> KnxTelegram.GroupValueWriteBoolean(command.destination, true)
+        KnxCommandType.POSITION -> command.valueHint?.toDoubleOrNull()?.let {
+            KnxTelegram.GroupValueWritePercent(command.destination, it)
+        }
+        KnxCommandType.SET_VALUE -> command.valueHint?.toDoubleOrNull()?.let {
+            when {
+                command.dpt.startsWith("9") -> KnxTelegram.GroupValueWriteTemperature(command.destination, it)
+                command.dpt.startsWith("5") -> KnxTelegram.GroupValueWritePercent(command.destination, it)
+                else -> null
+            }
         }
         else -> null
     }

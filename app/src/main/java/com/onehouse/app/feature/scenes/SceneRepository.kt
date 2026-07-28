@@ -37,7 +37,8 @@ class SharedPreferencesSceneRepository(context: Context) : SceneRepository {
                 action.groupAddress,
                 action.dpt,
                 action.type.name,
-                action.delayAfterMillis
+                action.delayAfterMillis,
+                action.numericValue ?: ""
             ).joinToString("^")
         }
         return listOf(
@@ -81,7 +82,8 @@ class SharedPreferencesSceneRepository(context: Context) : SceneRepository {
             groupAddress = parts[2],
             dpt = parts[3],
             type = SceneActionType.valueOf(parts[4]),
-            delayAfterMillis = parts.getOrNull(5)?.toLongOrNull()?.coerceIn(0L, MAX_DELAY_MILLIS) ?: 0L
+            delayAfterMillis = parts.getOrNull(5)?.toLongOrNull()?.coerceIn(0L, MAX_DELAY_MILLIS) ?: 0L,
+            numericValue = parts.getOrNull(6)?.toDoubleOrNull()
         )
     }.getOrNull()
 
