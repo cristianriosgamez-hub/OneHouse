@@ -3,6 +3,7 @@ package com.onehouse.app.feature.more
 import android.content.Context
 import android.widget.Toast
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -66,7 +67,8 @@ fun KnxAddressEditorScreen(onBack: () -> Unit) {
 
     val editableObjects = remember(project) {
         project?.rooms.orEmpty().flatMapIndexed { roomIndex, room ->
-            room.devices.mapIndexed { deviceIndex, device ->
+            room.devices.mapIndexedNotNull { deviceIndex, device ->
+                if (!AppKnxObjectFilter.isVisible(room.name, device)) return@mapIndexedNotNull null
                 EditableKnxObject(
                     roomIndex = roomIndex,
                     deviceIndex = deviceIndex,
@@ -108,7 +110,9 @@ fun KnxAddressEditorScreen(onBack: () -> Unit) {
                     text = "‹",
                     color = TextoPrincipal,
                     fontSize = 42.sp,
-                    modifier = Modifier.padding(end = 10.dp)
+                    modifier = Modifier
+                        .padding(end = 10.dp)
+                        .clickable(onClick = onBack)
                 )
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
@@ -117,20 +121,19 @@ fun KnxAddressEditorScreen(onBack: () -> Unit) {
                         style = MaterialTheme.typography.headlineMedium
                     )
                     Text(
-                        text = "Edita las direcciones importadas por estancia",
+                        text = "Edita únicamente los objetos utilizados por OneHouse",
                         color = TextoSecundario,
                         style = MaterialTheme.typography.bodyMedium
                     )
                 }
-                OutlinedButton(onClick = onBack) { Text("Volver") }
             }
 
             if (project == null) {
                 OneHouseCard {
                     Column(Modifier.padding(18.dp)) {
-                        Text("No hay ningún proyecto InsideControl importado", color = TextoPrincipal)
+                        Text("No hay configuración KNX disponible", color = TextoPrincipal)
                         Text(
-                            "Importa primero el proyecto desde Más > Importar InsideControl.",
+                            "Carga la configuración de la vivienda para poder editar los objetos usados por OneHouse.",
                             color = TextoSecundario
                         )
                     }
@@ -144,7 +147,7 @@ fun KnxAddressEditorScreen(onBack: () -> Unit) {
                     verticalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
                     Text(
-                        text = project?.projectName?.ifBlank { "Proyecto KNX" } ?: "Proyecto KNX",
+                        text = "Objetos KNX de OneHouse",
                         color = TextoPrincipal,
                         fontWeight = FontWeight.SemiBold
                     )
@@ -157,7 +160,7 @@ fun KnxAddressEditorScreen(onBack: () -> Unit) {
                         value = filter,
                         onValueChange = { filter = it },
                         modifier = Modifier.fillMaxWidth(),
-                        label = { Text("Buscar estancia, objeto o dirección") },
+                        label = { Text("Buscar en OneHouse") },
                         singleLine = true
                     )
                 }
@@ -215,7 +218,7 @@ fun KnxAddressEditorScreen(onBack: () -> Unit) {
                 }
             }
             Text(
-                text = "Los cambios se aplicarán al volver a abrir las pantallas KNX. No se modifican el DPT ni el tipo de objeto.",
+                text = "Solo se muestran objetos presentes en las pantallas de OneHouse. Los cambios se aplican al volver a abrir la pantalla correspondiente.",
                 color = TextoSecundario,
                 fontSize = 12.sp
             )
@@ -259,7 +262,7 @@ private fun KnxAddressObjectCard(
                 supportingText = { Text("Ejemplo: 1/2/4") },
                 isError = item.read.splitAddresses().any { !isValidGroupAddress(it) }
             )
-            OutlinedButton(onClick = onRestore) { Text("Restaurar importada") }
+            OutlinedButton(onClick = onRestore) { Text("Restaurar dirección original") }
         }
     }
 }

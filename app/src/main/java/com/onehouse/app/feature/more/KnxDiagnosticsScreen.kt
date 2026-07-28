@@ -2,6 +2,7 @@ package com.onehouse.app.feature.more
 
 import android.widget.Toast
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -85,7 +86,7 @@ fun KnxDiagnosticsScreen(onBack: () -> Unit) {
 
     val objects = remember {
         projectRepository.load()?.rooms.orEmpty().flatMap { room ->
-            room.devices.flatMap { device ->
+            room.devices.filter { device -> AppKnxObjectFilter.isVisible(room.name, device) }.flatMap { device ->
                 val reads = device.readAddresses.map { address ->
                     DiagnosticObject(
                         room = room.name,
@@ -136,19 +137,20 @@ fun KnxDiagnosticsScreen(onBack: () -> Unit) {
                     text = "‹",
                     color = TextoPrincipal,
                     fontSize = 42.sp,
-                    modifier = Modifier.padding(end = 10.dp)
+                    modifier = Modifier
+                        .padding(end = 10.dp)
+                        .clickable(onClick = onBack)
                 )
                 Column(modifier = Modifier.weight(1f)) {
                     Text("Diagnóstico KNX", color = TextoPrincipal, style = MaterialTheme.typography.headlineMedium)
-                    Text("Últimos valores reales, tiempo de respuesta y prueba de lectura", color = TextoSecundario)
+                    Text("Diagnóstico exclusivo de los objetos usados por OneHouse", color = TextoSecundario)
                 }
-                OutlinedButton(onClick = onBack) { Text("Volver") }
             }
 
             OneHouseCard {
                 Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Text("Resumen", color = TextoPrincipal, fontWeight = FontWeight.Bold)
-                    Text("Objetos importados: ${objects.size}", color = TextoSecundario)
+                    Text("Objetos de OneHouse: ${objects.size}", color = TextoSecundario)
                     Text("Direcciones con respuesta: ${states.keys.count { address -> objects.any { it.address == address } }}", color = TextoSecundario)
                     Text("Telegramas recientes: ${events.size}", color = TextoSecundario)
                 }
