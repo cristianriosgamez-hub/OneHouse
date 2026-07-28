@@ -16,8 +16,8 @@ android {
         applicationId = "com.onehouse.app"
         minSdk = 29
         targetSdk = 36
-        versionCode = 54
-        versionName = "1.7.5"
+        versionCode = 55
+        versionName = "1.7.5 Motor KNX Central Fase 2"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }

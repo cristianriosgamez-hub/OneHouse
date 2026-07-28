@@ -9,9 +9,12 @@ import android.content.Context
  * de túnel. La cola global de [KnxTelegramQueue] continúa serializando las
  * operaciones para evitar que dos pantallas intenten utilizar el túnel a la vez.
  *
- * Esta primera fase mantiene el ciclo de conexión por operación para no alterar
- * el comportamiento ya validado en la v1.7.4. En versiones posteriores se podrá
- * conservar el túnel abierto sin cambiar la API pública de [KnxCommandExecutor].
+ * La fase 2 añade un flujo de eventos en tiempo real compartido. Cualquier
+ * telegrama aceptado por la caché central se publica una sola vez y puede ser
+ * observado por todas las pantallas sin lanzar lecturas adicionales.
+ *
+ * Se mantiene el ciclo de conexión por operación para no alterar todavía el
+ * comportamiento de red ya validado.
  */
 internal object KnxCentralEngine {
 

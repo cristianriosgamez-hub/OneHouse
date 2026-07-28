@@ -2,8 +2,12 @@ package com.onehouse.app.knx
 
 import android.content.Context
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.channels.BufferOverflow
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
@@ -33,6 +37,12 @@ class KnxStateRepository(context: Context) {
         val timestampMillis: Long
     )
 
+    /** Evento puntual emitido por el motor central cuando cambia la caché KNX. */
+    sealed interface Update {
+        data class StateChanged(val state: State) : Update
+        data object Cleared : Update
+    }
+
     private val preferences = context.applicationContext.getSharedPreferences(
         PREFERENCES_NAME,
         Context.MODE_PRIVATE
@@ -46,6 +56,13 @@ class KnxStateRepository(context: Context) {
      */
     val stateFlow: StateFlow<Map<String, State>>
         get() = sharedStateFlow.asStateFlow()
+
+    /**
+     * Flujo de eventos en tiempo real. A diferencia de [stateFlow], cada evento
+     * representa un telegrama nuevo aceptado por la caché central.
+     */
+    val updates: SharedFlow<Update>
+        get() = sharedUpdates.asSharedFlow()
 
     init {
         synchronized(lock) {
@@ -86,6 +103,7 @@ class KnxStateRepository(context: Context) {
         val now = System.currentTimeMillis()
         val address = telegram.destination.toString()
         val updatedStates: Map<String, State>
+        val acceptedState: State
 
         synchronized(lock) {
             val states = sharedStateFlow.value.toMutableMap()
@@ -102,7 +120,7 @@ class KnxStateRepository(context: Context) {
                 return false
             }
 
-            states[address] = State(
+            acceptedState = State(
                 groupAddress = address,
                 booleanValue = telegram.booleanValue,
                 rawValue = when {
@@ -117,12 +135,14 @@ class KnxStateRepository(context: Context) {
                 apci = telegram.apci,
                 timestampMillis = now
             )
+            states[address] = acceptedState
 
             updatedStates = states.toMap()
             saveLocked(updatedStates)
             sharedStateFlow.value = updatedStates
         }
 
+        sharedUpdates.tryEmit(Update.StateChanged(acceptedState))
         notifyObservers(updatedStates)
         return true
     }
@@ -147,6 +167,7 @@ class KnxStateRepository(context: Context) {
             sharedStateInitialized = true
         }
 
+        sharedUpdates.tryEmit(Update.Cleared)
         notifyObservers(emptyMap())
     }
 
@@ -240,6 +261,11 @@ class KnxStateRepository(context: Context) {
         val lock = Any()
         val observers = CopyOnWriteArraySet<(Map<String, State>) -> Unit>()
         val sharedStateFlow = MutableStateFlow<Map<String, State>>(emptyMap())
+        val sharedUpdates = MutableSharedFlow<Update>(
+            replay = 0,
+            extraBufferCapacity = 64,
+            onBufferOverflow = BufferOverflow.DROP_OLDEST
+        )
 
         var sharedStateInitialized = false
     }

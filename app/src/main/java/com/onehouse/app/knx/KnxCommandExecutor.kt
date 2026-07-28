@@ -4,6 +4,7 @@ import android.content.Context
 import com.onehouse.app.data.knx.SettingsDataStore
 import java.io.Closeable
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
 
 /**
@@ -34,6 +35,10 @@ class KnxCommandExecutor(context: Context) : Closeable {
     /** Flujo compartido con todos los últimos estados KNX conocidos. */
     val stateFlow: StateFlow<Map<String, KnxStateRepository.State>>
         get() = stateRepository.stateFlow
+
+    /** Eventos puntuales compartidos de telegramas aceptados por el motor central. */
+    val realtimeUpdates: SharedFlow<KnxStateRepository.Update>
+        get() = stateRepository.updates
 
     /** Observa únicamente una dirección de grupo, sin polling. */
     fun observeState(groupAddress: String): Flow<KnxStateRepository.State?> =
