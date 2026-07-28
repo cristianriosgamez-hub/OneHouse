@@ -16,8 +16,8 @@ android {
         applicationId = "com.onehouse.app"
         minSdk = 29
         targetSdk = 36
-        versionCode = 66
-        versionName = "1.9.3 Escenas Inteligentes Fase 4"
+        versionCode = 67
+        versionName = "1.9.4 Backup y Restauración"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }

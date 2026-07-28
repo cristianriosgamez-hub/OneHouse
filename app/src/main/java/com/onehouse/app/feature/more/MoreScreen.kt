@@ -41,7 +41,8 @@ fun MoreScreen(
     onWeeklySchedulesSelected: () -> Unit,
     onSolarSchedulesSelected: () -> Unit,
     onAutomationsSelected: () -> Unit,
-    onScenesSelected: () -> Unit
+    onScenesSelected: () -> Unit,
+    onBackupRestoreSelected: () -> Unit
 ) {
     Box(
         modifier = Modifier
@@ -129,9 +130,9 @@ fun MoreScreen(
             )
             MoreOptionCard(
                 symbol = "⇅",
-                title = "Copias de seguridad",
-                subtitle = "Exportación y restauración de datos",
-                enabled = false
+                title = "Backup y restauración",
+                subtitle = "Exportar y recuperar la configuración",
+                onClick = onBackupRestoreSelected
             )
             MoreOptionCard(
                 symbol = "⌘",
