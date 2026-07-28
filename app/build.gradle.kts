@@ -16,8 +16,8 @@ android {
         applicationId = "com.onehouse.app"
         minSdk = 29
         targetSdk = 36
-        versionCode = 55
-        versionName = "1.7.5 Motor KNX Central Fase 2"
+        versionCode = 56
+        versionName = "1.7.6 Sincronizacion KNX Tiempo Real"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }

@@ -1,0 +1,32 @@
+ONEHOUSE v1.7.6 - SINCRONIZACION KNX EN TIEMPO REAL
+====================================================
+
+Esta entrega contiene exclusivamente los archivos modificados respecto a la
+v1.7.5 Motor KNX Central Fase 2.
+
+CAMBIOS
+-------
+- Se incorpora KnxRealtimeDispatcher para distribuir los telegramas aceptados
+  por la cache central sin realizar nuevas lecturas KNX.
+- Se incorpora KnxSubscriptionManager como punto unico de suscripcion para las
+  pantallas y componentes.
+- Se permite observar una direccion concreta o un conjunto de direcciones.
+- Se permite obtener instantaneas filtradas por direcciones.
+- Se reutilizan la cache, los eventos y los recursos centrales creados en las
+  fases 1 y 2.
+- Se mantiene el descarte de telegramas duplicados inmediatos ya validado.
+
+NO SE MODIFICA
+--------------
+- Direcciones KNX ni DPT.
+- Importador InsideControl.
+- Editor de direcciones.
+- Diagnostico KNX.
+- Pantallas, navegacion o diseno.
+- Logica actual de luces, persianas o climatizacion.
+- Ciclo de conexion por operacion.
+
+VERSION
+-------
+versionCode = 56
+versionName = 1.7.6 Sincronizacion KNX Tiempo Real

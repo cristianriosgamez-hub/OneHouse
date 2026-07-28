@@ -94,6 +94,34 @@ class KnxStateRepository(context: Context) {
             .distinctUntilChanged()
 
     /**
+     * Observa únicamente las direcciones solicitadas. La primera emisión
+     * contiene la instantánea conocida y las siguientes solo aparecen cuando
+     * cambia alguno de esos objetos.
+     */
+    fun observeStates(groupAddresses: Set<String>): Flow<Map<String, State>> {
+        val normalizedAddresses = groupAddresses
+            .asSequence()
+            .map(String::trim)
+            .filter(String::isNotEmpty)
+            .toSet()
+
+        return stateFlow
+            .map { states -> states.filterKeys { address -> address in normalizedAddresses } }
+            .distinctUntilChanged()
+    }
+
+    /** Instantánea limitada a las direcciones solicitadas. */
+    fun snapshot(groupAddresses: Set<String>): Map<String, State> {
+        val normalizedAddresses = groupAddresses
+            .asSequence()
+            .map(String::trim)
+            .filter(String::isNotEmpty)
+            .toSet()
+
+        return sharedStateFlow.value.filterKeys { address -> address in normalizedAddresses }
+    }
+
+    /**
      * Registra un telegrama entrante.
      *
      * @return `true` cuando el estado se ha aceptado, o `false` cuando se ha
