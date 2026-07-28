@@ -16,6 +16,7 @@ import com.onehouse.app.feature.home.HomeScreen
 import com.onehouse.app.feature.importproject.ImportProjectScreen
 import com.onehouse.app.feature.maintenance.MaintenanceScreen
 import com.onehouse.app.feature.more.MoreScreen
+import com.onehouse.app.feature.more.KnxAddressEditorScreen
 import com.onehouse.app.feature.rooms.RoomsScreen
 import com.onehouse.app.feature.settings.SettingsScreen
 import com.onehouse.app.feature.security.SecurityScreen
@@ -42,7 +43,8 @@ private enum class InternalScreen {
     MAINTENANCE,
     SETTINGS,
     IMPORT_PROJECT,
-    SECURITY
+    SECURITY,
+    KNX_ADDRESS_EDITOR
 }
 
 @Composable
@@ -141,6 +143,16 @@ fun OneHouseNavigation() {
             return
         }
 
+        InternalScreen.KNX_ADDRESS_EDITOR -> {
+            KnxAddressEditorScreen(
+                onBack = {
+                    internalScreen = InternalScreen.MAIN
+                    selectedSection = OneHouseSection.MORE
+                }
+            )
+            return
+        }
+
         InternalScreen.ENTRANCE,
         InternalScreen.HALLWAY,
         InternalScreen.STORAGE,
@@ -220,7 +232,8 @@ fun OneHouseNavigation() {
                 OneHouseSection.CONSUMPTION -> ConsumptionScreen()
                 OneHouseSection.MORE -> MoreScreen(
                     onConfigurationSelected = { internalScreen = InternalScreen.SETTINGS },
-                    onImportProjectSelected = { internalScreen = InternalScreen.IMPORT_PROJECT }
+                    onImportProjectSelected = { internalScreen = InternalScreen.IMPORT_PROJECT },
+                    onKnxAddressesSelected = { internalScreen = InternalScreen.KNX_ADDRESS_EDITOR }
                 )
             }
         }

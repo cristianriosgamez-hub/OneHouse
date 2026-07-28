@@ -1,0 +1,22 @@
+ONEHOUSE v1.6.14 - EDITOR DE DIRECCIONES KNX
+
+Archivos incluidos en esta entrega:
+- app/build.gradle.kts
+- app/src/main/java/com/onehouse/app/navigation/Navigation.kt
+- app/src/main/java/com/onehouse/app/feature/more/MoreScreen.kt
+- app/src/main/java/com/onehouse/app/feature/more/KnxAddressEditorScreen.kt
+
+Novedades:
+- Nueva opción Más > Direcciones KNX.
+- Lista todos los objetos del proyecto InsideControl agrupados visualmente por estancia.
+- Permite editar por separado dirección de mando/escritura y estado/lectura.
+- Admite varias direcciones separadas por comas.
+- Valida el formato KNX de tres niveles: 0-31 / 0-7 / 0-255.
+- Permite restaurar cada objeto a su dirección importada.
+- Permite restaurar el proyecto completo antes de guardar.
+- Conserva DPT, categoría y resto de datos del importador.
+- Los cambios se guardan sobre el proyecto importado y son usados por las pantallas KNX al volver a abrirlas.
+
+Versión:
+- versionCode 44
+- versionName 1.6.14
