@@ -1,0 +1,12 @@
+OneHouse v1.9.4.1 - Corrección de compilación Backup y Restauración
+
+Archivos a sustituir:
+- app/src/main/java/com/onehouse/app/feature/backup/BackupManager.kt
+- app/src/main/java/com/onehouse/app/feature/backup/BackupRestoreScreen.kt
+
+Correcciones:
+1. BackupManager acepta correctamente el mapa nullable devuelto por SharedPreferences.all durante el rollback atómico.
+2. Se añade el import público correcto de Modifier.weight para Compose.
+3. Se elimina la dependencia directa de BuildConfig y se obtiene la versión instalada mediante PackageManager.
+
+No se modifican direcciones KNX, DPT, escenas, automatizaciones, horarios ni el motor KNX.

@@ -32,7 +32,6 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import com.onehouse.app.BuildConfig
 import com.onehouse.app.design.FondoInferior
 import com.onehouse.app.design.FondoSuperior
 import com.onehouse.app.design.OneHouseCard
@@ -53,7 +52,7 @@ fun BackupRestoreScreen(onBack: () -> Unit) {
     ) { uri ->
         if (uri != null) {
             status = runCatching {
-                val json = manager.createBackup(BuildConfig.VERSION_NAME)
+                val json = manager.createBackup(resolveAppVersion(context))
                 writeText(context, uri, json)
                 "Copia creada correctamente."
             }.getOrElse { "No se pudo crear la copia: ${it.message.orEmpty()}" }
@@ -149,3 +148,9 @@ private fun writeText(context: Context, uri: Uri, content: String) {
 private fun readText(context: Context, uri: Uri): String =
     context.contentResolver.openInputStream(uri)?.bufferedReader()?.use { it.readText() }
         ?: error("No se pudo leer el archivo seleccionado.")
+
+
+@Suppress("DEPRECATION")
+private fun resolveAppVersion(context: Context): String = runCatching {
+    context.packageManager.getPackageInfo(context.packageName, 0).versionName.orEmpty()
+}.getOrDefault("1.9.4")

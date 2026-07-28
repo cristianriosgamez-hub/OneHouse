@@ -120,7 +120,7 @@ class BackupManager(context: Context) {
         return result
     }
 
-    private fun replacePreferences(name: String, values: Map<String, Any>) {
+    private fun replacePreferences(name: String, values: Map<String, *>) {
         val editor = appContext.getSharedPreferences(name, Context.MODE_PRIVATE).edit().clear()
         values.forEach { (key, value) ->
             when (value) {
