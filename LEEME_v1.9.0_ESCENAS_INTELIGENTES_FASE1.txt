@@ -1,0 +1,23 @@
+ONEHOUSE v1.9.0 - ESCENAS INTELIGENTES (FASE 1)
+
+Esta entrega añade una nueva opción en Más > Escenas inteligentes.
+
+Incluye:
+- Creación de escenas personalizadas.
+- Varias acciones KNX binarias DPT 1.x por escena.
+- Ejecución secuencial para no saturar el túnel KNX/IP.
+- Vista previa antes de ejecutar.
+- Activar/desactivar escenas.
+- Duplicar, eliminar y reordenar escenas.
+- Registro de última ejecución y contador.
+- Persistencia local independiente de InsideControl.
+
+Seguridad KNX:
+- Solo se permiten direcciones X/X/X válidas.
+- En esta fase solo se envían acciones ON/OFF DPT 1.x ya soportadas por el motor.
+- Si una acción falla, se detiene la escena y se muestra el error.
+- No se modifican direcciones existentes ni el editor KNX.
+
+Versión:
+versionCode = 63
+versionName = "1.9.0 Escenas Inteligentes Fase 1"

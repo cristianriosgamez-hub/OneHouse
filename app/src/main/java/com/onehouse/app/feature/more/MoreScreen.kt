@@ -40,7 +40,8 @@ fun MoreScreen(
     onKnxDiagnosticsSelected: () -> Unit,
     onWeeklySchedulesSelected: () -> Unit,
     onSolarSchedulesSelected: () -> Unit,
-    onAutomationsSelected: () -> Unit
+    onAutomationsSelected: () -> Unit,
+    onScenesSelected: () -> Unit
 ) {
     Box(
         modifier = Modifier
@@ -113,6 +114,12 @@ fun MoreScreen(
                 title = "Automatizaciones",
                 subtitle = "Condiciones KNX y acciones automáticas",
                 onClick = onAutomationsSelected
+            )
+            MoreOptionCard(
+                symbol = "★",
+                title = "Escenas inteligentes",
+                subtitle = "Varias acciones KNX con una sola pulsación",
+                onClick = onScenesSelected
             )
             MoreOptionCard(
                 symbol = "?",

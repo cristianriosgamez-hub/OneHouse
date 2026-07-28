@@ -16,8 +16,8 @@ android {
         applicationId = "com.onehouse.app"
         minSdk = 29
         targetSdk = 36
-        versionCode = 62
-        versionName = "1.8.3 Automatizaciones Condicionales"
+        versionCode = 63
+        versionName = "1.9.0 Escenas Inteligentes Fase 1"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
