@@ -1,0 +1,20 @@
+ONEHOUSE v1.7.4 - VERIFICACION KNX
+
+Base utilizada:
+- OneHouse v1.7.3 Estabilizacion Imports
+
+Archivos modificados:
+- app/src/main/java/com/onehouse/app/feature/more/KnxDiagnosticsScreen.kt
+- app/build.gradle.kts
+
+Cambios:
+1. El diagnostico utiliza las direcciones independientes guardadas por OneHouse.
+2. Se valida el formato X/X/X y se muestran direcciones compartidas o no validas.
+3. Se conserva la lectura individual GroupValueRead.
+4. Se añaden pruebas ON/OFF solo para objetos binarios DPT 1.x con capacidad de mando.
+5. Sensores, temperaturas, CO2, humedad y otros objetos de solo lectura no permiten escritura.
+6. No se modifican direcciones, pantallas de estancias ni la logica KNX existente.
+
+Version:
+- versionCode 53
+- versionName 1.7.4

@@ -59,7 +59,8 @@ private data class DiagnosticObject(
     val category: String,
     val dpt: String,
     val address: String,
-    val kind: String
+    val kind: String,
+    val canWriteBoolean: Boolean
 )
 
 @Composable
@@ -93,24 +94,50 @@ fun KnxDiagnosticsScreen(onBack: () -> Unit) {
                 category = entry.category,
                 dpt = entry.dpt,
                 address = projectRepository.globalAddress(entry.key, entry.defaultAddress),
-                kind = entry.kind
+                kind = entry.kind,
+                canWriteBoolean = entry.kind.contains("mando", ignoreCase = true) && entry.dpt.startsWith("1.")
             )
         }
         val roomObjects = projectRepository.loadProject()?.rooms.orEmpty().flatMap { room ->
             room.devices.filter { device -> AppKnxObjectFilter.isVisible(room.name, device) }.flatMap { device ->
                 val reads = device.readAddresses.map { address ->
-                    DiagnosticObject(room.name, device.name, device.category.displayName,
-                        device.dataPointType.orEmpty().ifBlank { "Sin DPT" }, address, "Lectura/estado")
+                    DiagnosticObject(
+                        room = room.name,
+                        name = device.name,
+                        category = device.category.displayName,
+                        dpt = device.dataPointType.orEmpty().ifBlank { "Sin DPT" },
+                        address = address,
+                        kind = "Lectura/estado",
+                        canWriteBoolean = false
+                    )
                 }
                 val writes = device.writeAddresses.filterNot { it in device.readAddresses }.map { address ->
-                    DiagnosticObject(room.name, device.name, device.category.displayName,
-                        device.dataPointType.orEmpty().ifBlank { "Sin DPT" }, address, "Mando/escritura")
+                    val dpt = device.dataPointType.orEmpty().ifBlank { "Sin DPT" }
+                    DiagnosticObject(
+                        room = room.name,
+                        name = device.name,
+                        category = device.category.displayName,
+                        dpt = dpt,
+                        address = address,
+                        kind = "Mando/escritura",
+                        canWriteBoolean = dpt.startsWith("1.")
+                    )
                 }
                 reads + writes
             }
         }
         (globalObjects + roomObjects).distinctBy { listOf(it.room, it.name, it.address, it.kind) }
     }
+
+    val invalidAddresses = objects.map { it.address }
+        .filterNot(AppKnxConfigurationRepository::isValidGroupAddress)
+        .distinct()
+    val duplicateAddresses = objects.map { it.address }
+        .filter(AppKnxConfigurationRepository::isValidGroupAddress)
+        .groupingBy { it }
+        .eachCount()
+        .filterValues { it > 1 }
+        .keys
 
     val visible = objects.filter { item ->
         filter.isBlank() || listOf(item.room, item.name, item.category, item.dpt, item.address)
@@ -151,6 +178,15 @@ fun KnxDiagnosticsScreen(onBack: () -> Unit) {
                     Text("Objetos de OneHouse: ${objects.size}", color = TextoSecundario)
                     Text("Direcciones con respuesta: ${states.keys.count { address -> objects.any { it.address == address } }}", color = TextoSecundario)
                     Text("Telegramas recientes: ${events.size}", color = TextoSecundario)
+                    Text(
+                        text = when {
+                            invalidAddresses.isNotEmpty() -> "Direcciones no válidas: ${invalidAddresses.joinToString()}"
+                            duplicateAddresses.isNotEmpty() -> "Direcciones compartidas: ${duplicateAddresses.joinToString()}"
+                            else -> "Configuración verificada · sin errores de formato"
+                        },
+                        color = if (invalidAddresses.isEmpty()) AzulClaro else MaterialTheme.colorScheme.error,
+                        fontSize = 12.sp
+                    )
                 }
             }
 
@@ -192,33 +228,64 @@ fun KnxDiagnosticsScreen(onBack: () -> Unit) {
                         }
                         Button(
                             onClick = {
-                                val address = runCatching { KnxGroupAddress.parse(item.address) }.getOrNull()
-                                if (address == null) {
-                                    Toast.makeText(context, "Dirección KNX inválida", Toast.LENGTH_SHORT).show()
-                                } else {
-                                    testingAddress = item.address
-                                    executor.execute(
-                                        KnxCommand(
-                                            type = KnxCommandType.READ,
-                                            destination = address,
-                                            dpt = item.dpt
-                                        ),
-                                        retryReadOnce = false
-                                    ) { result ->
-                                        testingAddress = null
-                                        val message = when (result) {
-                                            is KnxCommandExecutor.Result.Success -> result.busValue?.let { "Respuesta: $it" }
-                                                ?: "Lectura enviada; sin respuesta confirmada"
-                                            is KnxCommandExecutor.Result.Failure -> result.message
-                                        }
-                                        Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
-                                    }
-                                }
+                                executeDiagnosticCommand(
+                                    context = context,
+                                    executor = executor,
+                                    item = item,
+                                    type = KnxCommandType.READ,
+                                    onStarted = { testingAddress = item.address },
+                                    onFinished = { testingAddress = null }
+                                )
                             },
                             enabled = testingAddress == null,
                             modifier = Modifier.fillMaxWidth()
                         ) {
                             Text(if (testingAddress == item.address) "Leyendo…" else "Probar lectura")
+                        }
+
+                        if (item.canWriteBoolean) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                OutlinedButton(
+                                    onClick = {
+                                        executeDiagnosticCommand(
+                                            context = context,
+                                            executor = executor,
+                                            item = item,
+                                            type = KnxCommandType.ON,
+                                            onStarted = { testingAddress = item.address },
+                                            onFinished = { testingAddress = null }
+                                        )
+                                    },
+                                    enabled = testingAddress == null,
+                                    modifier = Modifier.weight(1f)
+                                ) {
+                                    Text("Probar ON")
+                                }
+                                OutlinedButton(
+                                    onClick = {
+                                        executeDiagnosticCommand(
+                                            context = context,
+                                            executor = executor,
+                                            item = item,
+                                            type = KnxCommandType.OFF,
+                                            onStarted = { testingAddress = item.address },
+                                            onFinished = { testingAddress = null }
+                                        )
+                                    },
+                                    enabled = testingAddress == null,
+                                    modifier = Modifier.weight(1f)
+                                ) {
+                                    Text("Probar OFF")
+                                }
+                            }
+                            Text(
+                                "Escritura habilitada únicamente para objetos binarios de mando.",
+                                color = TextoSecundario,
+                                fontSize = 11.sp
+                            )
                         }
                     }
                 }
@@ -235,6 +302,44 @@ fun KnxDiagnosticsScreen(onBack: () -> Unit) {
             }
             Spacer(modifier = Modifier.height(12.dp))
         }
+    }
+}
+
+private fun executeDiagnosticCommand(
+    context: android.content.Context,
+    executor: KnxCommandExecutor,
+    item: DiagnosticObject,
+    type: KnxCommandType,
+    onStarted: () -> Unit,
+    onFinished: () -> Unit
+) {
+    val address = runCatching { KnxGroupAddress.parse(item.address) }.getOrNull()
+    if (address == null) {
+        Toast.makeText(context, "Dirección KNX inválida", Toast.LENGTH_SHORT).show()
+        return
+    }
+
+    onStarted()
+    executor.execute(
+        KnxCommand(
+            type = type,
+            destination = address,
+            dpt = item.dpt
+        ),
+        retryReadOnce = false
+    ) { result ->
+        onFinished()
+        val message = when (result) {
+            is KnxCommandExecutor.Result.Success -> when (type) {
+                KnxCommandType.READ -> result.busValue?.let { "Respuesta: $it" }
+                    ?: "Lectura enviada; sin respuesta confirmada"
+                KnxCommandType.ON -> "Orden ON enviada y verificada"
+                KnxCommandType.OFF -> "Orden OFF enviada y verificada"
+                else -> "Operación KNX completada"
+            }
+            is KnxCommandExecutor.Result.Failure -> result.message
+        }
+        Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
     }
 }
 
