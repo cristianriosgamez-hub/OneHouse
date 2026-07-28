@@ -1,0 +1,152 @@
+package com.onehouse.app.knx
+
+import android.content.Context
+import android.util.Base64
+import com.onehouse.app.importer.ImportedKnxCategory
+import com.onehouse.app.importer.ImportedKnxObject
+import com.onehouse.app.importer.ImportedKnxProject
+import com.onehouse.app.importer.ImportedKnxRoom
+import com.onehouse.app.importer.InsideControlProjectRepository
+
+/**
+ * Configuración KNX propia de OneHouse.
+ *
+ * La primera vez crea una copia independiente del proyecto importado. Desde ese
+ * momento, cualquier cambio realizado desde el editor afecta solo a OneHouse y
+ * nunca modifica el proyecto conservado por el importador de InsideControl.
+ */
+class AppKnxConfigurationRepository(context: Context) {
+    private val appContext = context.applicationContext
+    private val preferences = appContext.getSharedPreferences(PREFERENCES_NAME, Context.MODE_PRIVATE)
+
+    fun loadProject(): ImportedKnxProject? {
+        val stored = preferences.getString(KEY_PROJECT, null)
+        if (stored != null) return decodeProject(stored)
+
+        val imported = InsideControlProjectRepository(appContext).load() ?: return null
+        val copied = imported.copy(
+            projectName = "OneHouse",
+            rooms = imported.rooms.map { room ->
+                room.copy(devices = room.devices.map { it.copy() })
+            }
+        )
+        saveProject(copied)
+        return copied
+    }
+
+    fun saveProject(project: ImportedKnxProject) {
+        preferences.edit().putString(KEY_PROJECT, encodeProject(project)).apply()
+    }
+
+    fun clearProjectCopy() {
+        preferences.edit().remove(KEY_PROJECT).apply()
+    }
+
+    fun globalAddress(key: String, defaultAddress: String): String =
+        preferences.getString("$KEY_GLOBAL_PREFIX$key", null)
+            ?.takeIf(::isValidGroupAddress)
+            ?: defaultAddress
+
+    fun saveGlobalAddresses(values: Map<String, String>) {
+        preferences.edit().apply {
+            values.forEach { (key, value) ->
+                if (isValidGroupAddress(value)) putString("$KEY_GLOBAL_PREFIX$key", value.trim())
+            }
+        }.apply()
+        KnxAddressBook.apply(this)
+    }
+
+    fun resetGlobalAddress(key: String) {
+        preferences.edit().remove("$KEY_GLOBAL_PREFIX$key").apply()
+        KnxAddressBook.apply(this)
+    }
+
+    fun resetAllGlobalAddresses() {
+        preferences.edit().apply {
+            KnxAddressBook.entries.forEach { remove("$KEY_GLOBAL_PREFIX${it.key}") }
+        }.apply()
+        KnxAddressBook.apply(this)
+    }
+
+    private fun encodeProject(project: ImportedKnxProject): String = buildList {
+        add(listOf("PROJECT", project.projectName, project.builderVersion, project.minimumAppVersion, project.interfaceMacAddress).encode())
+        project.rooms.forEach { room ->
+            add(listOf("ROOM", room.name, room.iconName).encode())
+            room.devices.forEach { device ->
+                add(listOf(
+                    "DEVICE", room.name, device.name, device.insideControlType.toString(),
+                    device.category.name, device.isFavourite.toString(),
+                    device.readAddresses.joinToString(","), device.writeAddresses.joinToString(","),
+                    device.dataPointType.orEmpty(), device.unit.orEmpty(),
+                    device.values.joinToString("\u001F"), device.iconNames.joinToString("\u001F")
+                ).encode())
+            }
+        }
+    }.joinToString("\n")
+
+    private fun decodeProject(stored: String): ImportedKnxProject? {
+        val lines = stored.lineSequence().mapNotNull(::decode).toList()
+        val projectLine = lines.firstOrNull { it.firstOrNull() == "PROJECT" } ?: return null
+        val roomLines = lines.filter { it.firstOrNull() == "ROOM" }
+        val deviceLines = lines.filter { it.firstOrNull() == "DEVICE" }
+        val rooms = roomLines.mapNotNull { room ->
+            val name = room.getOrNull(1) ?: return@mapNotNull null
+            ImportedKnxRoom(
+                name = name,
+                iconName = room.getOrNull(2).orEmpty(),
+                devices = deviceLines.filter { it.getOrNull(1) == name }.mapNotNull(::decodeDevice)
+            )
+        }
+        return ImportedKnxProject(
+            projectName = projectLine.getOrNull(1).orEmpty(),
+            builderVersion = projectLine.getOrNull(2).orEmpty(),
+            minimumAppVersion = projectLine.getOrNull(3).orEmpty(),
+            interfaceMacAddress = projectLine.getOrNull(4).orEmpty(),
+            rooms = rooms
+        )
+    }
+
+    private fun decodeDevice(values: List<String>): ImportedKnxObject? {
+        val roomName = values.getOrNull(1) ?: return null
+        val name = values.getOrNull(2) ?: return null
+        return ImportedKnxObject(
+            roomName = roomName,
+            name = name,
+            insideControlType = values.getOrNull(3)?.toIntOrNull() ?: -1,
+            category = values.getOrNull(4)?.let { runCatching { ImportedKnxCategory.valueOf(it) }.getOrNull() }
+                ?: ImportedKnxCategory.UNKNOWN,
+            isFavourite = values.getOrNull(5).toBoolean(),
+            readAddresses = values.getOrNull(6).orEmpty().split(',').filter(String::isNotBlank),
+            writeAddresses = values.getOrNull(7).orEmpty().split(',').filter(String::isNotBlank),
+            dataPointType = values.getOrNull(8)?.ifBlank { null },
+            unit = values.getOrNull(9)?.ifBlank { null },
+            values = values.getOrNull(10).orEmpty().split('\u001F').filter(String::isNotBlank),
+            iconNames = values.getOrNull(11).orEmpty().split('\u001F').filter(String::isNotBlank)
+        )
+    }
+
+    private fun List<String>.encode(): String = joinToString("|") { value ->
+        Base64.encodeToString(value.toByteArray(Charsets.UTF_8), Base64.NO_WRAP)
+    }
+
+    private fun decode(line: String): List<String>? = try {
+        line.split('|').map { Base64.decode(it, Base64.NO_WRAP).toString(Charsets.UTF_8) }
+    } catch (_: IllegalArgumentException) {
+        null
+    }
+
+    companion object {
+        fun isValidGroupAddress(value: String): Boolean {
+            val parts = value.trim().split('/')
+            if (parts.size != 3) return false
+            val main = parts[0].toIntOrNull() ?: return false
+            val middle = parts[1].toIntOrNull() ?: return false
+            val sub = parts[2].toIntOrNull() ?: return false
+            return main in 0..31 && middle in 0..7 && sub in 0..255
+        }
+
+        private const val PREFERENCES_NAME = "onehouse_knx_configuration"
+        private const val KEY_PROJECT = "app_project_copy"
+        private const val KEY_GLOBAL_PREFIX = "global_"
+    }
+}

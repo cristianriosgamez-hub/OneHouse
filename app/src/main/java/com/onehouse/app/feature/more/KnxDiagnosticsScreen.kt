@@ -39,7 +39,8 @@ import com.onehouse.app.design.FondoSuperior
 import com.onehouse.app.design.OneHouseCard
 import com.onehouse.app.design.TextoPrincipal
 import com.onehouse.app.design.TextoSecundario
-import com.onehouse.app.importer.InsideControlProjectRepository
+import com.onehouse.app.knx.AppKnxConfigurationRepository
+import com.onehouse.app.knx.KnxAddressBook
 import com.onehouse.app.knx.KnxCommand
 import com.onehouse.app.knx.KnxCommandExecutor
 import com.onehouse.app.knx.KnxCommandType
@@ -64,7 +65,7 @@ private data class DiagnosticObject(
 @Composable
 fun KnxDiagnosticsScreen(onBack: () -> Unit) {
     val context = LocalContext.current
-    val projectRepository = remember { InsideControlProjectRepository(context.applicationContext) }
+    val projectRepository = remember { AppKnxConfigurationRepository(context.applicationContext).also(KnxAddressBook::apply) }
     val stateRepository = remember { KnxStateRepository(context.applicationContext) }
     val monitorRepository = remember { KnxTelegramMonitorRepository(context.applicationContext) }
     val executor = remember { KnxCommandExecutor(context.applicationContext) }
@@ -85,33 +86,30 @@ fun KnxDiagnosticsScreen(onBack: () -> Unit) {
     }
 
     val objects = remember {
-        projectRepository.load()?.rooms.orEmpty().flatMap { room ->
+        val globalObjects = KnxAddressBook.entries.map { entry ->
+            DiagnosticObject(
+                room = entry.room,
+                name = entry.name,
+                category = entry.category,
+                dpt = entry.dpt,
+                address = projectRepository.globalAddress(entry.key, entry.defaultAddress),
+                kind = entry.kind
+            )
+        }
+        val roomObjects = projectRepository.loadProject()?.rooms.orEmpty().flatMap { room ->
             room.devices.filter { device -> AppKnxObjectFilter.isVisible(room.name, device) }.flatMap { device ->
                 val reads = device.readAddresses.map { address ->
-                    DiagnosticObject(
-                        room = room.name,
-                        name = device.name,
-                        category = device.category.displayName,
-                        dpt = device.dataPointType.orEmpty().ifBlank { "Sin DPT" },
-                        address = address,
-                        kind = "Lectura/estado"
-                    )
+                    DiagnosticObject(room.name, device.name, device.category.displayName,
+                        device.dataPointType.orEmpty().ifBlank { "Sin DPT" }, address, "Lectura/estado")
                 }
-                val writes = device.writeAddresses
-                    .filterNot { it in device.readAddresses }
-                    .map { address ->
-                        DiagnosticObject(
-                            room = room.name,
-                            name = device.name,
-                            category = device.category.displayName,
-                            dpt = device.dataPointType.orEmpty().ifBlank { "Sin DPT" },
-                            address = address,
-                            kind = "Mando/escritura"
-                        )
-                    }
+                val writes = device.writeAddresses.filterNot { it in device.readAddresses }.map { address ->
+                    DiagnosticObject(room.name, device.name, device.category.displayName,
+                        device.dataPointType.orEmpty().ifBlank { "Sin DPT" }, address, "Mando/escritura")
+                }
                 reads + writes
             }
-        }.distinctBy { listOf(it.room, it.name, it.address, it.kind) }
+        }
+        (globalObjects + roomObjects).distinctBy { listOf(it.room, it.name, it.address, it.kind) }
     }
 
     val visible = objects.filter { item ->
@@ -143,7 +141,7 @@ fun KnxDiagnosticsScreen(onBack: () -> Unit) {
                 )
                 Column(modifier = Modifier.weight(1f)) {
                     Text("Diagnóstico KNX", color = TextoPrincipal, style = MaterialTheme.typography.headlineMedium)
-                    Text("Diagnóstico exclusivo de los objetos usados por OneHouse", color = TextoSecundario)
+                    Text("Diagnóstico exclusivo de la configuración independiente de OneHouse", color = TextoSecundario)
                 }
             }
 

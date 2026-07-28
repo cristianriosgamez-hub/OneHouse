@@ -5,7 +5,6 @@ import android.os.Handler
 import android.os.Looper
 import com.onehouse.app.device.ControlKind
 import com.onehouse.app.device.ImportedKnxDevice
-import com.onehouse.app.importer.InsideControlProjectRepository
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import java.util.Locale
@@ -113,8 +112,8 @@ data class KnxClimateSnapshot(
 class KnxHomeStateRepository(context: Context) {
     private val appContext = context.applicationContext
     private val stateRepository = KnxStateRepository(appContext)
-    private val devices: List<ImportedKnxDevice> = InsideControlProjectRepository(appContext)
-        .load()
+    private val appConfiguration = AppKnxConfigurationRepository(appContext).also(KnxAddressBook::apply)
+    private val devices: List<ImportedKnxDevice> = appConfiguration.loadProject()
         ?.let(KnxDeviceFactory::create)
         .orEmpty()
 
@@ -315,7 +314,7 @@ private object PeriodicKnxStateRefresh {
     private var scheduledRunnable: Runnable? = null
     private var fastRetrySignature: String? = null
 
-    private val explicitStateAddresses = listOf(
+    private fun explicitStateAddresses(): List<String> = listOf(
         KnxAddressBook.Climate.POWER_STATE,
         KnxAddressBook.Climate.CURRENT_TEMPERATURE,
         KnxAddressBook.Climate.MODE_STATE,
@@ -337,6 +336,7 @@ private object PeriodicKnxStateRefresh {
 
     fun ensureStarted(context: Context, devices: List<ImportedKnxDevice>) {
         val readable = devices.filter { it.canRead }
+        val explicitStateAddresses = explicitStateAddresses()
         if (readable.isEmpty() && explicitStateAddresses.isEmpty()) return
 
         val signature = (
@@ -383,7 +383,7 @@ private object PeriodicKnxStateRefresh {
         // de las luces. Así, al abrir la app, los interruptores visibles y el
         // contador de la portada se pintan antes de recorrer todo el proyecto.
         val startupPriorityAddresses = (
-            explicitStateAddresses +
+            explicitStateAddresses() +
                 prioritized
                     .filter { it.controlKind == ControlKind.BOOLEAN_SWITCH }
                     .flatMap { device -> device.readAddresses.map { it.toString() } }
