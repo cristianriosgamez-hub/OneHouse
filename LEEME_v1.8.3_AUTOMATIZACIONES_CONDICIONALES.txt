@@ -1,0 +1,26 @@
+ONEHOUSE v1.8.3 - AUTOMATIZACIONES CONDICIONALES
+
+Archivos de esta entrega:
+- app/build.gradle.kts
+- app/src/main/java/com/onehouse/app/navigation/Navigation.kt
+- app/src/main/java/com/onehouse/app/feature/more/MoreScreen.kt
+- app/src/main/java/com/onehouse/app/feature/automation/AutomationModels.kt
+- app/src/main/java/com/onehouse/app/feature/automation/AutomationRepository.kt
+- app/src/main/java/com/onehouse/app/feature/automation/AutomationEngine.kt
+- app/src/main/java/com/onehouse/app/feature/automation/AutomationScreen.kt
+
+Funcionalidad:
+- Nueva opción Automatizaciones en Más.
+- Reglas persistentes con dirección y DPT de condición.
+- Operadores igual, distinto, mayor y menor.
+- Acciones ON/OFF seguras sobre DPT 1.x.
+- Pausa global, activación individual y eliminación.
+- Tiempo mínimo entre ejecuciones.
+- Contador y fecha de última ejecución.
+- Solo usa valores KNX reales existentes en la caché central.
+- En esta fase la evaluación se inicia manualmente desde Evaluar ahora.
+
+No modifica direcciones KNX existentes, el importador ni las pantallas de estancias.
+
+Versión: 1.8.3
+versionCode: 62

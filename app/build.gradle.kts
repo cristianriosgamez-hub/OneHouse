@@ -16,8 +16,8 @@ android {
         applicationId = "com.onehouse.app"
         minSdk = 29
         targetSdk = 36
-        versionCode = 61
-        versionName = "1.8.2 Amanecer y atardecer"
+        versionCode = 62
+        versionName = "1.8.3 Automatizaciones Condicionales"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
