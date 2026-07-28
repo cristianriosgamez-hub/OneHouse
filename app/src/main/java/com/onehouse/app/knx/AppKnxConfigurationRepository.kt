@@ -88,16 +88,12 @@ class AppKnxConfigurationRepository(context: Context) {
             }
 
             val globals = root.optJSONObject("globalAddresses") ?: JSONObject()
-            val importedGlobals = buildMap {
-                KnxAddressBook.entries.forEach { entry ->
-                    if (globals.has(entry.key)) {
-                        val value = globals.optString(entry.key).trim()
-                        if (!isValidGroupAddress(value)) {
-                            return false
-                        }
-                        put(entry.key, value)
-                    }
-                }
+            val importedGlobals = mutableMapOf<String, String>()
+            for (entry in KnxAddressBook.entries) {
+                if (!globals.has(entry.key)) continue
+                val value = globals.optString(entry.key).trim()
+                if (!isValidGroupAddress(value)) return false
+                importedGlobals[entry.key] = value
             }
 
             if (createBackup) {
