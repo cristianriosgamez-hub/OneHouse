@@ -1,0 +1,29 @@
+ONEHOUSE v1.9.5 - RELEASE CANDIDATE
+==================================
+
+Esta entrega cierra la rama 1.9.x y no añade nuevas funciones KNX.
+
+ARCHIVOS MODIFICADOS
+--------------------
+- app/build.gradle.kts
+- app/src/main/java/com/onehouse/app/feature/backup/BackupManager.kt
+- app/src/main/java/com/onehouse/app/feature/backup/BackupRestoreScreen.kt
+
+CAMBIOS
+-------
+- versionCode 68 y versionName "1.9.5 Release Candidate".
+- Exportación, lectura y restauración ejecutadas fuera del hilo principal.
+- Indicador de proceso y bloqueo de pulsaciones duplicadas.
+- Botón superior de volver funcional.
+- Obtención segura de la versión instalada sin depender de BuildConfig.
+- Límite de 5 MB para archivos de backup.
+- Validación reforzada y rollback protegido durante la restauración.
+- Limpieza interna del resumen del backup.
+
+NO SE MODIFICA
+--------------
+- Motor KNX.
+- Direcciones de grupo.
+- DPT.
+- Escenas, horarios o automatizaciones existentes.
+- Navegación general de la aplicación.

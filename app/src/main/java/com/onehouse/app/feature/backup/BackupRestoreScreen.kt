@@ -1,10 +1,12 @@
 package com.onehouse.app.feature.backup
 
 import android.content.Context
+import android.content.pm.PackageManager
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -19,6 +21,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
@@ -26,7 +29,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.platform.LocalContext
@@ -39,106 +44,207 @@ import com.onehouse.app.design.TextoPrincipal
 import com.onehouse.app.design.TextoSecundario
 import java.text.DateFormat
 import java.util.Date
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 @Composable
 fun BackupRestoreScreen(onBack: () -> Unit) {
     val context = LocalContext.current
     val manager = remember { BackupManager(context) }
+    val scope = rememberCoroutineScope()
     var status by remember { mutableStateOf<String?>(null) }
     var preview by remember { mutableStateOf<BackupPreview?>(null) }
+    var isBusy by remember { mutableStateOf(false) }
 
     val createDocument = rememberLauncherForActivityResult(
         ActivityResultContracts.CreateDocument("application/json")
     ) { uri ->
         if (uri != null) {
-            status = runCatching {
-                val json = manager.createBackup(resolveAppVersion(context))
-                writeText(context, uri, json)
-                "Copia creada correctamente."
-            }.getOrElse { "No se pudo crear la copia: ${it.message.orEmpty()}" }
+            scope.launch {
+                isBusy = true
+                status = withContext(Dispatchers.IO) {
+                    runCatching {
+                        val json = manager.createBackup(currentVersionName(context))
+                        writeText(context, uri, json)
+                        "Copia creada correctamente."
+                    }.getOrElse { "No se pudo crear la copia: ${it.message.orEmpty()}" }
+                }
+                isBusy = false
+            }
         }
     }
 
     val openDocument = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
         if (uri != null) {
-            runCatching { manager.preview(readText(context, uri)) }
-                .onSuccess { preview = it; status = null }
-                .onFailure { status = "Archivo no válido: ${it.message.orEmpty()}" }
+            scope.launch {
+                isBusy = true
+                val result = withContext(Dispatchers.IO) {
+                    runCatching { manager.preview(readText(context, uri)) }
+                }
+                result
+                    .onSuccess { preview = it; status = null }
+                    .onFailure { status = "Archivo no válido: ${it.message.orEmpty()}" }
+                isBusy = false
+            }
         }
     }
 
     Box(
-        modifier = Modifier.fillMaxSize().background(
-            Brush.verticalGradient(listOf(FondoSuperior, FondoInferior))
-        )
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Brush.verticalGradient(listOf(FondoSuperior, FondoInferior)))
     ) {
         Column(
-            modifier = Modifier.fillMaxSize().statusBarsPadding().verticalScroll(rememberScrollState())
+            modifier = Modifier
+                .fillMaxSize()
+                .statusBarsPadding()
+                .verticalScroll(rememberScrollState())
                 .padding(horizontal = 18.dp, vertical = 18.dp),
             verticalArrangement = Arrangement.spacedBy(14.dp)
         ) {
-            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                Text("‹", color = TextoPrincipal, style = MaterialTheme.typography.headlineLarge,
-                    modifier = Modifier.padding(end = 16.dp))
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    "‹",
+                    color = TextoPrincipal,
+                    style = MaterialTheme.typography.headlineLarge,
+                    modifier = Modifier
+                        .clickable(enabled = !isBusy, onClick = onBack)
+                        .padding(end = 16.dp)
+                )
                 Column(modifier = Modifier.weight(1f)) {
-                    Text("Backup y restauración", color = TextoPrincipal, style = MaterialTheme.typography.headlineSmall)
+                    Text(
+                        "Backup y restauración",
+                        color = TextoPrincipal,
+                        style = MaterialTheme.typography.headlineSmall
+                    )
                     Text("Protege y recupera la configuración de OneHouse", color = TextoSecundario)
                 }
             }
 
             OneHouseCard {
-                Column(modifier = Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                Column(
+                    modifier = Modifier.padding(18.dp),
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
                     Text("Crear copia", color = TextoPrincipal, fontWeight = FontWeight.SemiBold)
-                    Text("Incluye configuración KNX, horarios, automatizaciones, escenas y preferencias compatibles.", color = TextoSecundario)
-                    Button(onClick = {
-                        createDocument.launch("OneHouse_backup_${System.currentTimeMillis()}.json")
-                    }, modifier = Modifier.fillMaxWidth()) { Text("Exportar copia JSON") }
+                    Text(
+                        "Incluye configuración KNX, horarios, automatizaciones, escenas y preferencias compatibles.",
+                        color = TextoSecundario
+                    )
+                    Button(
+                        enabled = !isBusy,
+                        onClick = {
+                            createDocument.launch("OneHouse_backup_${System.currentTimeMillis()}.json")
+                        },
+                        modifier = Modifier.fillMaxWidth()
+                    ) { Text("Exportar copia JSON") }
                 }
             }
 
             OneHouseCard {
-                Column(modifier = Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                Column(
+                    modifier = Modifier.padding(18.dp),
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
                     Text("Restaurar copia", color = TextoPrincipal, fontWeight = FontWeight.SemiBold)
-                    Text("El archivo se valida antes de sobrescribir los datos actuales.", color = TextoSecundario)
-                    OutlinedButton(onClick = { openDocument.launch(arrayOf("application/json", "text/plain")) }, modifier = Modifier.fillMaxWidth()) {
-                        Text("Seleccionar archivo")
+                    Text(
+                        "El archivo se valida antes de sobrescribir los datos actuales.",
+                        color = TextoSecundario
+                    )
+                    OutlinedButton(
+                        enabled = !isBusy,
+                        onClick = { openDocument.launch(arrayOf("application/json", "text/plain")) },
+                        modifier = Modifier.fillMaxWidth()
+                    ) { Text("Seleccionar archivo") }
+                }
+            }
+
+            if (isBusy) {
+                OneHouseCard {
+                    Row(
+                        modifier = Modifier.padding(18.dp),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        CircularProgressIndicator()
+                        Text("Procesando…", color = TextoPrincipal)
                     }
                 }
             }
 
-            status?.let { OneHouseCard { Text(it, modifier = Modifier.padding(18.dp), color = TextoPrincipal) } }
+            status?.let {
+                OneHouseCard { Text(it, modifier = Modifier.padding(18.dp), color = TextoPrincipal) }
+            }
             Spacer(Modifier.height(8.dp))
-            OutlinedButton(onClick = onBack, modifier = Modifier.fillMaxWidth()) { Text("Volver") }
+            OutlinedButton(
+                enabled = !isBusy,
+                onClick = onBack,
+                modifier = Modifier.fillMaxWidth()
+            ) { Text("Volver") }
         }
     }
 
     preview?.let { selected ->
         AlertDialog(
-            onDismissRequest = { preview = null },
+            onDismissRequest = { if (!isBusy) preview = null },
             title = { Text("Confirmar restauración") },
             text = {
                 val date = DateFormat.getDateTimeInstance().format(Date(selected.summary.createdAtMillis))
                 Text(
                     "Fecha: $date\nVersión: ${selected.summary.appVersion}\n" +
                         "Escenas: ${selected.summary.scenes}\nAutomatizaciones: ${selected.summary.automations}\n" +
-                        "Horarios semanales: ${selected.summary.weeklySchedules}\nEventos solares: ${selected.summary.solarSchedules}\n" +
+                        "Horarios semanales: ${selected.summary.weeklySchedules}\n" +
+                        "Eventos solares: ${selected.summary.solarSchedules}\n" +
                         "Entradas KNX: ${selected.summary.knxEntries}\n\n" +
                         "La configuración actual será sustituida."
                 )
             },
             confirmButton = {
-                Button(onClick = {
-                    status = when (val result = manager.restore(selected.rawJson)) {
-                        is BackupOperationResult.Success -> result.message
-                        is BackupOperationResult.Error -> result.message
+                Button(
+                    enabled = !isBusy,
+                    onClick = {
+                        scope.launch {
+                            isBusy = true
+                            val result = withContext(Dispatchers.IO) {
+                                manager.restore(selected.rawJson)
+                            }
+                            status = when (result) {
+                                is BackupOperationResult.Success -> result.message
+                                is BackupOperationResult.Error -> result.message
+                            }
+                            preview = null
+                            isBusy = false
+                        }
                     }
-                    preview = null
-                }) { Text("Restaurar") }
+                ) { Text("Restaurar") }
             },
-            dismissButton = { OutlinedButton(onClick = { preview = null }) { Text("Cancelar") } }
+            dismissButton = {
+                OutlinedButton(
+                    enabled = !isBusy,
+                    onClick = { preview = null }
+                ) { Text("Cancelar") }
+            }
         )
     }
 }
+
+private fun currentVersionName(context: Context): String = runCatching {
+    val packageInfo = if (android.os.Build.VERSION.SDK_INT >= 33) {
+        context.packageManager.getPackageInfo(
+            context.packageName,
+            PackageManager.PackageInfoFlags.of(0)
+        )
+    } else {
+        @Suppress("DEPRECATION")
+        context.packageManager.getPackageInfo(context.packageName, 0)
+    }
+    packageInfo.versionName ?: "Desconocida"
+}.getOrDefault("Desconocida")
 
 private fun writeText(context: Context, uri: Uri, content: String) {
     context.contentResolver.openOutputStream(uri, "wt")?.bufferedWriter()?.use { it.write(content) }
@@ -148,9 +254,3 @@ private fun writeText(context: Context, uri: Uri, content: String) {
 private fun readText(context: Context, uri: Uri): String =
     context.contentResolver.openInputStream(uri)?.bufferedReader()?.use { it.readText() }
         ?: error("No se pudo leer el archivo seleccionado.")
-
-
-@Suppress("DEPRECATION")
-private fun resolveAppVersion(context: Context): String = runCatching {
-    context.packageManager.getPackageInfo(context.packageName, 0).versionName.orEmpty()
-}.getOrDefault("1.9.4")

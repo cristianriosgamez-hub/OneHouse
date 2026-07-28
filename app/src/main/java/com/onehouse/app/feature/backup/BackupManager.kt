@@ -6,6 +6,10 @@ import org.json.JSONArray
 import org.json.JSONObject
 import java.time.Instant
 
+/**
+ * Creates and restores OneHouse backups using only the SharedPreferences files
+ * explicitly supported by the application.
+ */
 class BackupManager(context: Context) {
     private val appContext = context.applicationContext
 
@@ -22,15 +26,17 @@ class BackupManager(context: Context) {
             files.put(name, encodePreferences(appContext.getSharedPreferences(name, Context.MODE_PRIVATE)))
         }
         root.put("preferences", files)
-        root.put("summary", buildSummary(root, files))
+        root.put("summary", buildSummary(files))
         return root.toString(2)
     }
 
     fun preview(rawJson: String): BackupPreview {
+        requireValidSize(rawJson)
         val root = JSONObject(rawJson)
         validateRoot(root)
         val files = root.getJSONObject("preferences")
-        val summaryJson = root.optJSONObject("summary") ?: buildSummary(root, files)
+        val summaryJson = root.optJSONObject("summary") ?: buildSummary(files)
+
         return BackupPreview(
             summary = BackupSummary(
                 createdAtMillis = root.getLong("createdAtMillis"),
@@ -46,31 +52,46 @@ class BackupManager(context: Context) {
         )
     }
 
-    fun restore(rawJson: String): BackupOperationResult {
-        return runCatching {
-            val root = JSONObject(rawJson)
-            validateRoot(root)
-            val files = root.getJSONObject("preferences")
+    fun restore(rawJson: String): BackupOperationResult = runCatching {
+        requireValidSize(rawJson)
+        val root = JSONObject(rawJson)
+        validateRoot(root)
+        val files = root.getJSONObject("preferences")
 
-            val decoded = mutableMapOf<String, Map<String, Any>>()
-            files.keys().forEach { name ->
-                if (name in BACKUP_PREFERENCES) decoded[name] = decodePreferences(files.getJSONObject(name))
+        val decoded = linkedMapOf<String, Map<String, Any>>()
+        files.keys().forEach { name ->
+            if (name in BACKUP_PREFERENCES) {
+                decoded[name] = decodePreferences(files.getJSONObject(name))
             }
-            require(decoded.isNotEmpty()) { "La copia no contiene datos compatibles con OneHouse." }
+        }
+        require(decoded.isNotEmpty()) { "La copia no contiene datos compatibles con OneHouse." }
 
-            val previous = decoded.keys.associateWith { name ->
-                appContext.getSharedPreferences(name, Context.MODE_PRIVATE).all.toMap()
-            }
+        val previous: Map<String, Map<String, Any>> = decoded.keys.associateWith { name ->
+            appContext.getSharedPreferences(name, Context.MODE_PRIVATE).all
+                .mapNotNull { (key, value) -> value?.let { key to it } }
+                .toMap()
+        }
 
-            try {
-                decoded.forEach { (name, values) -> replacePreferences(name, values) }
-            } catch (error: Throwable) {
+        try {
+            decoded.forEach { (name, values) -> replacePreferences(name, values) }
+        } catch (restoreError: Throwable) {
+            val rollbackError = runCatching {
                 previous.forEach { (name, values) -> replacePreferences(name, values) }
-                throw error
-            }
-            BackupOperationResult.Success("Restauración completada. Reinicia OneHouse para recargar toda la configuración.")
-        }.getOrElse { error ->
-            BackupOperationResult.Error(error.message ?: "No se pudo restaurar la copia de seguridad.")
+            }.exceptionOrNull()
+            if (rollbackError != null) restoreError.addSuppressed(rollbackError)
+            throw restoreError
+        }
+
+        BackupOperationResult.Success(
+            "Restauración completada. Reinicia OneHouse para recargar toda la configuración."
+        )
+    }.getOrElse { error ->
+        BackupOperationResult.Error(error.message ?: "No se pudo restaurar la copia de seguridad.")
+    }
+
+    private fun requireValidSize(rawJson: String) {
+        require(rawJson.toByteArray(Charsets.UTF_8).size <= MAX_BACKUP_BYTES) {
+            "El archivo supera el tamaño máximo permitido de 5 MB."
         }
     }
 
@@ -93,7 +114,10 @@ class BackupManager(context: Context) {
                 is Int -> item.put("type", "int").put("value", value)
                 is Long -> item.put("type", "long").put("value", value.toString())
                 is Float -> item.put("type", "float").put("value", value.toDouble())
-                is Set<*> -> item.put("type", "stringSet").put("value", JSONArray(value.filterIsInstance<String>().sorted()))
+                is Set<*> -> item.put(
+                    "type",
+                    "stringSet"
+                ).put("value", JSONArray(value.filterIsInstance<String>().sorted()))
                 else -> return@forEach
             }
             result.put(key, item)
@@ -120,7 +144,7 @@ class BackupManager(context: Context) {
         return result
     }
 
-    private fun replacePreferences(name: String, values: Map<String, *>) {
+    private fun replacePreferences(name: String, values: Map<String, Any>) {
         val editor = appContext.getSharedPreferences(name, Context.MODE_PRIVATE).edit().clear()
         values.forEach { (key, value) ->
             when (value) {
@@ -135,7 +159,7 @@ class BackupManager(context: Context) {
         check(editor.commit()) { "No se pudo guardar '$name'." }
     }
 
-    private fun buildSummary(root: JSONObject, files: JSONObject): JSONObject = JSONObject()
+    private fun buildSummary(files: JSONObject): JSONObject = JSONObject()
         .put("preferencesFiles", files.length())
         .put("scenes", countItems(files, "onehouse_smart_scenes", "scene_count", "scene_"))
         .put("automations", countSet(files, "onehouse_conditional_automations", "rules"))
@@ -161,6 +185,8 @@ class BackupManager(context: Context) {
     private companion object {
         const val FORMAT = "onehouse-backup"
         const val SCHEMA_VERSION = 1
+        const val MAX_BACKUP_BYTES = 5 * 1024 * 1024
+
         val BACKUP_PREFERENCES = listOf(
             "onehouse_knx_settings",
             "onehouse_knx_configuration",
