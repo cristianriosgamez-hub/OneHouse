@@ -36,7 +36,8 @@ import com.onehouse.app.design.TextoSecundario
 fun MoreScreen(
     onConfigurationSelected: () -> Unit,
     onImportProjectSelected: () -> Unit,
-    onKnxAddressesSelected: () -> Unit
+    onKnxAddressesSelected: () -> Unit,
+    onKnxDiagnosticsSelected: () -> Unit
 ) {
     Box(
         modifier = Modifier
@@ -88,9 +89,9 @@ fun MoreScreen(
             )
             MoreOptionCard(
                 symbol = "◫",
-                title = "Diagnóstico",
-                subtitle = "Estado y comprobaciones del sistema",
-                enabled = false
+                title = "Diagnóstico KNX",
+                subtitle = "Valores reales, tiempos y prueba de lectura",
+                onClick = onKnxDiagnosticsSelected
             )
             MoreOptionCard(
                 symbol = "?",

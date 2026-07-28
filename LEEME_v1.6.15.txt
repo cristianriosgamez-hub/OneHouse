@@ -1,0 +1,19 @@
+OneHouse v1.6.15 - Diagnóstico KNX
+
+Sustituir únicamente los archivos incluidos manteniendo la misma estructura.
+
+Cambios:
+- Nueva opción Más > Diagnóstico KNX.
+- Lista todos los objetos y direcciones importados desde InsideControl.
+- Muestra dirección, estancia, categoría, DPT y tipo lectura/escritura.
+- Muestra el último valor KNX real recibido, origen, APCI y antigüedad.
+- Indica claramente OK o SIN RESPUESTA.
+- Permite probar manualmente una lectura GroupValueRead por dirección.
+- Incluye monitor de las últimas operaciones KNX y opción para limpiarlo.
+- No inventa valores cuando no existe respuesta.
+
+Versión:
+versionCode 45
+versionName 1.6.15
+
+Nota: no se pudo compilar en este entorno porque Gradle 9.5.0 necesita descargarse desde services.gradle.org.
