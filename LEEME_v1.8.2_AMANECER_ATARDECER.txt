@@ -1,0 +1,19 @@
+ONEHOUSE v1.8.2 - AMANECER Y ATARDECER
+
+Cambios incluidos:
+- Nueva pantalla en Más > Amanecer y atardecer.
+- Cálculo local de las horas de salida y puesta del sol, sin servicios externos.
+- Coordenadas editables con valores iniciales de L'Hospitalet de Llobregat.
+- Acciones solares para luces, climatización y persianas.
+- Desplazamiento configurable entre -180 y +180 minutos.
+- Persistencia independiente de horarios semanales.
+- Vista de amanecer, atardecer y próxima ejecución.
+
+Alcance de esta fase:
+- Configuración, persistencia y cálculo de la próxima ejecución solar.
+- No modifica direcciones KNX, DPT, pantallas de estancias ni el motor KNX existente.
+- La ejecución garantizada en segundo plano se conectará en una fase posterior, después de validar las acciones y DPT configurados.
+
+Versión:
+versionCode = 61
+versionName = "1.8.2 Amanecer y atardecer"

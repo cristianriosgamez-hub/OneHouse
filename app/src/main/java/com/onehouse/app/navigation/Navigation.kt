@@ -27,6 +27,7 @@ import com.onehouse.app.feature.rooms.roomItemForName
 import com.onehouse.app.feature.terrace.TerraceScreen
 import com.onehouse.app.feature.weather.WeatherScreen
 import com.onehouse.app.feature.programming.WeeklyScheduleScreen
+import com.onehouse.app.feature.programming.SolarScheduleScreen
 import com.onehouse.app.design.FondoSuperior
 
 private enum class InternalScreen {
@@ -48,7 +49,8 @@ private enum class InternalScreen {
     SECURITY,
     KNX_ADDRESS_EDITOR,
     KNX_DIAGNOSTICS,
-    WEEKLY_SCHEDULES
+    WEEKLY_SCHEDULES,
+    SOLAR_SCHEDULES
 }
 
 @Composable
@@ -177,6 +179,16 @@ fun OneHouseNavigation() {
             return
         }
 
+        InternalScreen.SOLAR_SCHEDULES -> {
+            SolarScheduleScreen(
+                onBack = {
+                    internalScreen = InternalScreen.MAIN
+                    selectedSection = OneHouseSection.MORE
+                }
+            )
+            return
+        }
+
         InternalScreen.ENTRANCE,
         InternalScreen.HALLWAY,
         InternalScreen.STORAGE,
@@ -259,7 +271,8 @@ fun OneHouseNavigation() {
                     onImportProjectSelected = { internalScreen = InternalScreen.IMPORT_PROJECT },
                     onKnxAddressesSelected = { internalScreen = InternalScreen.KNX_ADDRESS_EDITOR },
                     onKnxDiagnosticsSelected = { internalScreen = InternalScreen.KNX_DIAGNOSTICS },
-                    onWeeklySchedulesSelected = { internalScreen = InternalScreen.WEEKLY_SCHEDULES }
+                    onWeeklySchedulesSelected = { internalScreen = InternalScreen.WEEKLY_SCHEDULES },
+                    onSolarSchedulesSelected = { internalScreen = InternalScreen.SOLAR_SCHEDULES }
                 )
             }
         }

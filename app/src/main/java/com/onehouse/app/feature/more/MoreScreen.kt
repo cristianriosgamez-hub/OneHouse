@@ -38,7 +38,8 @@ fun MoreScreen(
     onImportProjectSelected: () -> Unit,
     onKnxAddressesSelected: () -> Unit,
     onKnxDiagnosticsSelected: () -> Unit,
-    onWeeklySchedulesSelected: () -> Unit
+    onWeeklySchedulesSelected: () -> Unit,
+    onSolarSchedulesSelected: () -> Unit
 ) {
     Box(
         modifier = Modifier
@@ -99,6 +100,12 @@ fun MoreScreen(
                 title = "Horarios semanales",
                 subtitle = "Luces, climatización y persianas",
                 onClick = onWeeklySchedulesSelected
+            )
+            MoreOptionCard(
+                symbol = "☀",
+                title = "Amanecer y atardecer",
+                subtitle = "Acciones KNX según la luz solar",
+                onClick = onSolarSchedulesSelected
             )
             MoreOptionCard(
                 symbol = "?",

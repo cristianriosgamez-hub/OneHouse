@@ -16,8 +16,8 @@ android {
         applicationId = "com.onehouse.app"
         minSdk = 29
         targetSdk = 36
-        versionCode = 60
-        versionName = "1.8.1 Horarios semanales"
+        versionCode = 61
+        versionName = "1.8.2 Amanecer y atardecer"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
