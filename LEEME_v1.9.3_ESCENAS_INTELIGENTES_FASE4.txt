@@ -1,0 +1,27 @@
+ONEHOUSE v1.9.3 - ESCENAS INTELIGENTES FASE 4
+
+ENTREGA INCREMENTAL
+Copiar únicamente los archivos incluidos respetando las mismas rutas.
+
+CAMBIOS
+- Selección de hasta 4 escenas favoritas desde Más > Escenas inteligentes.
+- Nueva sección Escenas favoritas en la pantalla Mi Hogar.
+- Ejecución directa reutilizando SceneExecutionEngine y el motor KNX existente.
+- Confirmación opcional antes de ejecutar cada escena desde Mi Hogar.
+- Indicador de ejecución en curso y bloqueo de nuevas pulsaciones mientras se ejecuta.
+- Visualización de la última ejecución.
+- Actualización persistente del contador y fecha de ejecución.
+- Compatibilidad con las escenas guardadas en v1.9.0, v1.9.1 y v1.9.2.
+- Al duplicar una escena, la copia no se marca como favorita para respetar el límite de 4.
+
+VERSIÓN
+versionCode = 66
+versionName = 1.9.3 Escenas Inteligentes Fase 4
+
+SEGURIDAD
+- No se modifican direcciones KNX existentes.
+- No se inventan valores KNX.
+- Se conservan DPT, pausas y orden de las acciones configuradas.
+
+NOTA DE COMPILACIÓN
+No ha sido posible ejecutar Gradle en este entorno porque el wrapper intenta descargar Gradle 9.5.0 y no existe acceso a Internet. La estructura y los cambios han sido revisados sobre el proyecto v1.9.2 facilitado.

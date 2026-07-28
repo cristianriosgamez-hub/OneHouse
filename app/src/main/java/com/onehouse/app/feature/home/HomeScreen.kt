@@ -15,7 +15,10 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
 import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -58,6 +61,9 @@ import com.onehouse.app.design.TextoSecundario
 import com.onehouse.app.design.VerdeEstado
 import com.onehouse.app.design.RojoEstado
 import com.onehouse.app.feature.rooms.RoomItem
+import com.onehouse.app.feature.scenes.SceneExecutionEngine
+import com.onehouse.app.feature.scenes.SharedPreferencesSceneRepository
+import com.onehouse.app.feature.scenes.SmartScene
 import com.onehouse.app.data.knx.KnxConnectionStatus
 import com.onehouse.app.data.knx.SettingsDataStore
 import com.onehouse.app.feature.weather.WeatherUiState
@@ -68,6 +74,8 @@ import com.onehouse.app.feature.security.HomeAssistantSecuritySnapshotStore
 import com.onehouse.app.feature.security.SecuritySummary
 import com.onehouse.app.knx.KnxHomeSnapshot
 import com.onehouse.app.knx.KnxHomeStateRepository
+import java.text.DateFormat
+import java.util.Date
 import java.util.Locale
 
 @Composable
@@ -88,12 +96,23 @@ fun HomeScreen(
         mutableStateOf(settingsDataStore.read().lastConnectionStatus)
     }
     var securitySummary by remember { mutableStateOf(securitySnapshotStore.readSummary()) }
+    val sceneRepository = remember(context) { SharedPreferencesSceneRepository(context) }
+    val sceneEngine = remember(context) { SceneExecutionEngine(context) }
+    var favoriteScenes by remember { mutableStateOf(sceneRepository.load().scenes.filter { it.favorite }.take(4)) }
+    var pendingScene by remember { mutableStateOf<SmartScene?>(null) }
+    var sceneMessage by remember { mutableStateOf<String?>(null) }
+    var executingSceneId by remember { mutableStateOf<Long?>(null) }
 
-    DisposableEffect(lifecycleOwner, settingsDataStore) {
+    DisposableEffect(sceneEngine) {
+        onDispose { sceneEngine.close() }
+    }
+
+    DisposableEffect(lifecycleOwner, settingsDataStore, sceneRepository) {
         val observer = LifecycleEventObserver { _, event ->
             if (event == Lifecycle.Event.ON_RESUME) {
                 connectionStatus = settingsDataStore.read().lastConnectionStatus
                 securitySummary = securitySnapshotStore.readSummary()
+                favoriteScenes = sceneRepository.load().scenes.filter { it.favorite }.take(4)
             }
         }
         lifecycleOwner.lifecycle.addObserver(observer)
@@ -157,9 +176,71 @@ fun HomeScreen(
                 onFavoriteSelected = onFavoriteSelected
             )
 
+            Spacer(modifier = Modifier.height(26.dp))
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                OneHouseSectionTitle(title = "Escenas favoritas", modifier = Modifier.weight(1f))
+                Text(
+                    text = "${favoriteScenes.size}/4",
+                    color = TextoDesactivado,
+                    style = MaterialTheme.typography.labelMedium
+                )
+            }
+            Spacer(modifier = Modifier.height(12.dp))
+
+            FavoriteScenes(
+                scenes = favoriteScenes,
+                executingSceneId = executingSceneId,
+                onExecute = { scene ->
+                    if (scene.requireConfirmation) {
+                        pendingScene = scene
+                    } else {
+                        executeHomeScene(
+                            scene = scene,
+                            repository = sceneRepository,
+                            engine = sceneEngine,
+                            onExecuting = { executingSceneId = it },
+                            onScenesChanged = { favoriteScenes = it },
+                            onMessage = { sceneMessage = it }
+                        )
+                    }
+                }
+            )
+
+            sceneMessage?.let {
+                Spacer(modifier = Modifier.height(12.dp))
+                OneHouseCard(modifier = Modifier.fillMaxWidth()) {
+                    Text(it, modifier = Modifier.padding(16.dp), color = TextoPrincipal, style = MaterialTheme.typography.bodySmall)
+                }
+            }
+
             Spacer(modifier = Modifier.height(22.dp))
             ConnectionStatus(connectionStatus)
         }
+    }
+
+    pendingScene?.let { scene ->
+        AlertDialog(
+            onDismissRequest = { pendingScene = null },
+            title = { Text("Ejecutar ${scene.name}") },
+            text = { Text("Se enviarán ${scene.actions.size} acciones KNX en el orden configurado.") },
+            confirmButton = {
+                Button(onClick = {
+                    pendingScene = null
+                    executeHomeScene(
+                        scene = scene,
+                        repository = sceneRepository,
+                        engine = sceneEngine,
+                        onExecuting = { executingSceneId = it },
+                        onScenesChanged = { favoriteScenes = it },
+                        onMessage = { sceneMessage = it }
+                    )
+                }) { Text("Ejecutar") }
+            },
+            dismissButton = { TextButton(onClick = { pendingScene = null }) { Text("Cancelar") } }
+        )
     }
 }
 
@@ -366,6 +447,97 @@ private fun FavoriteRooms(
             }
             if (rowItems.size == 1) Spacer(modifier = Modifier.weight(1f))
         }
+    }
+}
+
+@Composable
+private fun FavoriteScenes(
+    scenes: List<SmartScene>,
+    executingSceneId: Long?,
+    onExecute: (SmartScene) -> Unit
+) {
+    if (scenes.isEmpty()) {
+        OneHouseCard(modifier = Modifier.fillMaxWidth()) {
+            Column(modifier = Modifier.padding(20.dp)) {
+                Text(text = "✦", color = AzulClaro, fontSize = 28.sp)
+                Spacer(modifier = Modifier.height(8.dp))
+                Text("Aún no tienes escenas favoritas", color = TextoPrincipal, style = MaterialTheme.typography.titleMedium)
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    "En Más > Escenas inteligentes activa ‘Mostrar en Mi Hogar’.",
+                    color = TextoSecundario,
+                    style = MaterialTheme.typography.bodySmall
+                )
+            }
+        }
+        return
+    }
+
+    scenes.chunked(2).forEachIndexed { index, rowScenes ->
+        if (index > 0) Spacer(modifier = Modifier.height(12.dp))
+        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            rowScenes.forEach { scene ->
+                OneHouseCard(
+                    modifier = Modifier.weight(1f).height(126.dp),
+                    onClick = if (executingSceneId == null && scene.enabled && scene.actions.isNotEmpty()) {
+                        { onExecute(scene) }
+                    } else null
+                ) {
+                    Column(modifier = Modifier.padding(15.dp)) {
+                        Text("✦", color = AzulClaro, fontSize = 24.sp)
+                        Spacer(modifier = Modifier.height(7.dp))
+                        Text(scene.name, color = TextoPrincipal, style = MaterialTheme.typography.titleSmall, maxLines = 1)
+                        Spacer(modifier = Modifier.height(3.dp))
+                        Text(
+                            when {
+                                executingSceneId == scene.id -> "Ejecutando…"
+                                !scene.enabled -> "Escena desactivada"
+                                scene.actions.isEmpty() -> "Sin acciones"
+                                else -> scene.lastExecutionMillis?.let {
+                                    "Última: ${DateFormat.getDateTimeInstance(DateFormat.SHORT, DateFormat.SHORT).format(Date(it))}"
+                                } ?: "${scene.actions.size} acciones"
+                            },
+                            color = if (executingSceneId == scene.id) AzulClaro else TextoDesactivado,
+                            style = MaterialTheme.typography.labelSmall,
+                            maxLines = 1
+                        )
+                    }
+                }
+            }
+            if (rowScenes.size == 1) Spacer(modifier = Modifier.weight(1f))
+        }
+    }
+}
+
+private fun executeHomeScene(
+    scene: SmartScene,
+    repository: SharedPreferencesSceneRepository,
+    engine: SceneExecutionEngine,
+    onExecuting: (Long?) -> Unit,
+    onScenesChanged: (List<SmartScene>) -> Unit,
+    onMessage: (String) -> Unit
+) {
+    onExecuting(scene.id)
+    engine.execute(scene) { result ->
+        val currentState = repository.load()
+        val completedAll = result.successfulActions + result.failedActions == result.totalActions
+        val shouldRegisterExecution = result.successfulActions > 0 || completedAll
+        val now = System.currentTimeMillis()
+        val updatedState = currentState.copy(scenes = currentState.scenes.map {
+            if (it.id == scene.id && shouldRegisterExecution) {
+                it.copy(lastExecutionMillis = now, executionCount = it.executionCount + 1)
+            } else it
+        })
+        if (shouldRegisterExecution) repository.save(updatedState)
+        onScenesChanged(updatedState.scenes.filter { it.favorite }.take(4))
+        onExecuting(null)
+        onMessage(
+            when {
+                result.errorMessage == null -> "${scene.name}: ${result.successfulActions}/${result.totalActions} acciones ejecutadas."
+                !scene.stopOnError && completedAll -> "${scene.name}: ${result.successfulActions} correctas y ${result.failedActions} con error."
+                else -> "${scene.name}: ${result.successfulActions}/${result.totalActions}. ${result.errorMessage}"
+            }
+        )
     }
 }
 

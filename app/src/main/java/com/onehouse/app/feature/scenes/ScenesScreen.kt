@@ -122,6 +122,42 @@ fun ScenesScreen(onBack: () -> Unit) {
 
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Column(Modifier.weight(1f)) {
+                            Text("Mostrar en Mi Hogar", color = TextoPrincipal, fontSize = 13.sp)
+                            Text("Puedes guardar hasta 4 escenas favoritas", color = TextoDesactivado, fontSize = 11.sp)
+                        }
+                        Switch(
+                            checked = scene.favorite,
+                            onCheckedChange = { favorite ->
+                                val favoriteCount = state.scenes.count { it.favorite }
+                                if (favorite && !scene.favorite && favoriteCount >= 4) {
+                                    message = "Solo puedes guardar 4 escenas favoritas."
+                                } else {
+                                    persist(state.copy(scenes = state.scenes.map {
+                                        if (it.id == scene.id) it.copy(favorite = favorite) else it
+                                    }))
+                                }
+                            }
+                        )
+                    }
+
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Column(Modifier.weight(1f)) {
+                            Text("Confirmar desde Mi Hogar", color = TextoPrincipal, fontSize = 13.sp)
+                            Text("Pide confirmación antes de ejecutar esta escena favorita", color = TextoDesactivado, fontSize = 11.sp)
+                        }
+                        Switch(
+                            checked = scene.requireConfirmation,
+                            enabled = scene.favorite,
+                            onCheckedChange = { requireConfirmation ->
+                                persist(state.copy(scenes = state.scenes.map {
+                                    if (it.id == scene.id) it.copy(requireConfirmation = requireConfirmation) else it
+                                }))
+                            }
+                        )
+                    }
+
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Column(Modifier.weight(1f)) {
                             Text("Detener escena si una acción falla", color = TextoPrincipal, fontSize = 13.sp)
                             Text("Desactívalo para intentar ejecutar el resto de acciones", color = TextoDesactivado, fontSize = 11.sp)
                         }
@@ -209,6 +245,8 @@ fun ScenesScreen(onBack: () -> Unit) {
                                     name = "${scene.name} (copia)",
                                     lastExecutionMillis = null,
                                     executionCount = 0,
+                                    favorite = false,
+                                    requireConfirmation = false,
                                     actions = scene.actions.map { it.copy(id = System.nanoTime()) }
                                 )
                                 persist(state.copy(scenes = state.scenes + copy))

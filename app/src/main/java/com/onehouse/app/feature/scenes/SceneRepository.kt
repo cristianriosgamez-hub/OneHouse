@@ -49,6 +49,8 @@ class SharedPreferencesSceneRepository(context: Context) : SceneRepository {
             scene.lastExecutionMillis ?: "",
             scene.executionCount,
             scene.stopOnError,
+            scene.favorite,
+            scene.requireConfirmation,
             actions
         ).joinToString("|")
     }
@@ -57,9 +59,17 @@ class SharedPreferencesSceneRepository(context: Context) : SceneRepository {
         val parts = raw.split('|')
         if (parts.size < 7) return@runCatching null
 
-        val isNewFormat = parts.size >= 8
-        val stopOnError = if (isNewFormat) parts[6].toBooleanStrictOrNull() ?: true else true
-        val actionsRaw = if (isNewFormat) parts.subList(7, parts.size).joinToString("|") else parts[6]
+        val hasStopOnError = parts.size >= 8
+        val hasFavoriteFields = parts.size >= 10
+        val stopOnError = if (hasStopOnError) parts[6].toBooleanStrictOrNull() ?: true else true
+        val favorite = if (hasFavoriteFields) parts[7].toBooleanStrictOrNull() ?: false else false
+        val requireConfirmation = if (hasFavoriteFields) parts[8].toBooleanStrictOrNull() ?: false else false
+        val actionsStartIndex = when {
+            hasFavoriteFields -> 9
+            hasStopOnError -> 7
+            else -> 6
+        }
+        val actionsRaw = parts.subList(actionsStartIndex, parts.size).joinToString("|")
 
         SmartScene(
             id = parts[0].toLong(),
@@ -69,6 +79,8 @@ class SharedPreferencesSceneRepository(context: Context) : SceneRepository {
             lastExecutionMillis = parts[4].toLongOrNull(),
             executionCount = parts[5].toInt(),
             stopOnError = stopOnError,
+            favorite = favorite,
+            requireConfirmation = requireConfirmation,
             actions = if (actionsRaw.isBlank()) emptyList() else actionsRaw.split('~').mapNotNull(::decodeAction)
         )
     }.getOrNull()

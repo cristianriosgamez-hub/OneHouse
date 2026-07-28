@@ -35,6 +35,8 @@ data class SmartScene(
     val description: String = "",
     val enabled: Boolean = true,
     val stopOnError: Boolean = true,
+    val favorite: Boolean = false,
+    val requireConfirmation: Boolean = false,
     val actions: List<SceneAction> = emptyList(),
     val lastExecutionMillis: Long? = null,
     val executionCount: Int = 0
