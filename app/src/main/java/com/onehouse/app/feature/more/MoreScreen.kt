@@ -37,7 +37,8 @@ fun MoreScreen(
     onConfigurationSelected: () -> Unit,
     onImportProjectSelected: () -> Unit,
     onKnxAddressesSelected: () -> Unit,
-    onKnxDiagnosticsSelected: () -> Unit
+    onKnxDiagnosticsSelected: () -> Unit,
+    onWeeklySchedulesSelected: () -> Unit
 ) {
     Box(
         modifier = Modifier
@@ -92,6 +93,12 @@ fun MoreScreen(
                 title = "Diagnóstico KNX",
                 subtitle = "Valores reales, tiempos y prueba de lectura",
                 onClick = onKnxDiagnosticsSelected
+            )
+            MoreOptionCard(
+                symbol = "◷",
+                title = "Horarios semanales",
+                subtitle = "Luces, climatización y persianas",
+                onClick = onWeeklySchedulesSelected
             )
             MoreOptionCard(
                 symbol = "?",

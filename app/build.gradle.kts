@@ -16,8 +16,8 @@ android {
         applicationId = "com.onehouse.app"
         minSdk = 29
         targetSdk = 36
-        versionCode = 58
-        versionName = "1.7.8 Salud Motor KNX"
+        versionCode = 60
+        versionName = "1.8.1 Horarios semanales"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
