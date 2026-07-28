@@ -67,7 +67,8 @@ class KnxEngineHealthRepository internal constructor(
 
         val status = when {
             states.isEmpty() || lastTelegramAtMillis == null -> Status.NO_DATA
-            millisecondsSinceLastTelegram <= ACTIVE_WINDOW_MILLIS -> Status.ACTIVE
+            millisecondsSinceLastTelegram != null &&
+                millisecondsSinceLastTelegram <= ACTIVE_WINDOW_MILLIS -> Status.ACTIVE
             freshStates > 0 -> Status.IDLE
             else -> Status.STALE
         }

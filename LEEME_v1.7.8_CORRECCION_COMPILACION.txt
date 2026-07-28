@@ -1,0 +1,9 @@
+OneHouse v1.7.8 - Corrección de compilación
+
+Archivo corregido:
+- app/src/main/java/com/onehouse/app/knx/KnxEngineHealthRepository.kt
+
+Corrección aplicada:
+- Se valida explícitamente que millisecondsSinceLastTelegram no sea null antes de compararlo con ACTIVE_WINDOW_MILLIS.
+- No se modifican direcciones KNX, DPT, pantallas ni lógica de comunicación.
+- La versión permanece en v1.7.8.
