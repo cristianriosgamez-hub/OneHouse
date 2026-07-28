@@ -1,0 +1,9 @@
+OneHouse v1.7.0 - Configuración KNX
+
+- Búsqueda y filtros por estancia y tipo.
+- Validación de formato y aviso de direcciones duplicadas.
+- Exportación e importación JSON de la configuración propia de OneHouse.
+- Copia automática antes de guardar o importar.
+- Restauración de la última copia automática.
+- Restauración de valores originales sin modificar InsideControl.
+- versionCode 49 / versionName 1.7.0.

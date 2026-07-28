@@ -7,14 +7,9 @@ import com.onehouse.app.importer.ImportedKnxObject
 import com.onehouse.app.importer.ImportedKnxProject
 import com.onehouse.app.importer.ImportedKnxRoom
 import com.onehouse.app.importer.InsideControlProjectRepository
+import org.json.JSONObject
 
-/**
- * Configuración KNX propia de OneHouse.
- *
- * La primera vez crea una copia independiente del proyecto importado. Desde ese
- * momento, cualquier cambio realizado desde el editor afecta solo a OneHouse y
- * nunca modifica el proyecto conservado por el importador de InsideControl.
- */
+/** Configuración KNX independiente y exclusiva de OneHouse. */
 class AppKnxConfigurationRepository(context: Context) {
     private val appContext = context.applicationContext
     private val preferences = appContext.getSharedPreferences(PREFERENCES_NAME, Context.MODE_PRIVATE)
@@ -26,20 +21,15 @@ class AppKnxConfigurationRepository(context: Context) {
         val imported = InsideControlProjectRepository(appContext).load() ?: return null
         val copied = imported.copy(
             projectName = "OneHouse",
-            rooms = imported.rooms.map { room ->
-                room.copy(devices = room.devices.map { it.copy() })
-            }
+            rooms = imported.rooms.map { room -> room.copy(devices = room.devices.map { it.copy() }) }
         )
         saveProject(copied)
         return copied
     }
 
     fun saveProject(project: ImportedKnxProject) {
+        createAutomaticBackup()
         preferences.edit().putString(KEY_PROJECT, encodeProject(project)).apply()
-    }
-
-    fun clearProjectCopy() {
-        preferences.edit().remove(KEY_PROJECT).apply()
     }
 
     fun globalAddress(key: String, defaultAddress: String): String =
@@ -48,6 +38,7 @@ class AppKnxConfigurationRepository(context: Context) {
             ?: defaultAddress
 
     fun saveGlobalAddresses(values: Map<String, String>) {
+        createAutomaticBackup()
         preferences.edit().apply {
             values.forEach { (key, value) ->
                 if (isValidGroupAddress(value)) putString("$KEY_GLOBAL_PREFIX$key", value.trim())
@@ -56,16 +47,82 @@ class AppKnxConfigurationRepository(context: Context) {
         KnxAddressBook.apply(this)
     }
 
-    fun resetGlobalAddress(key: String) {
-        preferences.edit().remove("$KEY_GLOBAL_PREFIX$key").apply()
+    fun resetAllToFactory() {
+        val backup = exportConfiguration()
+        preferences.edit().clear().putString(KEY_BACKUP, backup).apply()
         KnxAddressBook.apply(this)
     }
 
-    fun resetAllGlobalAddresses() {
-        preferences.edit().apply {
-            KnxAddressBook.entries.forEach { remove("$KEY_GLOBAL_PREFIX${it.key}") }
-        }.apply()
-        KnxAddressBook.apply(this)
+    fun restoreAutomaticBackup(): Boolean {
+        val backup = preferences.getString(KEY_BACKUP, null) ?: return false
+        return importConfiguration(backup, createBackup = false)
+    }
+
+    fun hasAutomaticBackup(): Boolean = preferences.contains(KEY_BACKUP)
+
+    fun exportConfiguration(): String {
+        val root = JSONObject()
+        root.put("format", "onehouse-knx")
+        root.put("version", 1)
+        root.put("project", preferences.getString(KEY_PROJECT, null))
+        val globals = JSONObject()
+        KnxAddressBook.entries.forEach { entry ->
+            globals.put(entry.key, globalAddress(entry.key, entry.defaultAddress))
+        }
+        root.put("globalAddresses", globals)
+        return root.toString(2)
+    }
+
+    fun importConfiguration(json: String, createBackup: Boolean = true): Boolean {
+        return try {
+            val root = JSONObject(json)
+            if (root.optString("format") != "onehouse-knx") {
+                return false
+            }
+
+            val encodedProject = root.optString("project")
+                .takeIf { it.isNotBlank() && it != "null" }
+            val decodedProject = encodedProject?.let(::decodeProject)
+            if (encodedProject != null && decodedProject == null) {
+                return false
+            }
+
+            val globals = root.optJSONObject("globalAddresses") ?: JSONObject()
+            val importedGlobals = buildMap {
+                KnxAddressBook.entries.forEach { entry ->
+                    if (globals.has(entry.key)) {
+                        val value = globals.optString(entry.key).trim()
+                        if (!isValidGroupAddress(value)) {
+                            return false
+                        }
+                        put(entry.key, value)
+                    }
+                }
+            }
+
+            if (createBackup) {
+                createAutomaticBackup()
+            }
+
+            preferences.edit().apply {
+                if (encodedProject != null) {
+                    putString(KEY_PROJECT, encodedProject)
+                }
+                importedGlobals.forEach { (key, value) ->
+                    putString("$KEY_GLOBAL_PREFIX$key", value)
+                }
+            }.apply()
+
+            KnxAddressBook.apply(this)
+            true
+        } catch (_: Exception) {
+            false
+        }
+    }
+
+    private fun createAutomaticBackup() {
+        val current = exportConfiguration()
+        preferences.edit().putString(KEY_BACKUP, current).apply()
     }
 
     private fun encodeProject(project: ImportedKnxProject): String = buildList {
@@ -148,5 +205,6 @@ class AppKnxConfigurationRepository(context: Context) {
         private const val PREFERENCES_NAME = "onehouse_knx_configuration"
         private const val KEY_PROJECT = "app_project_copy"
         private const val KEY_GLOBAL_PREFIX = "global_"
+        private const val KEY_BACKUP = "automatic_backup"
     }
 }
