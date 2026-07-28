@@ -1,0 +1,28 @@
+ONEHOUSE v1.7.5 - MOTOR KNX CENTRAL (FASE 1)
+
+OBJETIVO
+Crear una base central compartida para la comunicación KNX sin modificar el
+comportamiento funcional validado en la v1.7.4.
+
+CAMBIOS
+- Nuevo KnxCentralEngine como punto único de recursos KNX.
+- Todas las instancias de KnxCommandExecutor comparten:
+  * KnxConnectionManager
+  * KnxStateRepository
+  * KnxTelegramMonitorRepository
+  * KnxSessionStatisticsRepository
+- Cerrar una pantalla ya no cierra recursos que puedan estar usando otras.
+- Se mantiene la cola global existente.
+- Se mantiene la conexión/desconexión por operación para reducir riesgos.
+- No se modifican direcciones, DPT, pantallas, comandos ni valores KNX.
+
+ARCHIVOS MODIFICADOS
+- app/build.gradle.kts
+- app/src/main/java/com/onehouse/app/knx/KnxCommandExecutor.kt
+
+ARCHIVOS NUEVOS
+- app/src/main/java/com/onehouse/app/knx/KnxCentralEngine.kt
+
+VERSION
+versionCode = 54
+versionName = 1.7.5

@@ -24,10 +24,11 @@ class KnxCommandExecutor(context: Context) : Closeable {
     }
 
     private val appContext = context.applicationContext
-    private val stateRepository = KnxStateRepository(appContext)
-    private val connectionManager = KnxConnectionManager(stateRepository = stateRepository)
-    private val monitorRepository = KnxTelegramMonitorRepository(appContext)
-    private val statisticsRepository = KnxSessionStatisticsRepository(appContext)
+    private val centralResources = KnxCentralEngine.get(appContext)
+    private val stateRepository = centralResources.stateRepository
+    private val connectionManager = centralResources.connectionManager
+    private val monitorRepository = centralResources.monitorRepository
+    private val statisticsRepository = centralResources.statisticsRepository
     private var queuedOperation: Closeable? = null
 
     /** Flujo compartido con todos los últimos estados KNX conocidos. */
@@ -396,6 +397,8 @@ class KnxCommandExecutor(context: Context) : Closeable {
     override fun close() {
         queuedOperation?.close()
         queuedOperation = null
-        connectionManager.close()
+        // El gestor de conexión pertenece al motor central compartido. Cada
+        // operación ya desconecta el túnel al finalizar; cerrar una pantalla no
+        // debe invalidar los recursos que están usando las demás pantallas.
     }
 }
