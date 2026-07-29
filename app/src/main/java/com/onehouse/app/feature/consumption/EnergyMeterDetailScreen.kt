@@ -18,8 +18,12 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.DeleteOutline
+import androidx.compose.material.icons.rounded.Edit
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
+import androidx.compose.material3.Icon
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -213,8 +217,14 @@ private fun DetailStat(title: String, value: String, unit: String, modifier: Mod
             .padding(12.dp)
     ) {
         Text(title, color = TextoSecundario, fontSize = 10.sp)
-        Text(value, color = TextoPrincipal, fontSize = 17.sp, fontWeight = FontWeight.Bold)
-        Text(unit, color = TextoSecundario, fontSize = 10.sp)
+        Spacer(Modifier.height(5.dp))
+        Text(
+            "$value $unit",
+            color = TextoPrincipal,
+            fontSize = 17.sp,
+            fontWeight = FontWeight.Bold,
+            maxLines = 1
+        )
     }
 }
 
@@ -263,9 +273,28 @@ private fun ReadingsPanel(
                 }
                 if (reading.source == ReadingSource.MANUAL.storageValue) {
                     Spacer(Modifier.width(8.dp))
-                    Column(horizontalAlignment = Alignment.End) {
-                        Text("Editar", color = EnergyBlue, fontSize = 11.sp, modifier = Modifier.clickable { onEdit(reading) }.padding(3.dp))
-                        Text("Borrar", color = EnergyRed, fontSize = 11.sp, modifier = Modifier.clickable { onDelete(reading) }.padding(3.dp))
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Rounded.Edit,
+                            contentDescription = "Editar lectura",
+                            tint = EnergyBlue,
+                            modifier = Modifier
+                                .size(23.dp)
+                                .clickable { onEdit(reading) }
+                                .padding(2.dp)
+                        )
+                        Icon(
+                            imageVector = Icons.Rounded.DeleteOutline,
+                            contentDescription = "Borrar lectura",
+                            tint = EnergyRed,
+                            modifier = Modifier
+                                .size(23.dp)
+                                .clickable { onDelete(reading) }
+                                .padding(2.dp)
+                        )
                     }
                 }
             }

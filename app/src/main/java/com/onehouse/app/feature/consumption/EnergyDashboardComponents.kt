@@ -17,12 +17,20 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.AcUnit
+import androidx.compose.material.icons.rounded.Bolt
+import androidx.compose.material.icons.rounded.ChevronRight
+import androidx.compose.material.icons.rounded.LocalFireDepartment
+import androidx.compose.material.icons.rounded.WaterDrop
+import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -266,30 +274,46 @@ internal fun EnergySummaryCard(
             Row(verticalAlignment = Alignment.CenterVertically) {
             Box(
                 modifier = Modifier
-                    .size(46.dp)
-                    .background(accent.copy(alpha = 0.15f), RoundedCornerShape(15.dp)),
+                    .size(50.dp)
+                    .background(accent.copy(alpha = 0.16f), RoundedCornerShape(17.dp)),
                 contentAlignment = Alignment.Center
             ) {
-                Text(summary.type.symbol, color = accent, fontSize = 25.sp, fontWeight = FontWeight.Bold)
+                Icon(
+                    imageVector = meterIcon(summary.type),
+                    contentDescription = null,
+                    tint = accent,
+                    modifier = Modifier.size(29.dp)
+                )
             }
-            Spacer(Modifier.width(11.dp))
+            Spacer(Modifier.width(12.dp))
             Column(modifier = Modifier.weight(1f)) {
-                Text(summary.type.shortTitle, color = TextoPrincipal, fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
                 Text(
-                    summary.latestReading?.let { "Actualizado ${formatDate(it.timestamp)}" } ?: "Sin lecturas",
+                    summary.type.shortTitle,
+                    color = TextoPrincipal,
+                    fontSize = 17.sp,
+                    fontWeight = FontWeight.SemiBold
+                )
+                Text(
+                    summary.latestReading?.let { relativeUpdateText(it.timestamp) } ?: "Sin lecturas",
                     color = TextoSecundario,
                     fontSize = 10.sp
                 )
             }
-            Text("›", color = accent, fontSize = 30.sp)
+            Icon(
+                imageVector = Icons.Rounded.ChevronRight,
+                contentDescription = "Abrir detalle",
+                tint = accent.copy(alpha = 0.9f),
+                modifier = Modifier.size(27.dp)
+            )
         }
 
-        Spacer(Modifier.height(16.dp))
+        Spacer(Modifier.height(18.dp))
         Text("Consumo este mes", color = TextoSecundario, fontSize = 11.sp)
+        Spacer(Modifier.height(2.dp))
         Text(
             "${formatNumber(summary.monthConsumption)} ${summary.type.unit}",
             color = TextoPrincipal,
-            fontSize = 23.sp,
+            fontSize = 24.sp,
             fontWeight = FontWeight.Bold
         )
         Spacer(Modifier.height(12.dp))
@@ -373,6 +397,27 @@ internal fun PeriodSelector(
                 )
             }
         }
+    }
+}
+
+private fun meterIcon(type: MeterType): ImageVector = when (type) {
+    MeterType.ENDESA -> Icons.Rounded.Bolt
+    MeterType.AGBAR -> Icons.Rounded.WaterDrop
+    MeterType.CLIMATIZATION -> Icons.Rounded.AcUnit
+    MeterType.ACS -> Icons.Rounded.LocalFireDepartment
+}
+
+private fun relativeUpdateText(timestamp: Long): String {
+    val elapsed = (System.currentTimeMillis() - timestamp).coerceAtLeast(0L)
+    val minute = 60_000L
+    val hour = 60L * minute
+    val day = 24L * hour
+    return when {
+        elapsed < hour -> "Actualizado hace ${maxOf(1L, elapsed / minute)} min"
+        elapsed < day -> "Actualizado hace ${elapsed / hour} h"
+        elapsed < 2L * day -> "Actualizado ayer"
+        elapsed < 8L * day -> "Actualizado hace ${elapsed / day} días"
+        else -> "Actualizado ${formatDate(timestamp)}"
     }
 }
 
