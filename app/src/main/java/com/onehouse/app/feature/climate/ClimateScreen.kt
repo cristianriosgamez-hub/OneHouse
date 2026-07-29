@@ -27,6 +27,7 @@ import com.onehouse.app.knx.KnxCommandType
 import com.onehouse.app.knx.KnxCommandExecutor
 import com.onehouse.app.knx.KnxCommand
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -64,9 +65,38 @@ fun ClimateScreen(onBack: () -> Unit) {
     val climate = snapshot.climate
     val exteriorWeather = rememberWeatherState()
 
-    val selectedMode = climate.mode.toClimateMode()
-    val selectedFanSpeed = climate.fanSpeed.toFanSpeed()
-    val enabled = climate.powered == true
+    val confirmedMode = climate.mode.toClimateMode()
+    val confirmedFanSpeed = climate.fanSpeed.toFanSpeed()
+
+    // Estado local optimista: permite manejar la climatización aunque KNX no esté
+    // disponible. Los valores confirmados por el bus sustituyen al estado temporal
+    // cuando coinciden con la petición enviada.
+    var requestedPower by remember { mutableStateOf<Boolean?>(null) }
+    var requestedTemperature by remember { mutableStateOf<Float?>(null) }
+    var requestedMode by remember { mutableStateOf<ClimateMode?>(null) }
+    var requestedFanSpeed by remember { mutableStateOf<FanSpeed?>(null) }
+
+    val enabled = requestedPower ?: (climate.powered == true)
+    val targetTemperature = requestedTemperature ?: climate.targetTemperature ?: 21f
+    val selectedMode = requestedMode ?: confirmedMode
+    val selectedFanSpeed = requestedFanSpeed ?: confirmedFanSpeed
+
+    LaunchedEffect(climate.powered, requestedPower) {
+        if (requestedPower != null && climate.powered == requestedPower) requestedPower = null
+    }
+    LaunchedEffect(climate.targetTemperature, requestedTemperature) {
+        val requested = requestedTemperature
+        val confirmed = climate.targetTemperature
+        if (requested != null && confirmed != null && kotlin.math.abs(requested - confirmed) < 0.05f) {
+            requestedTemperature = null
+        }
+    }
+    LaunchedEffect(confirmedMode, requestedMode) {
+        if (requestedMode != null && confirmedMode == requestedMode) requestedMode = null
+    }
+    LaunchedEffect(confirmedFanSpeed, requestedFanSpeed) {
+        if (requestedFanSpeed != null && confirmedFanSpeed == requestedFanSpeed) requestedFanSpeed = null
+    }
 
     val diningTemperature = snapshot.numericAt(KnxAddressBook.Indoor.TEMPERATURE_DINING, "9.001")
         ?: snapshot.numericAt(KnxAddressBook.Climate.CURRENT_TEMPERATURE, "9.001")
@@ -97,6 +127,7 @@ fun ClimateScreen(onBack: () -> Unit) {
             enabled = enabled,
             selectedMode = selectedMode,
             onEnabledChange = { requested ->
+                requestedPower = requested
                 commandExecutor.execute(
                     KnxCommand(if (requested) KnxCommandType.ON else KnxCommandType.OFF, KnxGroupAddress.parse(KnxAddressBook.Climate.POWER_COMMAND), "1.001")
                 ) { }
@@ -105,15 +136,17 @@ fun ClimateScreen(onBack: () -> Unit) {
         Spacer(Modifier.height(12.dp))
 
         TemperatureControl(
-            targetTemperature = climate.targetTemperature,
-            enabled = enabled && climate.targetTemperature != null,
+            targetTemperature = targetTemperature,
+            enabled = true,
             mode = selectedMode,
             onDecrease = {
-                val value = ((climate.targetTemperature ?: 21f) - 0.5f).coerceIn(16f, 34f)
+                val value = (targetTemperature - 0.5f).coerceIn(16f, 34f)
+                requestedTemperature = value
                 commandExecutor.execute(KnxCommand(KnxCommandType.SET_VALUE, KnxGroupAddress.parse(KnxAddressBook.Climate.TARGET_TEMPERATURE_COMMAND), "9.001", true, value.toString())) { }
             },
             onIncrease = {
-                val value = ((climate.targetTemperature ?: 21f) + 0.5f).coerceIn(16f, 34f)
+                val value = (targetTemperature + 0.5f).coerceIn(16f, 34f)
+                requestedTemperature = value
                 commandExecutor.execute(KnxCommand(KnxCommandType.SET_VALUE, KnxGroupAddress.parse(KnxAddressBook.Climate.TARGET_TEMPERATURE_COMMAND), "9.001", true, value.toString())) { }
             }
         )
@@ -123,6 +156,7 @@ fun ClimateScreen(onBack: () -> Unit) {
             selectedMode = selectedMode,
             enabled = true,
             onModeSelected = { mode ->
+                requestedMode = mode
                 val code = when (mode) {
                     ClimateMode.AUTO -> 0
                     ClimateMode.HEAT -> 1
@@ -139,6 +173,7 @@ fun ClimateScreen(onBack: () -> Unit) {
             selectedSpeed = selectedFanSpeed,
             enabled = true,
             onSpeedSelected = { speed ->
+                requestedFanSpeed = speed
                 val percent = when (speed) {
                     FanSpeed.LOW -> 33
                     FanSpeed.MEDIUM -> 66
