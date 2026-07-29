@@ -3,6 +3,7 @@ package com.onehouse.app.feature.login
 import android.widget.Toast
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -38,6 +39,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.biometric.BiometricManager
 import androidx.biometric.BiometricPrompt
 import androidx.core.content.ContextCompat
@@ -48,6 +50,7 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import com.onehouse.app.R
 import com.onehouse.app.design.AzulClaro
 import com.onehouse.app.design.AzulOneHouse
 import com.onehouse.app.design.BordeTarjeta
@@ -135,18 +138,16 @@ fun LoginScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .verticalScroll(rememberScrollState())
-                .padding(horizontal = 22.dp, vertical = 24.dp)
+                .padding(horizontal = 22.dp, vertical = 12.dp)
                 .graphicsLayer {
                     alpha = contentAlpha
                     translationY = contentOffset
                 },
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Spacer(modifier = Modifier.height(6.dp))
-
             BrandMark()
 
-            Spacer(modifier = Modifier.height(24.dp))
+            Spacer(modifier = Modifier.height(12.dp))
 
             Text(
                 text = "Bienvenido de nuevo",
@@ -165,12 +166,12 @@ fun LoginScreen(
                 textAlign = TextAlign.Center
             )
 
-            Spacer(modifier = Modifier.height(22.dp))
+            Spacer(modifier = Modifier.height(14.dp))
 
             OneHouseCard(modifier = Modifier.fillMaxWidth()) {
                 Column(
-                    modifier = Modifier.padding(18.dp),
-                    verticalArrangement = Arrangement.spacedBy(13.dp)
+                    modifier = Modifier.padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
                     Text(
                         text = "Acceso seguro",
@@ -252,7 +253,7 @@ fun LoginScreen(
                 }
             }
 
-            Spacer(modifier = Modifier.height(18.dp))
+            Spacer(modifier = Modifier.height(12.dp))
 
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -274,7 +275,7 @@ fun LoginScreen(
                 )
             }
 
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(10.dp))
 
             OneHouseFingerprintRow(
                 title = "Iniciar sesión con huella",
@@ -353,13 +354,7 @@ fun LoginScreen(
                 }
             )
 
-            Spacer(modifier = Modifier.height(18.dp))
-
-            Text(
-                text = "OneHouse v1.5.0 · Entrega 1 Rev.2",
-                color = TextoDesactivado,
-                style = MaterialTheme.typography.labelSmall
-            )
+            Spacer(modifier = Modifier.height(10.dp))
         }
     }
 }
@@ -368,26 +363,25 @@ fun LoginScreen(
 private fun BrandMark() {
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
         Surface(
-            modifier = Modifier.size(78.dp),
+            modifier = Modifier.size(64.dp),
             shape = CircleShape,
             color = FondoTarjeta.copy(alpha = 0.88f),
             border = androidx.compose.foundation.BorderStroke(
                 width = 1.dp,
                 color = AzulClaro.copy(alpha = 0.42f)
             ),
-            shadowElevation = 12.dp
+            shadowElevation = 8.dp
         ) {
             Box(contentAlignment = Alignment.Center) {
-                Text(
-                    text = "⌂",
-                    color = AzulClaro,
-                    style = MaterialTheme.typography.displaySmall,
-                    fontWeight = FontWeight.Light
+                Image(
+                    painter = painterResource(R.drawable.onehouse_logo),
+                    contentDescription = "Logo OneHouse",
+                    modifier = Modifier.size(48.dp)
                 )
             }
         }
 
-        Spacer(modifier = Modifier.height(12.dp))
+        Spacer(modifier = Modifier.height(8.dp))
 
         Text(
             text = "OneHouse",

@@ -63,15 +63,15 @@ data class RoomItem(
 
 val oneHouseRooms = listOf(
     RoomItem("Climatización", "Temperatura y programación", "❄"),
-    RoomItem("Entrada", "Iluminación y acceso", "⌂", R.drawable.room_entrance),
-    RoomItem("Comedor", "Luces, persianas y ambiente", "◫", R.drawable.room_dining),
-    RoomItem("Cocina", "Electrodomésticos y seguridad", "◈", R.drawable.room_kitchen),
-    RoomItem("Suite", "Descanso y confort", "▣", R.drawable.room_suite),
-    RoomItem("Habitación 1", "Estudio y descanso", "▤", R.drawable.room_bedroom_1),
-    RoomItem("Baño", "Iluminación y seguridad", "◉", R.drawable.room_bathroom),
-    RoomItem("Pasillo", "Iluminación del pasillo", "↔", R.drawable.room_hallway),
-    RoomItem("Trastero", "Almacenamiento y luz", "▦", R.drawable.room_storage),
-    RoomItem("Terraza", "Exterior y climatología", "♧", R.drawable.room_terrace),
+    RoomItem("Entrada", "Iluminación y acceso", "🚪", R.drawable.room_entrance),
+    RoomItem("Comedor", "Luces, persianas y ambiente", "🍽", R.drawable.room_dining),
+    RoomItem("Cocina", "Electrodomésticos y seguridad", "⌂", R.drawable.room_kitchen),
+    RoomItem("Suite", "Descanso y confort", "🛏", R.drawable.room_suite),
+    RoomItem("Habitación 1", "Estudio y descanso", "▧", R.drawable.room_bedroom_1),
+    RoomItem("Baño", "Iluminación y seguridad", "♨", R.drawable.room_bathroom),
+    RoomItem("Pasillo", "Iluminación del pasillo", "⇆", R.drawable.room_hallway),
+    RoomItem("Trastero", "Almacenamiento y luz", "▤", R.drawable.room_storage),
+    RoomItem("Terraza", "Exterior y climatología", "✿", R.drawable.room_terrace),
     RoomItem("Mantenimiento", "Funciones generales del hogar", "⚙", R.drawable.room_storage)
 )
 

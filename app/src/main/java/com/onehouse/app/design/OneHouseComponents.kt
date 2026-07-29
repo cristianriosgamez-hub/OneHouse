@@ -364,15 +364,15 @@ fun OneHouseFingerprintRow(
 ) {
     OneHouseCard(modifier = modifier.fillMaxWidth(), onClick = onClick) {
         Row(
-            modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp),
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 11.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Image(
                 painter = painterResource(R.drawable.fingerprint_modern),
                 contentDescription = "Acceso con huella",
-                modifier = Modifier.size(72.dp)
+                modifier = Modifier.size(42.dp)
             )
-            Spacer(modifier = Modifier.width(14.dp))
+            Spacer(modifier = Modifier.width(12.dp))
             Column {
                 Text(text = title, color = TextoPrincipal, style = MaterialTheme.typography.titleMedium)
                 Spacer(modifier = Modifier.height(3.dp))

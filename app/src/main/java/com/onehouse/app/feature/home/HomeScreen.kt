@@ -26,6 +26,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.remember
@@ -65,17 +66,21 @@ import com.onehouse.app.feature.scenes.SceneExecutionEngine
 import com.onehouse.app.feature.scenes.SharedPreferencesSceneRepository
 import com.onehouse.app.feature.scenes.SmartScene
 import com.onehouse.app.data.knx.KnxConnectionStatus
+import com.onehouse.app.data.knx.KnxSettingsRepository
 import com.onehouse.app.data.knx.SettingsDataStore
 import com.onehouse.app.feature.weather.WeatherUiState
 import com.onehouse.app.feature.weather.rememberWeatherState
 import com.onehouse.app.feature.home.state.HomeDashboardUiState
 import com.onehouse.app.feature.home.state.HomeStateMapper
 import com.onehouse.app.feature.security.HomeAssistantSecuritySnapshotStore
+import com.onehouse.app.feature.settings.SettingsViewModel
 import com.onehouse.app.feature.security.SecuritySummary
 import com.onehouse.app.knx.KnxHomeSnapshot
+import com.onehouse.app.knx.NetworkConnectionDetector
 import com.onehouse.app.knx.KnxHomeStateRepository
 import java.text.DateFormat
 import java.util.Date
+import java.util.Calendar
 import java.util.Locale
 
 @Composable
@@ -89,12 +94,16 @@ fun HomeScreen(
     val homeRepository = remember { KnxHomeStateRepository(context) }
     val homeState by homeRepository.stateFlow.collectAsState(initial = homeRepository.snapshot())
     val dashboardState = remember(homeState) { HomeStateMapper.dashboard(homeState) }
-    val settingsDataStore = remember(context) { SettingsDataStore(context) }
+    val settingsDataStore = remember(context) { SettingsDataStore(context.applicationContext) }
+    val connectionViewModel = remember(context) {
+        SettingsViewModel(
+            repository = KnxSettingsRepository(settingsDataStore),
+            networkDetector = NetworkConnectionDetector(context.applicationContext)
+        )
+    }
     val securitySnapshotStore = remember(context) { HomeAssistantSecuritySnapshotStore(context) }
     val lifecycleOwner = LocalLifecycleOwner.current
-    var connectionStatus by remember {
-        mutableStateOf(settingsDataStore.read().lastConnectionStatus)
-    }
+    var connectionStatus by remember { mutableStateOf(KnxConnectionStatus.TESTING) }
     var securitySummary by remember { mutableStateOf(securitySnapshotStore.readSummary()) }
     val sceneRepository = remember(context) { SharedPreferencesSceneRepository(context) }
     val sceneEngine = remember(context) { SceneExecutionEngine(context) }
@@ -103,16 +112,32 @@ fun HomeScreen(
     var sceneMessage by remember { mutableStateOf<String?>(null) }
     var executingSceneId by remember { mutableStateOf<Long?>(null) }
 
+    DisposableEffect(connectionViewModel) {
+        val observation = connectionViewModel.observe {
+            connectionStatus = connectionViewModel.connectionStatus
+        }
+        onDispose {
+            observation.close()
+            connectionViewModel.close()
+        }
+    }
+
+    LaunchedEffect(connectionViewModel) {
+        connectionStatus = KnxConnectionStatus.TESTING
+        connectionViewModel.testConnection()
+    }
+
     DisposableEffect(sceneEngine) {
         onDispose { sceneEngine.close() }
     }
 
-    DisposableEffect(lifecycleOwner, settingsDataStore, sceneRepository) {
+    DisposableEffect(lifecycleOwner, connectionViewModel, sceneRepository) {
         val observer = LifecycleEventObserver { _, event ->
             if (event == Lifecycle.Event.ON_RESUME) {
-                connectionStatus = settingsDataStore.read().lastConnectionStatus
                 securitySummary = securitySnapshotStore.readSummary()
                 favoriteScenes = sceneRepository.load().scenes.filter { it.favorite }.take(4)
+                connectionStatus = KnxConnectionStatus.TESTING
+                connectionViewModel.testConnection()
             }
         }
         lifecycleOwner.lifecycle.addObserver(observer)
@@ -147,7 +172,7 @@ fun HomeScreen(
         ) {
             OneHouseHeader(
                 title = "OneHouse",
-                subtitle = "Buenos días · Tu hogar está listo",
+                subtitle = "${homeGreeting()} · Tu hogar está listo",
                 badgeText = null
             )
 
@@ -157,57 +182,59 @@ fun HomeScreen(
             Spacer(modifier = Modifier.height(16.dp))
             QuickStatusGrid(exteriorWeather, dashboardState, securitySummary, onSecuritySelected)
 
-            Spacer(modifier = Modifier.height(26.dp))
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                OneHouseSectionTitle(title = "Estancias favoritas", modifier = Modifier.weight(1f))
-                Text(
-                    text = "${favoriteRooms.size} guardadas",
-                    color = TextoDesactivado,
-                    style = MaterialTheme.typography.labelMedium
-                )
-            }
-            Spacer(modifier = Modifier.height(12.dp))
-
-            FavoriteRooms(
-                favoriteRooms = favoriteRooms,
-                onFavoriteSelected = onFavoriteSelected
-            )
-
-            Spacer(modifier = Modifier.height(26.dp))
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                OneHouseSectionTitle(title = "Escenas favoritas", modifier = Modifier.weight(1f))
-                Text(
-                    text = "${favoriteScenes.size}/4",
-                    color = TextoDesactivado,
-                    style = MaterialTheme.typography.labelMedium
-                )
-            }
-            Spacer(modifier = Modifier.height(12.dp))
-
-            FavoriteScenes(
-                scenes = favoriteScenes,
-                executingSceneId = executingSceneId,
-                onExecute = { scene ->
-                    if (scene.requireConfirmation) {
-                        pendingScene = scene
-                    } else {
-                        executeHomeScene(
-                            scene = scene,
-                            repository = sceneRepository,
-                            engine = sceneEngine,
-                            onExecuting = { executingSceneId = it },
-                            onScenesChanged = { favoriteScenes = it },
-                            onMessage = { sceneMessage = it }
-                        )
-                    }
+            if (favoriteRooms.isNotEmpty()) {
+                Spacer(modifier = Modifier.height(26.dp))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    OneHouseSectionTitle(title = "Estancias favoritas", modifier = Modifier.weight(1f))
+                    Text(
+                        text = "${favoriteRooms.size} guardadas",
+                        color = TextoDesactivado,
+                        style = MaterialTheme.typography.labelMedium
+                    )
                 }
-            )
+                Spacer(modifier = Modifier.height(12.dp))
+                FavoriteRooms(
+                    favoriteRooms = favoriteRooms,
+                    onFavoriteSelected = onFavoriteSelected
+                )
+            }
+
+            if (favoriteScenes.isNotEmpty()) {
+                Spacer(modifier = Modifier.height(26.dp))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    OneHouseSectionTitle(title = "Escenas favoritas", modifier = Modifier.weight(1f))
+                    Text(
+                        text = "${favoriteScenes.size}/4",
+                        color = TextoDesactivado,
+                        style = MaterialTheme.typography.labelMedium
+                    )
+                }
+                Spacer(modifier = Modifier.height(12.dp))
+                FavoriteScenes(
+                    scenes = favoriteScenes,
+                    executingSceneId = executingSceneId,
+                    onExecute = { scene ->
+                        if (scene.requireConfirmation) {
+                            pendingScene = scene
+                        } else {
+                            executeHomeScene(
+                                scene = scene,
+                                repository = sceneRepository,
+                                engine = sceneEngine,
+                                onExecuting = { executingSceneId = it },
+                                onScenesChanged = { favoriteScenes = it },
+                                onMessage = { sceneMessage = it }
+                            )
+                        }
+                    }
+                )
+            }
 
             sceneMessage?.let {
                 Spacer(modifier = Modifier.height(12.dp))
@@ -296,7 +323,7 @@ private fun ClimateHeroCard(homeState: HomeDashboardUiState) {
 
                 Surface(color = FondoChip, shape = RoundedCornerShape(50)) {
                     Text(
-                        text = "❄  ${homeState.climate.mode ?: "Sin datos"}",
+                        text = "${climateModeSymbol(homeState.climate.mode)}  ${climateModeLabel(homeState.climate.mode)}",
                         modifier = Modifier.padding(horizontal = 14.dp, vertical = 9.dp),
                         color = AzulClaro,
                         style = MaterialTheme.typography.labelLarge,
@@ -328,8 +355,8 @@ private fun ClimateHeroCard(homeState: HomeDashboardUiState) {
                     modifier = Modifier.weight(1f)
                 )
                 OneHouseStatusItem(
-                    title = "Ventilador",
-                    value = homeState.climate.fanSpeed ?: "Sin datos",
+                    title = "Modo",
+                    value = climateModeLabel(homeState.climate.mode),
                     valueColor = AzulClaro,
                     modifier = Modifier.weight(1f)
                 )
@@ -539,6 +566,34 @@ private fun executeHomeScene(
             }
         )
     }
+}
+
+private fun homeGreeting(): String = when (Calendar.getInstance().get(Calendar.HOUR_OF_DAY)) {
+    in 6..11 -> "Buenos días"
+    in 12..19 -> "Buenas tardes"
+    else -> "Buenas noches"
+}
+
+private fun climateModeLabel(mode: String?): String {
+    val normalized = mode?.trim()?.lowercase(Locale.ROOT).orEmpty()
+    return when {
+        normalized.isBlank() -> "Sin datos"
+        normalized in setOf("1", "frio", "frío", "cold", "cool") -> "Frío"
+        normalized in setOf("2", "calor", "heat", "heating") -> "Calor"
+        normalized in setOf("3", "ventilador", "ventilación", "ventilacion", "vent.", "fan", "fan only") -> "Ventilador"
+        normalized in setOf("4", "humidificador", "dry", "deshumidificación", "deshumidificacion") -> "Humidificador"
+        normalized in setOf("5", "auto", "automatico", "automático") -> "Auto"
+        else -> mode.orEmpty()
+    }
+}
+
+private fun climateModeSymbol(mode: String?): String = when (climateModeLabel(mode)) {
+    "Frío" -> "❄"
+    "Calor" -> "☀"
+    "Ventilador" -> "✣"
+    "Humidificador" -> "◉"
+    "Auto" -> "A"
+    else -> "◌"
 }
 
 @Composable

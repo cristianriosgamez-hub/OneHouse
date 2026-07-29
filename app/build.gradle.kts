@@ -16,8 +16,8 @@ android {
         applicationId = "com.onehouse.app"
         minSdk = 29
         targetSdk = 36
-        versionCode = 68
-        versionName = "1.9.5 Release Candidate"
+        versionCode = 69
+        versionName = "1.10.1 Refinamiento Inicio y Login"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
