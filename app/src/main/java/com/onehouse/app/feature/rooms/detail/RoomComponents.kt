@@ -21,6 +21,22 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.AcUnit
+import androidx.compose.material.icons.rounded.Bathtub
+import androidx.compose.material.icons.rounded.Bed
+import androidx.compose.material.icons.rounded.Blinds
+import androidx.compose.material.icons.rounded.Dining
+import androidx.compose.material.icons.rounded.DoorFront
+import androidx.compose.material.icons.rounded.Inventory2
+import androidx.compose.material.icons.rounded.Kitchen
+import androidx.compose.material.icons.rounded.Lightbulb
+import androidx.compose.material.icons.rounded.LocalFireDepartment
+import androidx.compose.material.icons.rounded.MeetingRoom
+import androidx.compose.material.icons.rounded.Thermostat
+import androidx.compose.material.icons.rounded.WaterDrop
+import androidx.compose.material.icons.rounded.WbSunny
+import androidx.compose.material3.Icon
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
@@ -32,6 +48,7 @@ import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
@@ -148,7 +165,7 @@ internal fun RoomHeroCard(
                     modifier = Modifier.fillMaxSize(),
                     verticalArrangement = Arrangement.SpaceBetween
                 ) {
-                    RoomIconBox(symbol = roomSymbol(type), accent = RoomBlue, size = 62)
+                    RoomIconBox(icon = roomIcon(type), accent = RoomBlue, size = 62)
                     Column {
                         Text(title, color = TextoPrincipal, fontSize = 23.sp, fontWeight = FontWeight.SemiBold)
                         Text(subtitle, color = TextoSecundario, fontSize = 13.sp)
@@ -179,7 +196,7 @@ internal fun RoomLightCard(
     )
     RoomPremiumCard {
         Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-            RoomIconBox(symbol = symbol, accent = accent)
+            RoomIconBox(icon = roomLightIcon(title), accent = accent)
             Spacer(Modifier.size(14.dp))
             Column(modifier = Modifier.weight(1f)) {
                 Text(title, color = TextoPrincipal, fontSize = 17.sp, fontWeight = FontWeight.SemiBold)
@@ -208,7 +225,7 @@ internal fun RoomLightCard(
 internal fun RoomTemperatureCard(temperature: Float) {
     RoomPremiumCard {
         Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-            RoomIconBox(symbol = "♨", accent = RoomBlue)
+            RoomIconBox(icon = Icons.Rounded.Thermostat, accent = RoomBlue)
             Spacer(Modifier.size(14.dp))
             Column(modifier = Modifier.weight(1f)) {
                 Text("Temperatura interior", color = TextoPrincipal, fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
@@ -235,7 +252,7 @@ internal fun RoomBlindCard(
 ) {
     RoomPremiumCard {
         Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-            RoomIconBox(symbol = "▤", accent = RoomBlue)
+            RoomIconBox(icon = Icons.Rounded.Blinds, accent = RoomBlue)
             Spacer(Modifier.size(14.dp))
             Column(modifier = Modifier.weight(1f)) {
                 Text("Persiana", color = TextoPrincipal, fontSize = 17.sp, fontWeight = FontWeight.SemiBold)
@@ -320,7 +337,7 @@ internal fun RoomFloodSensorCard(floodDetected: Boolean?) {
     RoomPremiumCard {
         Column {
             Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                RoomIconBox(symbol = "◉", accent = accent)
+                RoomIconBox(icon = Icons.Rounded.WaterDrop, accent = accent)
                 Spacer(Modifier.size(14.dp))
                 Column(modifier = Modifier.weight(1f)) {
                     Text("Sensor de inundación", color = TextoPrincipal, fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
@@ -369,7 +386,7 @@ internal fun RoomFireSensorCard(fireDetected: Boolean?) {
     }
     RoomPremiumCard {
         Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-            RoomIconBox(symbol = "♨", accent = accent)
+            RoomIconBox(icon = Icons.Rounded.LocalFireDepartment, accent = accent)
             Spacer(Modifier.size(14.dp))
             Column(modifier = Modifier.weight(1f)) {
                 Text("Sensor de incendio", color = TextoPrincipal, fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
@@ -478,6 +495,26 @@ private fun RoomPremiumCard(content: @Composable () -> Unit) {
 }
 
 @Composable
+private fun RoomIconBox(icon: ImageVector, accent: Color, size: Int = 48) {
+    Box(
+        modifier = Modifier
+            .size(size.dp)
+            .background(
+                accent.copy(alpha = 0.13f),
+                RoundedCornerShape(if (size > 50) 20.dp else 15.dp)
+            ),
+        contentAlignment = Alignment.Center
+    ) {
+        Icon(
+            imageVector = icon,
+            contentDescription = null,
+            tint = accent,
+            modifier = Modifier.size(if (size > 50) 34.dp else 28.dp)
+        )
+    }
+}
+
+@Composable
 private fun RoomIconBox(symbol: String, accent: Color, size: Int = 48) {
     Box(
         modifier = Modifier
@@ -498,15 +535,32 @@ private fun RoomIconBox(symbol: String, accent: Color, size: Int = 48) {
     }
 }
 
-private fun roomSymbol(type: RoomType): String = when (type) {
-    RoomType.ENTRANCE -> "⌂"
-    RoomType.HALLWAY -> "↔"
-    RoomType.STORAGE -> "▦"
-    RoomType.BATHROOM -> "◉"
-    RoomType.KITCHEN -> "◈"
-    RoomType.BEDROOM_1 -> "▤"
-    RoomType.DINING_ROOM -> "◫"
-    RoomType.SUITE -> "▣"
+private fun roomIcon(type: RoomType): ImageVector = when (type) {
+    RoomType.ENTRANCE -> Icons.Rounded.DoorFront
+    RoomType.HALLWAY -> Icons.Rounded.MeetingRoom
+    RoomType.STORAGE -> Icons.Rounded.Inventory2
+    RoomType.BATHROOM -> Icons.Rounded.Bathtub
+    RoomType.KITCHEN -> Icons.Rounded.Kitchen
+    RoomType.BEDROOM_1 -> Icons.Rounded.Bed
+    RoomType.DINING_ROOM -> Icons.Rounded.Dining
+    RoomType.SUITE -> Icons.Rounded.Bed
+}
+
+private fun roomLightIcon(title: String): ImageVector {
+    val normalized = title
+        .lowercase()
+        .replace("á", "a")
+        .replace("é", "e")
+        .replace("í", "i")
+        .replace("ó", "o")
+        .replace("ú", "u")
+
+    return when {
+        normalized.contains("mesita") || normalized.contains("cabecero") -> Icons.Rounded.Bed
+        normalized.contains("fluorescente") -> Icons.Rounded.WbSunny
+        normalized.contains("lampara") -> Icons.Rounded.Lightbulb
+        else -> Icons.Rounded.Lightbulb
+    }
 }
 
 @Composable
@@ -520,7 +574,7 @@ internal fun RoomClimateCard(
     RoomPremiumCard {
         Column {
             Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                RoomIconBox(symbol = "❄", accent = RoomBlue)
+                RoomIconBox(icon = Icons.Rounded.AcUnit, accent = RoomBlue)
                 Spacer(Modifier.size(14.dp))
                 Column(modifier = Modifier.weight(1f)) {
                     Text("Climatización", color = TextoPrincipal, fontSize = 17.sp, fontWeight = FontWeight.SemiBold)
