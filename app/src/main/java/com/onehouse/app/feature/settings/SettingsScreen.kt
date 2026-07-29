@@ -47,6 +47,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -372,15 +373,20 @@ private fun SettingsCardHeader(
 private fun StatusRow(label: String, value: String, valueColor: Color = TextoSecundario) {
     Row(
         modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+        verticalAlignment = Alignment.Top
     ) {
-        Text(label, color = TextoSecundario, modifier = Modifier.weight(1f))
         Text(
-            value,
+            text = label,
+            color = TextoSecundario,
+            modifier = Modifier.weight(0.9f)
+        )
+        Text(
+            text = value,
             color = valueColor,
             fontWeight = FontWeight.Medium,
-            modifier = Modifier.padding(start = 12.dp)
+            textAlign = TextAlign.End,
+            modifier = Modifier.weight(1.35f)
         )
     }
 }
