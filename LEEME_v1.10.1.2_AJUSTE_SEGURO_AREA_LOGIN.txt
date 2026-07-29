@@ -1,0 +1,16 @@
+OneHouse v1.10.1.2 - Ajuste seguro del área superior del Login
+
+Archivos incluidos:
+- app/src/main/java/com/onehouse/app/feature/login/LoginScreen.kt
+
+Cambio aplicado:
+- Se ha añadido statusBarsPadding() al contenedor principal del Login.
+- Se añade además un margen visual extra de 18 dp debajo de la barra de estado.
+- Esto evita que el logo quede pegado o situado bajo la barra superior en dispositivos con pantalla edge-to-edge.
+
+No se modifica:
+- Autenticación por usuario y contraseña.
+- Autenticación biométrica.
+- Credenciales.
+- Navegación.
+- KNX.
