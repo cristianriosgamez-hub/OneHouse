@@ -806,7 +806,7 @@ internal fun AmbientTemperatures(
 @Composable
 private fun CompactAmbientValue(
     room: String,
-    iconType: ClimateIconType,
+    symbol: String,
     accent: Color,
     temperature: Float?,
     modifier: Modifier = Modifier
