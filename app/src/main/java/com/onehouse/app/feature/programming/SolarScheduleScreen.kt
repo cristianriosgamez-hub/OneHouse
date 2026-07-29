@@ -6,6 +6,8 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -48,8 +50,9 @@ fun SolarScheduleScreen(onBack: () -> Unit) {
         verticalArrangement = Arrangement.spacedBy(14.dp)
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Text("‹", color = TextoPrincipal, fontSize = 40.sp,
-                modifier = Modifier.clickable(onClick = onBack).padding(end = 14.dp))
+            IconButton(onClick = onBack, modifier = Modifier.padding(end = 6.dp)) {
+                Icon(Icons.Rounded.ArrowBack, contentDescription = "Volver", tint = TextoPrincipal)
+            }
             Column(Modifier.weight(1f)) {
                 Text("Amanecer y atardecer", color = TextoPrincipal, fontSize = 25.sp, fontWeight = FontWeight.Bold)
                 Text("Acciones KNX según la luz solar", color = TextoSecundario, fontSize = 13.sp)
@@ -58,6 +61,8 @@ fun SolarScheduleScreen(onBack: () -> Unit) {
 
         OneHouseCard {
             Row(Modifier.fillMaxWidth().padding(18.dp), verticalAlignment = Alignment.CenterVertically) {
+                Icon(Icons.Rounded.WbTwilight, contentDescription = null, tint = AzulClaro, modifier = Modifier.size(28.dp))
+                Spacer(Modifier.width(12.dp))
                 Column(Modifier.weight(1f)) {
                     Text("Programación solar", color = TextoPrincipal, fontWeight = FontWeight.SemiBold)
                     Text(if (state.globallyEnabled) "Activa" else "Pausada", color = TextoSecundario)
@@ -67,23 +72,35 @@ fun SolarScheduleScreen(onBack: () -> Unit) {
         }
 
         OneHouseCard(onClick = { showLocation = true }) {
-            Column(Modifier.fillMaxWidth().padding(18.dp)) {
+            Row(Modifier.fillMaxWidth().padding(18.dp), verticalAlignment = Alignment.CenterVertically) {
+                Icon(Icons.Rounded.LocationOn, contentDescription = null, tint = AzulClaro, modifier = Modifier.size(27.dp))
+                Spacer(Modifier.width(12.dp))
+                Column(Modifier.weight(1f)) {
                 Text("Ubicación", color = TextoSecundario, fontSize = 12.sp)
                 Text("%.4f, %.4f".format(Locale.US, state.latitude, state.longitude), color = TextoPrincipal, fontWeight = FontWeight.SemiBold)
                 Text("Pulsa para modificar las coordenadas", color = TextoDesactivado, fontSize = 11.sp)
+                }
+                Icon(Icons.Rounded.ChevronRight, contentDescription = null, tint = TextoSecundario)
             }
         }
 
         OneHouseCard {
-            Column(Modifier.fillMaxWidth().padding(18.dp), verticalArrangement = Arrangement.spacedBy(5.dp)) {
+            Row(Modifier.fillMaxWidth().padding(18.dp), verticalAlignment = Alignment.CenterVertically) {
+                Icon(Icons.Rounded.WbSunny, contentDescription = null, tint = AzulClaro, modifier = Modifier.size(28.dp))
+                Spacer(Modifier.width(12.dp))
+                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(5.dp)) {
                 Text("Hoy", color = TextoSecundario, fontSize = 12.sp)
                 Text("Amanecer  ${today.sunrise?.format(DateTimeFormatter.ofPattern("HH:mm")) ?: "---"}", color = TextoPrincipal)
                 Text("Atardecer  ${today.sunset?.format(DateTimeFormatter.ofPattern("HH:mm")) ?: "---"}", color = TextoPrincipal)
+                }
             }
         }
 
         OneHouseCard {
-            Column(Modifier.fillMaxWidth().padding(18.dp)) {
+            Row(Modifier.fillMaxWidth().padding(18.dp), verticalAlignment = Alignment.CenterVertically) {
+                Icon(Icons.Rounded.Schedule, contentDescription = null, tint = AzulClaro, modifier = Modifier.size(27.dp))
+                Spacer(Modifier.width(12.dp))
+                Column(Modifier.weight(1f)) {
                 Text("Próxima ejecución", color = TextoSecundario, fontSize = 12.sp)
                 Text(
                     next?.let { "${it.first.name} · ${it.second.format(DateTimeFormatter.ofPattern("dd/MM HH:mm"))}" }
@@ -91,14 +108,26 @@ fun SolarScheduleScreen(onBack: () -> Unit) {
                     color = TextoPrincipal,
                     fontWeight = FontWeight.SemiBold
                 )
+                }
             }
         }
 
-        Button(onClick = { showAdd = true }, modifier = Modifier.fillMaxWidth()) { Text("Añadir acción solar") }
+        Button(onClick = { showAdd = true }, modifier = Modifier.fillMaxWidth()) {
+            Icon(Icons.Rounded.AddAlarm, contentDescription = null)
+            Spacer(Modifier.width(8.dp))
+            Text("Añadir acción solar")
+        }
 
         state.events.forEach { event ->
             OneHouseCard {
                 Row(Modifier.fillMaxWidth().padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        imageVector = if (event.trigger == SolarTrigger.SUNRISE) Icons.Rounded.LightMode else Icons.Rounded.DarkMode,
+                        contentDescription = null,
+                        tint = AzulClaro,
+                        modifier = Modifier.size(28.dp)
+                    )
+                    Spacer(Modifier.width(12.dp))
                     Column(Modifier.weight(1f)) {
                         Text(event.name, color = TextoPrincipal, fontWeight = FontWeight.SemiBold)
                         Text("${event.trigger.displayName}${formatOffset(event.offsetMinutes)} · ${event.actionType.displayName}", color = TextoSecundario, fontSize = 12.sp)
@@ -107,8 +136,9 @@ fun SolarScheduleScreen(onBack: () -> Unit) {
                     Switch(event.enabled, { enabled ->
                         persist(state.copy(events = state.events.map { if (it.id == event.id) it.copy(enabled = enabled) else it }))
                     })
-                    Text("×", color = TextoSecundario, fontSize = 26.sp,
-                        modifier = Modifier.clickable { persist(state.copy(events = state.events.filterNot { it.id == event.id })) }.padding(start = 10.dp))
+                    IconButton(onClick = { persist(state.copy(events = state.events.filterNot { it.id == event.id })) }) {
+                        Icon(Icons.Rounded.DeleteOutline, contentDescription = "Eliminar acción solar", tint = TextoSecundario)
+                    }
                 }
             }
         }
@@ -208,7 +238,10 @@ private fun SolarChoiceRow(label: String, value: String, onClick: () -> Unit) {
         horizontalArrangement = Arrangement.SpaceBetween
     ) {
         Text(label, color = TextoSecundario)
-        Text("$value  ›", color = TextoPrincipal, fontWeight = FontWeight.Medium)
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(value, color = TextoPrincipal, fontWeight = FontWeight.Medium)
+            Icon(Icons.Rounded.ChevronRight, contentDescription = null, tint = TextoSecundario)
+        }
     }
 }
 

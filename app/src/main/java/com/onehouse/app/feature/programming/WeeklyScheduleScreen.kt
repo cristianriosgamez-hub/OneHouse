@@ -6,6 +6,8 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -42,8 +44,9 @@ fun WeeklyScheduleScreen(onBack: () -> Unit) {
         verticalArrangement = Arrangement.spacedBy(14.dp)
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Text("‹", color = TextoPrincipal, fontSize = 40.sp,
-                modifier = Modifier.clickable(onClick = onBack).padding(end = 14.dp))
+            IconButton(onClick = onBack, modifier = Modifier.padding(end = 6.dp)) {
+                Icon(Icons.Rounded.ArrowBack, contentDescription = "Volver", tint = TextoPrincipal)
+            }
             Column(Modifier.weight(1f)) {
                 Text("Horarios semanales", color = TextoPrincipal, fontSize = 25.sp, fontWeight = FontWeight.Bold)
                 Text("Luces, climatización y persianas", color = TextoSecundario, fontSize = 13.sp)
@@ -52,6 +55,8 @@ fun WeeklyScheduleScreen(onBack: () -> Unit) {
 
         OneHouseCard {
             Row(Modifier.fillMaxWidth().padding(18.dp), verticalAlignment = Alignment.CenterVertically) {
+                Icon(Icons.Rounded.EventRepeat, contentDescription = null, tint = AzulClaro, modifier = Modifier.size(28.dp))
+                Spacer(Modifier.width(12.dp))
                 Column(Modifier.weight(1f)) {
                     Text("Programación automática", color = TextoPrincipal, fontWeight = FontWeight.SemiBold)
                     Text(if (state.globallyEnabled) "Activa" else "Pausada", color = TextoSecundario)
@@ -62,7 +67,10 @@ fun WeeklyScheduleScreen(onBack: () -> Unit) {
 
         val next = WeeklyScheduleEngine.nextExecution(state)
         OneHouseCard {
-            Column(Modifier.fillMaxWidth().padding(18.dp)) {
+            Row(Modifier.fillMaxWidth().padding(18.dp), verticalAlignment = Alignment.CenterVertically) {
+                Icon(Icons.Rounded.Schedule, contentDescription = null, tint = AzulClaro, modifier = Modifier.size(26.dp))
+                Spacer(Modifier.width(12.dp))
+                Column(Modifier.weight(1f)) {
                 Text("Próxima ejecución", color = TextoSecundario, fontSize = 12.sp)
                 Text(
                     next?.let { "${it.event.name} · ${it.event.dayOfWeek.spanishName()} ${it.event.formattedTime()}" }
@@ -70,10 +78,13 @@ fun WeeklyScheduleScreen(onBack: () -> Unit) {
                     color = TextoPrincipal,
                     fontWeight = FontWeight.SemiBold
                 )
+                }
             }
         }
 
         Button(onClick = { showAdd = true }, modifier = Modifier.fillMaxWidth()) {
+            Icon(Icons.Rounded.AddAlarm, contentDescription = null)
+            Spacer(Modifier.width(8.dp))
             Text("Añadir horario")
         }
 
@@ -84,6 +95,17 @@ fun WeeklyScheduleScreen(onBack: () -> Unit) {
                 dayEvents.forEach { event ->
                     OneHouseCard {
                         Row(Modifier.fillMaxWidth().padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
+                            Icon(
+                                imageVector = when (event.targetType) {
+                                    WeeklyTargetType.LIGHT -> Icons.Rounded.Lightbulb
+                                    WeeklyTargetType.CLIMATE -> Icons.Rounded.AcUnit
+                                    WeeklyTargetType.BLIND -> Icons.Rounded.Blinds
+                                },
+                                contentDescription = null,
+                                tint = AzulClaro,
+                                modifier = Modifier.size(28.dp)
+                            )
+                            Spacer(Modifier.width(12.dp))
                             Column(Modifier.weight(1f)) {
                                 Text("${event.formattedTime()} · ${event.name}", color = TextoPrincipal, fontWeight = FontWeight.SemiBold)
                                 Text("${event.targetType.displayName} · ${event.actionType.displayName}", color = TextoSecundario, fontSize = 12.sp)
@@ -95,8 +117,9 @@ fun WeeklyScheduleScreen(onBack: () -> Unit) {
                                     persist(state.copy(events = state.events.map { if (it.id == event.id) it.copy(enabled = enabled) else it }))
                                 }
                             )
-                            Text("×", color = TextoSecundario, fontSize = 26.sp,
-                                modifier = Modifier.clickable { persist(state.copy(events = state.events.filterNot { it.id == event.id })) }.padding(start = 10.dp))
+                            IconButton(onClick = { persist(state.copy(events = state.events.filterNot { it.id == event.id })) }) {
+                                Icon(Icons.Rounded.DeleteOutline, contentDescription = "Eliminar horario", tint = TextoSecundario)
+                            }
                         }
                     }
                 }
@@ -188,7 +211,10 @@ private fun ChoiceRow(label: String, value: String, onClick: () -> Unit) {
         horizontalArrangement = Arrangement.SpaceBetween
     ) {
         Text(label, color = TextoSecundario)
-        Text("$value  ›", color = TextoPrincipal, fontWeight = FontWeight.Medium)
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(value, color = TextoPrincipal, fontWeight = FontWeight.Medium)
+            Icon(Icons.Rounded.ChevronRight, contentDescription = null, tint = TextoSecundario)
+        }
     }
 }
 

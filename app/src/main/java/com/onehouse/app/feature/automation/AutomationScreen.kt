@@ -6,6 +6,8 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -46,8 +48,9 @@ fun AutomationScreen(onBack: () -> Unit) {
         verticalArrangement = Arrangement.spacedBy(14.dp)
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Text("‹", color = TextoPrincipal, fontSize = 40.sp,
-                modifier = Modifier.clickable(onClick = onBack).padding(end = 14.dp))
+            IconButton(onClick = onBack, modifier = Modifier.padding(end = 6.dp)) {
+                Icon(Icons.Rounded.ArrowBack, contentDescription = "Volver", tint = TextoPrincipal)
+            }
             Column(Modifier.weight(1f)) {
                 Text("Automatizaciones", color = TextoPrincipal, fontSize = 25.sp, fontWeight = FontWeight.Bold)
                 Text("Condiciones KNX con acciones seguras DPT 1.x", color = TextoSecundario, fontSize = 13.sp)
@@ -56,6 +59,8 @@ fun AutomationScreen(onBack: () -> Unit) {
 
         OneHouseCard {
             Row(Modifier.fillMaxWidth().padding(18.dp), verticalAlignment = Alignment.CenterVertically) {
+                Icon(Icons.Rounded.AccountTree, contentDescription = null, tint = AzulClaro, modifier = Modifier.size(28.dp))
+                Spacer(Modifier.width(12.dp))
                 Column(Modifier.weight(1f)) {
                     Text("Motor condicional", color = TextoPrincipal, fontWeight = FontWeight.SemiBold)
                     Text(if (state.globallyEnabled) "Activo" else "Pausado", color = TextoSecundario)
@@ -71,6 +76,8 @@ fun AutomationScreen(onBack: () -> Unit) {
         )
 
         Button(onClick = { showAdd = true }, modifier = Modifier.fillMaxWidth()) {
+            Icon(Icons.Rounded.AddTask, contentDescription = null)
+            Spacer(Modifier.width(8.dp))
             Text("Añadir automatización")
         }
 
@@ -90,6 +97,8 @@ fun AutomationScreen(onBack: () -> Unit) {
             OneHouseCard {
                 Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(Icons.Rounded.Rule, contentDescription = null, tint = AzulClaro, modifier = Modifier.size(28.dp))
+                        Spacer(Modifier.width(12.dp))
                         Column(Modifier.weight(1f)) {
                             Text(rule.name, color = TextoPrincipal, fontWeight = FontWeight.SemiBold)
                             Text(
@@ -106,10 +115,11 @@ fun AutomationScreen(onBack: () -> Unit) {
                         Switch(rule.enabled, { enabled ->
                             persist(state.copy(rules = state.rules.map { if (it.id == rule.id) it.copy(enabled = enabled) else it }))
                         })
-                        Text("×", color = TextoSecundario, fontSize = 26.sp,
-                            modifier = Modifier.clickable {
-                                persist(state.copy(rules = state.rules.filterNot { it.id == rule.id }))
-                            }.padding(start = 10.dp))
+                        IconButton(onClick = {
+                            persist(state.copy(rules = state.rules.filterNot { it.id == rule.id }))
+                        }) {
+                            Icon(Icons.Rounded.DeleteOutline, contentDescription = "Eliminar automatización", tint = TextoSecundario)
+                        }
                     }
 
                     rule.lastExecutionMillis?.let {
@@ -154,7 +164,11 @@ fun AutomationScreen(onBack: () -> Unit) {
                             }
                         },
                         modifier = Modifier.fillMaxWidth()
-                    ) { Text("Evaluar ahora") }
+                    ) {
+                        Icon(Icons.Rounded.PlayArrow, contentDescription = null)
+                        Spacer(Modifier.width(8.dp))
+                        Text("Evaluar ahora")
+                    }
                 }
             }
         }
@@ -237,6 +251,9 @@ private fun AutomationChoiceRow(label: String, value: String, onClick: () -> Uni
         horizontalArrangement = Arrangement.SpaceBetween
     ) {
         Text(label, color = TextoSecundario)
-        Text("$value  ›", color = TextoPrincipal, fontWeight = FontWeight.Medium)
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(value, color = TextoPrincipal, fontWeight = FontWeight.Medium)
+            Icon(Icons.Rounded.ChevronRight, contentDescription = null, tint = TextoSecundario)
+        }
     }
 }

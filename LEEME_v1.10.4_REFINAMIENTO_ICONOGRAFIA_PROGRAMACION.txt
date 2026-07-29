@@ -1,0 +1,34 @@
+ONEHOUSE v1.10.4 - REFINAMIENTO DE ICONOGRAFIA DE PROGRAMACION
+
+Esta entrega contiene unicamente los archivos modificados.
+Copiar y sustituir respetando las rutas del proyecto.
+
+CAMBIOS VISUALES
+- Horarios semanales:
+  * Iconos Material Rounded para programacion, proxima ejecucion y nuevo horario.
+  * Icono especifico para luz, climatizacion y persiana en cada horario.
+  * Boton de eliminar sustituido por DeleteOutline.
+  * Flechas de seleccion sustituidas por ChevronRight.
+
+- Amanecer y atardecer:
+  * Iconos para programacion solar, ubicacion, datos solares y proxima ejecucion.
+  * Iconos diferenciados de amanecer y atardecer en las acciones.
+  * Boton de eliminar y selectores modernizados.
+
+- Automatizaciones:
+  * Iconos para motor condicional, reglas, alta y evaluacion.
+  * Boton de eliminar sustituido por DeleteOutline.
+  * Selectores modernizados con ChevronRight.
+
+NO MODIFICADO
+- Logica de horarios y automatizaciones.
+- Direcciones KNX y DPT.
+- Motores de ejecucion.
+- Repositorios ni persistencia.
+
+VERSION
+versionCode = 76
+versionName = "1.10.4 Refinamiento Iconografia Programacion"
+
+NOTA DE VALIDACION
+No se pudo ejecutar Gradle en este entorno porque el wrapper requiere descargar Gradle 9.5.0 y no hay acceso a Internet. Se comprobaron las rutas, el balance sintactico de llaves y parentesis y el contenido del ZIP.

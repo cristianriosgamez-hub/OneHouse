@@ -16,8 +16,8 @@ android {
         applicationId = "com.onehouse.app"
         minSdk = 29
         targetSdk = 36
-        versionCode = 75
-        versionName = "1.10.3.2 Refinamiento Iconografia Estancias"
+        versionCode = 76
+        versionName = "1.10.4 Refinamiento Iconografia Programacion"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
