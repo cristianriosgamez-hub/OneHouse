@@ -138,7 +138,8 @@ fun LoginScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .verticalScroll(rememberScrollState())
-                .padding(horizontal = 22.dp, vertical = 12.dp)
+                .padding(horizontal = 22.dp)
+                .padding(top = 28.dp, bottom = 12.dp)
                 .graphicsLayer {
                     alpha = contentAlpha
                     translationY = contentOffset

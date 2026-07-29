@@ -1,0 +1,9 @@
+OneHouse v1.10.1.1 - Ajuste margen superior del Login
+
+Archivos a sustituir:
+- app/src/main/java/com/onehouse/app/feature/login/LoginScreen.kt
+
+Cambio realizado:
+- Se aumenta únicamente el margen superior del contenido del login de 12 dp a 28 dp.
+- El margen inferior se mantiene en 12 dp.
+- No se modifica el funcionamiento del login, biometría, credenciales, KNX ni navegación.
