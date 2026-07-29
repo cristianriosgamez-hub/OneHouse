@@ -361,6 +361,35 @@ internal fun RoomFloodSensorCard(floodDetected: Boolean?) {
 }
 
 @Composable
+internal fun RoomFireSensorCard(fireDetected: Boolean?) {
+    val accent = when (fireDetected) {
+        true -> RoomRed
+        false -> RoomGreen
+        null -> TextoSecundario
+    }
+    RoomPremiumCard {
+        Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            RoomIconBox(symbol = "♨", accent = accent)
+            Spacer(Modifier.size(14.dp))
+            Column(modifier = Modifier.weight(1f)) {
+                Text("Sensor de incendio", color = TextoPrincipal, fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
+                Text("Estado real KNX", color = TextoSecundario, fontSize = 11.sp)
+            }
+            Text(
+                when (fireDetected) {
+                    true -> "⚠ Alarma"
+                    false -> "✓ Normal"
+                    null -> "--"
+                },
+                color = accent,
+                fontSize = 15.sp,
+                fontWeight = FontWeight.SemiBold
+            )
+        }
+    }
+}
+
+@Composable
 internal fun RoomPirCard(blocked: Boolean?, onBlockedChange: (Boolean) -> Unit) {
     val accent = when (blocked) {
         true -> RoomOrange

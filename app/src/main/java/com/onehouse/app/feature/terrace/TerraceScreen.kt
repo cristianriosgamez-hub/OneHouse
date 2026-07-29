@@ -56,6 +56,7 @@ import com.onehouse.app.knx.KnxCommandType
 import com.onehouse.app.knx.KnxHomeStateRepository
 
 private val TerraceGreen = Color(0xFF55C865)
+private val TerraceBlue = Color(0xFF168EFF)
 private val TerraceRed = Color(0xFFFF4D45)
 private val TerraceCard = Color(0xE60A1926)
 
@@ -310,7 +311,7 @@ private fun ExteriorLightCard(
                 enabled = available,
                 colors = SwitchDefaults.colors(
                     checkedThumbColor = Color.White,
-                    checkedTrackColor = TerraceGreen,
+                    checkedTrackColor = TerraceBlue,
                     uncheckedThumbColor = Color.White,
                     uncheckedTrackColor = Color(0xFF183041)
                 )

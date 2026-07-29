@@ -16,8 +16,8 @@ android {
         applicationId = "com.onehouse.app"
         minSdk = 29
         targetSdk = 36
-        versionCode = 72
-        versionName = "1.10.2.2 Controles Climatizacion Disponibles"
+        versionCode = 73
+        versionName = "1.10.3 Estancias Fase 1"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }

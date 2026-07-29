@@ -1,0 +1,12 @@
+OneHouse v1.10.3 - Estancias Fase 1
+
+Cambios incluidos:
+- Cocina: eliminada la tarjeta Luz vitrocerámica.
+- Habitación 1: eliminada la tarjeta Luz lámpara.
+- Pasillo: añadido Sensor de incendio usando únicamente un objeto KNX importado ya existente cuyo nombre contenga incendio, humo, fire o smoke. No se inventa ninguna dirección de grupo.
+- Terraza: el interruptor de luz utiliza el mismo azul visual del resto de estancias.
+- Se mantienen el resto de controles y toda la lógica KNX existente.
+
+Versión:
+- versionCode 73
+- versionName 1.10.3 Estancias Fase 1

@@ -34,6 +34,7 @@ data class RoomUiState(
     val humidityPercent: Float? = null,
     val pirBlocked: Boolean? = null,
     val floodDetected: Boolean? = null,
+    val fireDetected: Boolean? = null,
     val hasRealState: Boolean
 ) {
     val anyLightOn: Boolean get() = lights.any { it.isOn }
@@ -56,8 +57,21 @@ object HomeStateMapper {
         val roomName = roomName(roomType)
         val devices = snapshot.devicesForRoom(roomName)
 
+        val fireDevice = if (roomType == RoomType.HALLWAY) {
+            devices.firstOrNull { device ->
+                device.name.contains("incendio", ignoreCase = true) ||
+                    device.name.contains("humo", ignoreCase = true) ||
+                    device.name.contains("fire", ignoreCase = true) ||
+                    device.name.contains("smoke", ignoreCase = true)
+            }
+        } else {
+            null
+        }
+
         val lights = devices
-            .filter { it.controlKind == ControlKind.BOOLEAN_SWITCH }
+            .filter { device ->
+                device.controlKind == ControlKind.BOOLEAN_SWITCH && device.id != fireDevice?.id
+            }
             .map { device ->
                 RoomLightUiState(
                     device = device,
@@ -125,6 +139,7 @@ object HomeStateMapper {
             RoomType.BATHROOM -> snapshot.booleanAt(KnxAddressBook.Indoor.FLOOD_BATHROOM)
             else -> null
         }
+        val fireDetected = fireDevice?.let(snapshot::booleanValue)
 
         val relevantAddresses = buildList {
             devices.forEach { device ->
@@ -162,6 +177,7 @@ object HomeStateMapper {
             humidityPercent = humidityPercent,
             pirBlocked = pirBlocked,
             floodDetected = floodDetected,
+            fireDetected = fireDetected,
             hasRealState = hasRealState
         )
     }

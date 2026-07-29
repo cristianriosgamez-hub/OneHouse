@@ -116,10 +116,13 @@ fun RoomDetailScreen(roomType: RoomType, onBack: () -> Unit) {
 
                 val expectedLights = expectedLightControls(roomType)
                 val matchedDeviceIds = mutableSetOf<String>()
+                val visibleLights = roomState.lights.filterNot { light ->
+                    shouldHideLegacyLight(roomType, light.device.name)
+                }
 
                 expectedLights.forEachIndexed { index, spec ->
                     if (index > 0) Spacer(Modifier.height(12.dp))
-                    val realLight = roomState.lights.firstOrNull { light ->
+                    val realLight = visibleLights.firstOrNull { light ->
                         light.device.id !in matchedDeviceIds && spec.matches(light.device.name)
                     }
                     realLight?.device?.id?.let(matchedDeviceIds::add)
@@ -142,7 +145,7 @@ fun RoomDetailScreen(roomType: RoomType, onBack: () -> Unit) {
                 }
 
                 // Cualquier objeto KNX adicional importado sigue mostrándose y conserva su mando.
-                roomState.lights
+                visibleLights
                     .filterNot { it.device.id in matchedDeviceIds }
                     .forEachIndexed { index, light ->
                         if (expectedLights.isNotEmpty() || index > 0) Spacer(Modifier.height(12.dp))
@@ -205,6 +208,10 @@ fun RoomDetailScreen(roomType: RoomType, onBack: () -> Unit) {
                     RoomType.ENTRANCE -> {
                         Spacer(Modifier.height(12.dp))
                         RoomPirCard(blocked = roomState.pirBlocked, onBlockedChange = { })
+                    }
+                    RoomType.HALLWAY -> {
+                        Spacer(Modifier.height(12.dp))
+                        RoomFireSensorCard(fireDetected = roomState.fireDetected)
                     }
                     else -> Unit
                 }
@@ -274,11 +281,11 @@ private fun expectedLightControls(roomType: RoomType): List<ExpectedLightControl
     )
     RoomType.KITCHEN -> listOf(
         ExpectedLightControl("Luz", listOf("luz cocina", "cocina")),
-        ExpectedLightControl("Luz vitrocerámica", listOf("vitroceramica", "vitro", "encimera"), "♧")
+        ExpectedLightControl("Fluorescente", listOf("fluorescente", "luz fluorescente"))
     )
     RoomType.BEDROOM_1 -> listOf(
         ExpectedLightControl("Luz", listOf("luz habitacion 1", "luz dormitorio 1", "luz principal", "techo")),
-        ExpectedLightControl("Luz lámpara", listOf("lampara", "luz lampara"), "♧")
+        ExpectedLightControl("Mesita", listOf("mesita", "luz mesita", "cabecero"))
     )
     RoomType.DINING_ROOM -> listOf(
         ExpectedLightControl("Luz salón", listOf("luz salon", "salon")),
@@ -290,6 +297,15 @@ private fun expectedLightControls(roomType: RoomType): List<ExpectedLightControl
         ExpectedLightControl("Mesita 1", listOf("mesita 1", "mesita izquierda", "cabecero 1"), "♧"),
         ExpectedLightControl("Mesita 2", listOf("mesita 2", "mesita derecha", "cabecero 2"), "♧")
     )
+}
+
+private fun shouldHideLegacyLight(roomType: RoomType, deviceName: String): Boolean {
+    val normalized = normalizeControlName(deviceName)
+    return when (roomType) {
+        RoomType.KITCHEN -> normalized.contains("vitro") || normalized.contains("encimera")
+        RoomType.BEDROOM_1 -> normalized.contains("lampara")
+        else -> false
+    }
 }
 
 private fun roomHasBlind(roomType: RoomType): Boolean = roomType in setOf(
