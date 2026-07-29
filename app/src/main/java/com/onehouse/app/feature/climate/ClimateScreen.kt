@@ -22,6 +22,11 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import com.onehouse.app.knx.KnxGroupAddress
+import com.onehouse.app.knx.KnxCommandType
+import com.onehouse.app.knx.KnxCommandExecutor
+import com.onehouse.app.knx.KnxCommand
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -51,6 +56,10 @@ fun ClimateScreen(onBack: () -> Unit) {
     val repository = remember(context.applicationContext) {
         KnxHomeStateRepository(context.applicationContext)
     }
+    val commandExecutor = remember(context.applicationContext) {
+        KnxCommandExecutor(context.applicationContext)
+    }
+    DisposableEffect(commandExecutor) { onDispose(commandExecutor::close) }
     val snapshot by repository.stateFlow.collectAsState(initial = repository.snapshot())
     val climate = snapshot.climate
     val exteriorWeather = rememberWeatherState()
@@ -87,7 +96,11 @@ fun ClimateScreen(onBack: () -> Unit) {
         ClimateSystemCard(
             enabled = enabled,
             selectedMode = selectedMode,
-            onEnabledChange = { }
+            onEnabledChange = { requested ->
+                commandExecutor.execute(
+                    KnxCommand(if (requested) KnxCommandType.ON else KnxCommandType.OFF, KnxGroupAddress.parse(KnxAddressBook.Climate.POWER_COMMAND), "1.001")
+                ) { }
+            }
         )
         Spacer(Modifier.height(12.dp))
 
@@ -95,22 +108,44 @@ fun ClimateScreen(onBack: () -> Unit) {
             targetTemperature = climate.targetTemperature,
             enabled = enabled && climate.targetTemperature != null,
             mode = selectedMode,
-            onDecrease = { },
-            onIncrease = { }
+            onDecrease = {
+                val value = ((climate.targetTemperature ?: 21f) - 0.5f).coerceIn(16f, 34f)
+                commandExecutor.execute(KnxCommand(KnxCommandType.SET_VALUE, KnxGroupAddress.parse(KnxAddressBook.Climate.TARGET_TEMPERATURE_COMMAND), "9.001", true, value.toString())) { }
+            },
+            onIncrease = {
+                val value = ((climate.targetTemperature ?: 21f) + 0.5f).coerceIn(16f, 34f)
+                commandExecutor.execute(KnxCommand(KnxCommandType.SET_VALUE, KnxGroupAddress.parse(KnxAddressBook.Climate.TARGET_TEMPERATURE_COMMAND), "9.001", true, value.toString())) { }
+            }
         )
         Spacer(Modifier.height(20.dp))
 
         ClimateModeSelector(
             selectedMode = selectedMode,
-            enabled = false,
-            onModeSelected = { }
+            enabled = true,
+            onModeSelected = { mode ->
+                val code = when (mode) {
+                    ClimateMode.AUTO -> 0
+                    ClimateMode.HEAT -> 1
+                    ClimateMode.COLD -> 3
+                    ClimateMode.FAN -> 9
+                    ClimateMode.DRY -> 14
+                }
+                commandExecutor.execute(KnxCommand(KnxCommandType.SET_VALUE, KnxGroupAddress.parse(KnxAddressBook.Climate.MODE_COMMAND), "20.105", true, code.toString())) { }
+            }
         )
         Spacer(Modifier.height(24.dp))
 
         FanSpeedSelector(
             selectedSpeed = selectedFanSpeed,
-            enabled = false,
-            onSpeedSelected = { }
+            enabled = true,
+            onSpeedSelected = { speed ->
+                val percent = when (speed) {
+                    FanSpeed.LOW -> 33
+                    FanSpeed.MEDIUM -> 66
+                    FanSpeed.HIGH -> 100
+                }
+                commandExecutor.execute(KnxCommand(KnxCommandType.SET_VALUE, KnxGroupAddress.parse(KnxAddressBook.Climate.FAN_SPEED_COMMAND), "5.001", true, percent.toString())) { }
+            }
         )
         Spacer(Modifier.height(16.dp))
 

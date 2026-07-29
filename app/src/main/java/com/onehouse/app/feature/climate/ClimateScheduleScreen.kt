@@ -65,7 +65,7 @@ fun ClimateScheduleScreen(
     var state by remember {
         mutableStateOf(repository.load())
     }
-    var expandedDay by remember { mutableStateOf<DayOfWeek?>(DayOfWeek.MONDAY) }
+    var expandedDay by remember { mutableStateOf<DayOfWeek?>(null) }
     var editingDay by remember { mutableStateOf<DayOfWeek?>(null) }
 
     fun persist(newState: ClimateScheduleState) {

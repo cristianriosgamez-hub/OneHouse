@@ -47,6 +47,8 @@ import com.onehouse.app.design.TextoPrincipal
 import com.onehouse.app.design.TextoSecundario
 import com.onehouse.app.feature.rooms.detail.RoomHeader
 import java.util.Date
+import java.text.SimpleDateFormat
+import java.util.Locale
 
 @Composable
 internal fun EnergyMeterDetailScreen(
@@ -132,11 +134,34 @@ internal fun EnergyMeterDetailScreen(
                 fontSize = 11.sp
             )
             Spacer(Modifier.height(14.dp))
-            EnergyLineChart(
-                points = state.chartPoints.takeLast(36),
-                accent = accent,
-                modifier = Modifier.fillMaxWidth().height(190.dp)
-            )
+            val visibleChartPoints = state.chartPoints.takeLast(36)
+            val chartMin = visibleChartPoints.minOfOrNull { it.value } ?: 0.0
+            val chartMax = visibleChartPoints.maxOfOrNull { it.value } ?: 0.0
+            val chartMid = (chartMin + chartMax) / 2.0
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Column(
+                    modifier = Modifier.height(190.dp),
+                    verticalArrangement = Arrangement.SpaceBetween,
+                    horizontalAlignment = Alignment.End
+                ) {
+                    Text("${formatNumber(chartMax)} ${type.unit}", color = TextoSecundario, fontSize = 9.sp)
+                    Text(formatNumber(chartMid), color = TextoSecundario, fontSize = 9.sp)
+                    Text(formatNumber(chartMin), color = TextoSecundario, fontSize = 9.sp)
+                }
+                Spacer(Modifier.width(8.dp))
+                EnergyLineChart(
+                    points = visibleChartPoints,
+                    accent = accent,
+                    modifier = Modifier.weight(1f).height(190.dp)
+                )
+            }
+            Spacer(Modifier.height(6.dp))
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                val labels = state.chartPoints.takeLast(36)
+                labels.firstOrNull()?.let { Text(formatAxisDate(it.timestamp, state.selectedPeriod), color = TextoSecundario, fontSize = 9.sp) }
+                if (labels.size > 2) Text(formatAxisDate(labels[labels.size / 2].timestamp, state.selectedPeriod), color = TextoSecundario, fontSize = 9.sp)
+                labels.lastOrNull()?.let { Text(formatAxisDate(it.timestamp, state.selectedPeriod), color = TextoSecundario, fontSize = 9.sp) }
+            }
         }
 
         Spacer(Modifier.height(14.dp))
@@ -338,3 +363,6 @@ internal fun ReadingEditorDialog(
         dismissButton = { TextButton(onClick = onDismiss) { Text("Cancelar") } }
     )
 }
+
+private fun formatAxisDate(timestamp: Long, period: com.onehouse.app.data.energy.EnergyPeriod): String =
+    SimpleDateFormat(if (period == com.onehouse.app.data.energy.EnergyPeriod.ALL) "yyyy" else "MMM yy", Locale.getDefault()).format(Date(timestamp))

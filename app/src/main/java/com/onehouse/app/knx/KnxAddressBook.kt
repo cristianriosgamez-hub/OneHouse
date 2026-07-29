@@ -13,12 +13,15 @@ object KnxAddressBook {
     )
 
     val entries = listOf(
-        Entry("climate_power", "Climatización", "Encendido / estado", "Climatización", "1.001", "Lectura y mando", "5/3/2"),
-        Entry("climate_current_temperature", "Climatización", "Temperatura actual", "Climatización", "9.001", "Lectura", "5/3/3"),
-        Entry("climate_mode", "Climatización", "Modo de funcionamiento", "Climatización", "20.102", "Lectura y mando", "5/3/4"),
-        Entry("climate_fan", "Climatización", "Velocidad del ventilador", "Climatización", "5.010", "Lectura y mando", "5/3/5"),
-        Entry("climate_target_primary", "Climatización", "Temperatura de consigna", "Climatización", "9.001", "Lectura y mando", "5/3/10"),
-        Entry("climate_target_fallback", "Climatización", "Consigna alternativa", "Climatización", "9.001", "Lectura", "5/3/1"),
+        Entry("climate_power_command", "Climatización", "Encendido / apagado", "Climatización", "1.001", "Mando", "5/2/2"),
+        Entry("climate_power", "Climatización", "Estado encendido / apagado", "Climatización", "1.001", "Lectura", "5/3/2"),
+        Entry("climate_current_temperature", "Climatización", "Temperatura actual", "Climatización", "9.001", "Lectura", "5/2/3"),
+        Entry("climate_mode_command", "Climatización", "Selección de modo", "Climatización", "20.105", "Mando", "5/2/4"),
+        Entry("climate_mode", "Climatización", "Estado del modo", "Climatización", "20.105", "Lectura", "5/3/4"),
+        Entry("climate_fan_command", "Climatización", "Selección de velocidad", "Climatización", "5.001", "Mando", "5/2/5"),
+        Entry("climate_fan", "Climatización", "Estado de velocidad", "Climatización", "5.001", "Lectura", "5/3/5"),
+        Entry("climate_target_command", "Climatización", "Valor temperatura de consigna", "Climatización", "9.001", "Mando", "5/2/1"),
+        Entry("climate_target_primary", "Climatización", "Estado temperatura de consigna", "Climatización", "9.001", "Lectura", "5/2/6"),
         Entry("dining_co2", "Comedor", "CO₂", "Sensor", "14.000", "Lectura", "5/1/1"),
         Entry("dining_humidity", "Comedor", "Humedad", "Sensor", "5.001", "Lectura", "5/1/2"),
         Entry("dining_temperature", "Comedor", "Temperatura interior", "Temperatura", "9.001", "Lectura", "5/1/3"),
@@ -33,12 +36,16 @@ object KnxAddressBook {
     )
 
     object Climate {
+        @Volatile var POWER_COMMAND = "5/2/2"
         @Volatile var POWER_STATE = "5/3/2"
-        @Volatile var CURRENT_TEMPERATURE = "5/3/3"
+        @Volatile var CURRENT_TEMPERATURE = "5/2/3"
+        @Volatile var MODE_COMMAND = "5/2/4"
         @Volatile var MODE_STATE = "5/3/4"
+        @Volatile var FAN_SPEED_COMMAND = "5/2/5"
         @Volatile var FAN_SPEED_STATE = "5/3/5"
-        @Volatile var TARGET_TEMPERATURE_PRIMARY = "5/3/10"
-        @Volatile var TARGET_TEMPERATURE_FALLBACK = "5/3/1"
+        @Volatile var TARGET_TEMPERATURE_COMMAND = "5/2/1"
+        @Volatile var TARGET_TEMPERATURE_PRIMARY = "5/2/6"
+        @Volatile var TARGET_TEMPERATURE_FALLBACK = "5/2/6"
     }
     object Indoor {
         @Volatile var CO2_DINING = "5/1/1"
@@ -58,12 +65,16 @@ object KnxAddressBook {
 
     fun apply(repository: AppKnxConfigurationRepository) {
         fun value(key: String) = entries.first { it.key == key }.let { repository.globalAddress(it.key, it.defaultAddress) }
+        Climate.POWER_COMMAND = value("climate_power_command")
         Climate.POWER_STATE = value("climate_power")
         Climate.CURRENT_TEMPERATURE = value("climate_current_temperature")
+        Climate.MODE_COMMAND = value("climate_mode_command")
         Climate.MODE_STATE = value("climate_mode")
+        Climate.FAN_SPEED_COMMAND = value("climate_fan_command")
         Climate.FAN_SPEED_STATE = value("climate_fan")
+        Climate.TARGET_TEMPERATURE_COMMAND = value("climate_target_command")
         Climate.TARGET_TEMPERATURE_PRIMARY = value("climate_target_primary")
-        Climate.TARGET_TEMPERATURE_FALLBACK = value("climate_target_fallback")
+        Climate.TARGET_TEMPERATURE_FALLBACK = Climate.TARGET_TEMPERATURE_PRIMARY
         Indoor.CO2_DINING = value("dining_co2")
         Indoor.HUMIDITY_DINING = value("dining_humidity")
         Indoor.TEMPERATURE_DINING = value("dining_temperature")

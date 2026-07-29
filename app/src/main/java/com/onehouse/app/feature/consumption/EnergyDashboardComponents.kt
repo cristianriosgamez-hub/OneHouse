@@ -352,7 +352,7 @@ internal fun PeriodSelector(
             .padding(4.dp),
         horizontalArrangement = Arrangement.spacedBy(4.dp)
     ) {
-        EnergyPeriod.entries.forEach { period ->
+        EnergyPeriod.entries.filter { it != EnergyPeriod.MONTH }.forEach { period ->
             val active = selected == period
             Box(
                 modifier = Modifier

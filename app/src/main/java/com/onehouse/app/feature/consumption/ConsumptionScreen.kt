@@ -190,7 +190,15 @@ private fun EnergyDashboardScreen(
                 // Vista simplificada temporal: solo se muestran los contadores.
                 // Se conservan los datos y componentes de analítica para poder
                 // reactivarlos en una entrega futura sin afectar al histórico.
-                summaries.chunked(2).forEach { rowSummaries ->
+                val orderedSummaries = summaries.sortedBy { summary ->
+                    when (summary.type) {
+                        com.onehouse.app.data.energy.MeterType.ENDESA -> 0
+                        com.onehouse.app.data.energy.MeterType.AGBAR -> 1
+                        com.onehouse.app.data.energy.MeterType.CLIMATIZATION -> 2
+                        com.onehouse.app.data.energy.MeterType.ACS -> 3
+                    }
+                }
+                orderedSummaries.chunked(2).forEach { rowSummaries ->
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.spacedBy(12.dp)

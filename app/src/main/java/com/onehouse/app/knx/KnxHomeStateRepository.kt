@@ -163,7 +163,7 @@ class KnxHomeStateRepository(context: Context) {
         fun findByAddress(address: String): KnxStateRepository.State? =
             states[address]?.takeIf(StateFreshness::isTrusted)
         fun boolAt(address: String) = findByAddress(address)?.booleanValue
-        fun byteAt(address: String) = KnxValueDecoder.decode(findByAddress(address)?.rawValue, "20.102")?.toInt()
+        fun byteAt(address: String) = KnxValueDecoder.decode(findByAddress(address)?.rawValue, "20.105")?.toInt()
 
         fun normalized(value: String): String = value
             .lowercase(Locale.ROOT)
@@ -227,11 +227,11 @@ class KnxHomeStateRepository(context: Context) {
             6, 14 -> "Ventilación"
             else -> null
         }
-        val fan = when (fanCode) {
-            0, 1 -> "Baja"
-            2 -> "Media"
-            3 -> "Alta"
-            else -> null
+        val fan = when {
+            fanCode == null -> null
+            fanCode <= 40 -> "Baja"
+            fanCode <= 80 -> "Media"
+            else -> "Alta"
         }
 
         val diningTemperature = numericFromDevices(

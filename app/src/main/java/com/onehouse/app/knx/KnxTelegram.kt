@@ -24,4 +24,10 @@ sealed interface KnxTelegram {
         override val destination: KnxGroupAddress,
         val celsius: Double
     ) : KnxTelegram
+
+    /** DPT 20.x y otros valores enumerados de un byte. */
+    data class GroupValueWriteByte(
+        override val destination: KnxGroupAddress,
+        val value: Int
+    ) : KnxTelegram
 }

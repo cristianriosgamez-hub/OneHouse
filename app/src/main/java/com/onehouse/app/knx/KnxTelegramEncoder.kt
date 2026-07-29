@@ -25,6 +25,9 @@ internal object KnxTelegramEncoder {
                 val encoded = encodeKnxFloat16(telegram.celsius)
                 byteArrayOf(0x00, 0x80.toByte(), (encoded shr 8).toByte(), encoded.toByte())
             }
+            is KnxTelegram.GroupValueWriteByte -> byteArrayOf(
+                0x00, 0x80.toByte(), telegram.value.coerceIn(0, 255).toByte()
+            )
         }
 
         return byteArrayOf(

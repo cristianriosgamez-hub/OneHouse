@@ -63,7 +63,10 @@ enum class ClimateIconType {
     FAN,
     DRY,
     AUTO,
-    POWER
+    POWER,
+    HUMIDITY,
+    THERMOSTAT,
+    AIR_QUALITY
 }
 
 enum class ClimateMode(
@@ -100,6 +103,9 @@ internal fun ClimateVectorIcon(
             ClimateIconType.DRY -> drawDryIcon(color)
             ClimateIconType.AUTO -> drawAutoIcon(color)
             ClimateIconType.POWER -> drawPowerIcon(color)
+            ClimateIconType.HUMIDITY -> drawHumidityIcon(color)
+            ClimateIconType.THERMOSTAT -> drawThermostatIcon(color)
+            ClimateIconType.AIR_QUALITY -> drawAirQualityIcon(color)
         }
     }
 }
@@ -250,6 +256,74 @@ private fun DrawScope.drawAutoIcon(color: Color) {
     )
 }
 
+
+private fun DrawScope.drawHumidityIcon(color: Color) {
+    val cx = size.width / 2f
+    val top = size.height * 0.18f
+    val bottom = size.height * 0.84f
+    val half = size.width * 0.24f
+    val path = Path().apply {
+        moveTo(cx, top)
+        cubicTo(cx - half * 0.25f, top + size.height * 0.16f, cx - half, top + size.height * 0.29f, cx - half, bottom - size.height * 0.16f)
+        cubicTo(cx - half, bottom + size.height * 0.02f, cx - half * 0.45f, bottom, cx, bottom)
+        cubicTo(cx + half * 0.45f, bottom, cx + half, bottom + size.height * 0.02f, cx + half, bottom - size.height * 0.16f)
+        cubicTo(cx + half, top + size.height * 0.29f, cx + half * 0.25f, top + size.height * 0.16f, cx, top)
+        close()
+    }
+    drawPath(path = path, color = color, style = Stroke(width = size.minDimension * 0.075f, cap = StrokeCap.Round))
+    drawArc(
+        color = color,
+        startAngle = 18f,
+        sweepAngle = 112f,
+        useCenter = false,
+        topLeft = Offset(size.width * 0.39f, size.height * 0.49f),
+        size = Size(size.width * 0.27f, size.height * 0.22f),
+        style = Stroke(width = size.minDimension * 0.065f, cap = StrokeCap.Round)
+    )
+}
+
+private fun DrawScope.drawThermostatIcon(color: Color) {
+    val stroke = size.minDimension * 0.075f
+    val cx = size.width * 0.5f
+    drawRoundRect(
+        color = color,
+        topLeft = Offset(size.width * 0.39f, size.height * 0.14f),
+        size = Size(size.width * 0.22f, size.height * 0.50f),
+        cornerRadius = androidx.compose.ui.geometry.CornerRadius(size.width * 0.11f),
+        style = Stroke(width = stroke)
+    )
+    drawLine(
+        color = color,
+        start = Offset(cx, size.height * 0.31f),
+        end = Offset(cx, size.height * 0.67f),
+        strokeWidth = stroke,
+        cap = StrokeCap.Round
+    )
+    drawCircle(
+        color = color,
+        radius = size.minDimension * 0.18f,
+        center = Offset(cx, size.height * 0.72f),
+        style = Stroke(width = stroke)
+    )
+}
+
+private fun DrawScope.drawAirQualityIcon(color: Color) {
+    val stroke = size.minDimension * 0.07f
+    val ys = listOf(0.32f, 0.50f, 0.68f)
+    ys.forEachIndexed { index, y ->
+        val startX = if (index == 1) 0.22f else 0.30f
+        val endX = if (index == 1) 0.82f else 0.74f
+        val path = Path().apply {
+            moveTo(size.width * startX, size.height * y)
+            cubicTo(
+                size.width * 0.42f, size.height * (y - 0.08f),
+                size.width * 0.56f, size.height * (y + 0.08f),
+                size.width * endX, size.height * y
+            )
+        }
+        drawPath(path = path, color = color, style = Stroke(width = stroke, cap = StrokeCap.Round))
+    }
+}
 private fun DrawScope.drawPowerIcon(color: Color) {
     val base = size.minDimension
     val stroke = base * 0.085f
@@ -732,7 +806,7 @@ internal fun AmbientTemperatures(
 @Composable
 private fun CompactAmbientValue(
     room: String,
-    symbol: String,
+    iconType: ClimateIconType,
     accent: Color,
     temperature: Float?,
     modifier: Modifier = Modifier
@@ -923,7 +997,7 @@ internal fun ClimateInformationCard(
             StatusValue(
                 title = "Ventilador",
                 value = fanSpeed?.label ?: "---",
-                symbol = "✣",
+                iconType = ClimateIconType.FAN,
                 accent = ClimateGreen,
                 modifier = Modifier.weight(1f)
             )
@@ -931,7 +1005,7 @@ internal fun ClimateInformationCard(
             StatusValue(
                 title = "Humedad",
                 value = humidity?.let { "$it %" } ?: "---",
-                symbol = "◉",
+                iconType = ClimateIconType.HUMIDITY,
                 accent = ClimateCyan,
                 modifier = Modifier.weight(1f)
             )
@@ -939,7 +1013,7 @@ internal fun ClimateInformationCard(
             StatusValue(
                 title = "Modo",
                 value = selectedMode?.label ?: "---",
-                symbol = selectedMode?.symbol ?: "·",
+                iconType = selectedMode?.iconType ?: ClimateIconType.THERMOSTAT,
                 accent = selectedMode?.accent ?: ClimateMuted,
                 modifier = Modifier.weight(1f)
             )
@@ -948,7 +1022,7 @@ internal fun ClimateInformationCard(
                 title = "CO₂",
                 value = co2Ppm?.let { "$it ppm" } ?: "---",
                 secondaryValue = co2Quality,
-                symbol = "⌁",
+                iconType = ClimateIconType.AIR_QUALITY,
                 accent = co2Accent,
                 modifier = Modifier.weight(1f)
             )
@@ -970,7 +1044,7 @@ private fun StatusDivider() {
 private fun StatusValue(
     title: String,
     value: String,
-    symbol: String,
+    iconType: ClimateIconType,
     accent: Color,
     modifier: Modifier = Modifier,
     secondaryValue: String? = null
@@ -979,11 +1053,10 @@ private fun StatusValue(
         modifier = modifier,
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        Text(
-            text = symbol,
+        ClimateVectorIcon(
+            type = iconType,
             color = accent,
-            fontSize = 18.sp,
-            fontWeight = FontWeight.Bold
+            modifier = Modifier.size(22.dp)
         )
 
         Spacer(modifier = Modifier.height(6.dp))

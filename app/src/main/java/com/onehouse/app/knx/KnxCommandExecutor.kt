@@ -389,6 +389,7 @@ class KnxCommandExecutor(context: Context) : Closeable {
             when {
                 command.dpt.startsWith("9") -> KnxTelegram.GroupValueWriteTemperature(command.destination, it)
                 command.dpt.startsWith("5") -> KnxTelegram.GroupValueWritePercent(command.destination, it)
+                command.dpt.startsWith("20") -> KnxTelegram.GroupValueWriteByte(command.destination, it.toInt())
                 else -> null
             }
         }
