@@ -16,8 +16,8 @@ android {
         applicationId = "com.onehouse.app"
         minSdk = 29
         targetSdk = 36
-        versionCode = 73
-        versionName = "1.10.3 Estancias Fase 1"
+        versionCode = 74
+        versionName = "1.10.3.1 Correccion Sensores KNX"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }

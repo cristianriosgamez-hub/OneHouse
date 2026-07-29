@@ -102,7 +102,7 @@ fun ClimateScreen(onBack: () -> Unit) {
         ?: snapshot.numericAt(KnxAddressBook.Climate.CURRENT_TEMPERATURE, "9.001")
     val suiteTemperature = snapshot.numericAt(KnxAddressBook.Indoor.TEMPERATURE_SUITE, "9.001")
     val humidity = snapshot.numericAt(KnxAddressBook.Indoor.HUMIDITY_DINING, "5.001")?.toInt()
-    val co2Ppm = snapshot.numericAt(KnxAddressBook.Indoor.CO2_DINING, "14.000")?.toInt()
+    val co2Ppm = snapshot.numericAt(KnxAddressBook.Indoor.CO2_DINING, "9.008")?.toInt()
 
     Column(
         modifier = Modifier

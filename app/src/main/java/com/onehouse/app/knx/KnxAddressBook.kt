@@ -22,17 +22,18 @@ object KnxAddressBook {
         Entry("climate_fan", "Climatización", "Estado de velocidad", "Climatización", "5.001", "Lectura", "5/3/5"),
         Entry("climate_target_command", "Climatización", "Valor temperatura de consigna", "Climatización", "9.001", "Mando", "5/2/1"),
         Entry("climate_target_primary", "Climatización", "Estado temperatura de consigna", "Climatización", "9.001", "Lectura", "5/2/6"),
-        Entry("dining_co2", "Comedor", "CO₂", "Sensor", "14.000", "Lectura", "5/1/1"),
+        Entry("dining_co2", "Comedor", "CO₂", "Sensor", "9.008", "Lectura", "5/1/1"),
         Entry("dining_humidity", "Comedor", "Humedad", "Sensor", "5.001", "Lectura", "5/1/2"),
         Entry("dining_temperature", "Comedor", "Temperatura interior", "Temperatura", "9.001", "Lectura", "5/1/3"),
         Entry("suite_temperature", "Suite", "Temperatura interior", "Temperatura", "9.001", "Lectura", "5/2/3"),
         Entry("entrance_pir_block", "Entrada", "Bloqueo PIR", "Interruptor", "1.001", "Lectura y mando", "5/5/1"),
         Entry("kitchen_flood", "Cocina", "Sensor de inundación", "Alarma", "1.005", "Lectura", "2/4/1"),
         Entry("bathroom_flood", "Baño", "Sensor de inundación", "Alarma", "1.005", "Lectura", "2/4/2"),
-        Entry("terrace_luminosity", "Terraza", "Luminosidad", "Sensor", "14.000", "Lectura", "15/0/11"),
+        Entry("hallway_fire", "Pasillo", "Sensor de incendio", "Alarma", "1.005", "Lectura", "5/4/2"),
+        Entry("terrace_luminosity", "Terraza", "Luminosidad", "Sensor", "9.004", "Lectura", "15/0/11"),
         Entry("terrace_excessive_wind", "Terraza", "Viento excesivo", "Alarma", "1.005", "Lectura", "15/0/13"),
         Entry("terrace_wind_speed", "Terraza", "Velocidad del viento", "Sensor", "9.005", "Lectura", "15/0/14"),
-        Entry("terrace_raining", "Terraza", "Lluvia", "Sensor", "1.005", "Lectura", "15/0/21")
+        Entry("terrace_raining", "Terraza", "Lluvia", "Sensor", "1.005", "Lectura", "15/0/15")
     )
 
     object Climate {
@@ -55,12 +56,13 @@ object KnxAddressBook {
         @Volatile var PIR_BLOCK_ENTRANCE = "5/5/1"
         @Volatile var FLOOD_KITCHEN = "2/4/1"
         @Volatile var FLOOD_BATHROOM = "2/4/2"
+        @Volatile var FIRE_HALLWAY = "5/4/2"
     }
     object Terrace {
         @Volatile var LUMINOSITY = "15/0/11"
         @Volatile var EXCESSIVE_WIND = "15/0/13"
         @Volatile var WIND_SPEED = "15/0/14"
-        @Volatile var RAINING = "15/0/21"
+        @Volatile var RAINING = "15/0/15"
     }
 
     fun apply(repository: AppKnxConfigurationRepository) {
@@ -82,6 +84,7 @@ object KnxAddressBook {
         Indoor.PIR_BLOCK_ENTRANCE = value("entrance_pir_block")
         Indoor.FLOOD_KITCHEN = value("kitchen_flood")
         Indoor.FLOOD_BATHROOM = value("bathroom_flood")
+        Indoor.FIRE_HALLWAY = value("hallway_fire")
         Terrace.LUMINOSITY = value("terrace_luminosity")
         Terrace.EXCESSIVE_WIND = value("terrace_excessive_wind")
         Terrace.WIND_SPEED = value("terrace_wind_speed")

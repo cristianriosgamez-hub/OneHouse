@@ -115,7 +115,7 @@ object HomeStateMapper {
                     device.name.contains("co₂", ignoreCase = true) ||
                     device.unit?.contains("ppm", ignoreCase = true) == true
             }?.let(snapshot::numericValue)
-            imported ?: snapshot.numericAt(KnxAddressBook.Indoor.CO2_DINING, "14.000")
+            imported ?: snapshot.numericAt(KnxAddressBook.Indoor.CO2_DINING, "9.008")
         } else {
             null
         }
@@ -139,7 +139,11 @@ object HomeStateMapper {
             RoomType.BATHROOM -> snapshot.booleanAt(KnxAddressBook.Indoor.FLOOD_BATHROOM)
             else -> null
         }
-        val fireDetected = fireDevice?.let(snapshot::booleanValue)
+        val fireDetected = if (roomType == RoomType.HALLWAY) {
+            fireDevice?.let(snapshot::booleanValue) ?: snapshot.booleanAt(KnxAddressBook.Indoor.FIRE_HALLWAY)
+        } else {
+            null
+        }
 
         val relevantAddresses = buildList {
             devices.forEach { device ->
@@ -156,6 +160,7 @@ object HomeStateMapper {
                 RoomType.ENTRANCE -> add(KnxAddressBook.Indoor.PIR_BLOCK_ENTRANCE)
                 RoomType.KITCHEN -> add(KnxAddressBook.Indoor.FLOOD_KITCHEN)
                 RoomType.BATHROOM -> add(KnxAddressBook.Indoor.FLOOD_BATHROOM)
+                RoomType.HALLWAY -> add(KnxAddressBook.Indoor.FIRE_HALLWAY)
                 else -> Unit
             }
         }
