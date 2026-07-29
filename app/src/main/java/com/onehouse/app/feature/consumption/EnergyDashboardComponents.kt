@@ -32,6 +32,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.onehouse.app.data.energy.EnergyOverview
@@ -270,50 +271,54 @@ internal fun EnergySummaryCard(
         modifier = modifier,
         onClick = onClick
     ) {
-        Column(modifier = Modifier.padding(17.dp)) {
+        Column(modifier = Modifier.padding(14.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
             Box(
                 modifier = Modifier
-                    .size(50.dp)
-                    .background(accent.copy(alpha = 0.16f), RoundedCornerShape(17.dp)),
+                    .size(44.dp)
+                    .background(accent.copy(alpha = 0.16f), RoundedCornerShape(15.dp)),
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
                     imageVector = meterIcon(summary.type),
                     contentDescription = null,
                     tint = accent,
-                    modifier = Modifier.size(29.dp)
+                    modifier = Modifier.size(24.dp)
                 )
             }
-            Spacer(Modifier.width(12.dp))
+            Spacer(Modifier.width(10.dp))
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     summary.type.shortTitle,
                     color = TextoPrincipal,
-                    fontSize = 17.sp,
-                    fontWeight = FontWeight.SemiBold
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
                 )
                 Text(
                     summary.latestReading?.let { relativeUpdateText(it.timestamp) } ?: "Sin lecturas",
                     color = TextoSecundario,
-                    fontSize = 10.sp
+                    fontSize = 9.sp,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
                 )
             }
             Icon(
                 imageVector = Icons.Rounded.ChevronRight,
                 contentDescription = "Abrir detalle",
                 tint = accent.copy(alpha = 0.9f),
-                modifier = Modifier.size(27.dp)
+                modifier = Modifier.size(22.dp)
             )
         }
 
-        Spacer(Modifier.height(18.dp))
+        Spacer(Modifier.height(15.dp))
         Text("Consumo este mes", color = TextoSecundario, fontSize = 11.sp)
         Spacer(Modifier.height(2.dp))
         Text(
             "${formatNumber(summary.monthConsumption)} ${summary.type.unit}",
             color = TextoPrincipal,
-            fontSize = 24.sp,
+            fontSize = 22.sp,
             fontWeight = FontWeight.Bold
         )
         Spacer(Modifier.height(12.dp))
@@ -346,7 +351,15 @@ private fun CompactMetric(title: String, value: String, modifier: Modifier) {
             .padding(11.dp)
     ) {
         Text(title, color = TextoSecundario, fontSize = 10.sp)
-        Text(value, color = TextoPrincipal, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+        Text(
+            value,
+            color = TextoPrincipal,
+            fontSize = 12.sp,
+            fontWeight = FontWeight.SemiBold,
+            maxLines = 1,
+            softWrap = false,
+            overflow = TextOverflow.Ellipsis
+        )
     }
 }
 
@@ -413,11 +426,11 @@ private fun relativeUpdateText(timestamp: Long): String {
     val hour = 60L * minute
     val day = 24L * hour
     return when {
-        elapsed < hour -> "Actualizado hace ${maxOf(1L, elapsed / minute)} min"
-        elapsed < day -> "Actualizado hace ${elapsed / hour} h"
-        elapsed < 2L * day -> "Actualizado ayer"
-        elapsed < 8L * day -> "Actualizado hace ${elapsed / day} días"
-        else -> "Actualizado ${formatDate(timestamp)}"
+        elapsed < hour -> "Hace ${maxOf(1L, elapsed / minute)} min"
+        elapsed < day -> "Hace ${elapsed / hour} h"
+        elapsed < 2L * day -> "Ayer"
+        elapsed < 8L * day -> "Hace ${elapsed / day} días"
+        else -> formatDate(timestamp)
     }
 }
 

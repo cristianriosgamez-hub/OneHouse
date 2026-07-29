@@ -1,0 +1,9 @@
+OneHouse v1.10.6.1 - Corrección de layout en Consumos
+
+Cambios:
+- Iconos superiores reducidos para recuperar el equilibrio visual.
+- Títulos ENDESA/AGBAR bloqueados a una sola línea.
+- Texto de actualización simplificado para evitar cortes verticales.
+- Flechas y espaciados ajustados para pantallas estrechas.
+- Importes y unidades, incluido €, forzados a una sola línea.
+- Sin cambios en cálculos, históricos, base de datos, KNX ni DPT.
