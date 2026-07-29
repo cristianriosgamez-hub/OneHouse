@@ -322,20 +322,19 @@ internal fun EnergySummaryCard(
             fontWeight = FontWeight.Bold
         )
         Spacer(Modifier.height(12.dp))
-        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-            val showsCost = summary.type != MeterType.ACS && summary.type != MeterType.CLIMATIZATION
+        val showsCost = summary.type != MeterType.ACS && summary.type != MeterType.CLIMATIZATION
+        CompactMetric(
+            "Año",
+            "${formatNumber(summary.yearConsumption)} ${summary.type.unit}",
+            Modifier.fillMaxWidth()
+        )
+        if (showsCost) {
+            Spacer(Modifier.height(8.dp))
             CompactMetric(
-                "Año",
-                "${formatNumber(summary.yearConsumption)} ${summary.type.unit}",
-                Modifier.weight(1f)
+                "Coste",
+                "${formatNumber(summary.yearCost)} €",
+                Modifier.fillMaxWidth()
             )
-            if (showsCost) {
-                CompactMetric(
-                    "Coste",
-                    "${formatNumber(summary.yearCost)} €",
-                    Modifier.weight(1f)
-                )
-            }
         }
         Spacer(Modifier.height(10.dp))
         TrendLabel(summary.yearVariationPercent)
@@ -354,11 +353,11 @@ private fun CompactMetric(title: String, value: String, modifier: Modifier) {
         Text(
             value,
             color = TextoPrincipal,
-            fontSize = 12.sp,
+            fontSize = 13.sp,
             fontWeight = FontWeight.SemiBold,
-            maxLines = 1,
-            softWrap = false,
-            overflow = TextOverflow.Ellipsis
+            maxLines = 2,
+            softWrap = true,
+            overflow = TextOverflow.Clip
         )
     }
 }

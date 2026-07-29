@@ -1,0 +1,13 @@
+ONEHOUSE v1.10.6.2 - CORRECCION DATOS CONSUMOS
+
+Cambios:
+- Los bloques Año y Coste se muestran uno debajo del otro y a ancho completo.
+- Se eliminan los puntos suspensivos de los importes.
+- El valor y su unidad permanecen juntos siempre que exista espacio.
+- ENDESA y AGBAR muestran Año y Coste en filas independientes.
+- Clima y ACS muestran Año a ancho completo.
+- No se modifica ninguna lógica de consumos, históricos, base de datos, KNX o DPT.
+
+Version:
+- versionCode: 81
+- versionName: 1.10.6.2 Correccion Datos Consumos

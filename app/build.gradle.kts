@@ -16,8 +16,8 @@ android {
         applicationId = "com.onehouse.app"
         minSdk = 29
         targetSdk = 36
-        versionCode = 80
-        versionName = "1.10.6.1 Correccion Layout Consumos"
+        versionCode = 81
+        versionName = "1.10.6.2 Correccion Datos Consumos"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
