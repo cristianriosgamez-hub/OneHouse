@@ -18,7 +18,17 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.ArrowBack
+import androidx.compose.material.icons.rounded.ChevronRight
+import androidx.compose.material.icons.rounded.Info
+import androidx.compose.material.icons.rounded.NetworkCheck
+import androidx.compose.material.icons.rounded.Router
+import androidx.compose.material.icons.rounded.Smartphone
+import androidx.compose.material.icons.rounded.Sync
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
@@ -33,6 +43,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
@@ -109,7 +120,7 @@ fun SettingsScreen(onBack: () -> Unit) {
             )
 
             SettingsCardHeader(
-                symbol = "⌁",
+                icon = Icons.Rounded.Router,
                 title = "Conexión KNX",
                 subtitle = "Configura la conexión con tu instalación KNX"
             ) {
@@ -153,7 +164,7 @@ fun SettingsScreen(onBack: () -> Unit) {
             }
 
             SettingsCardHeader(
-                symbol = "ⓘ",
+                icon = Icons.Rounded.Info,
                 title = "Estado de la aplicación",
                 subtitle = "Información general del sistema"
             ) {
@@ -198,7 +209,7 @@ fun SettingsScreen(onBack: () -> Unit) {
             }
 
             SettingsCardHeader(
-                symbol = "▣",
+                icon = Icons.Rounded.Smartphone,
                 title = "Información del dispositivo",
                 subtitle = "Detalles de tu dispositivo"
             ) {
@@ -226,11 +237,11 @@ fun SettingsScreen(onBack: () -> Unit) {
                         color = AzulClaro.copy(alpha = 0.12f),
                         shape = CircleShape
                     ) {
-                        Text(
-                            text = "↻",
-                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 7.dp),
-                            color = AzulClaro,
-                            fontSize = 27.sp
+                        Icon(
+                            imageVector = Icons.Rounded.Sync,
+                            contentDescription = null,
+                            modifier = Modifier.padding(10.dp),
+                            tint = AzulClaro
                         )
                     }
                     Column(
@@ -276,7 +287,12 @@ fun SettingsScreen(onBack: () -> Unit) {
                             strokeWidth = 2.dp
                         )
                     } else {
-                        Text(text = "↻", color = AzulClaro, fontSize = 30.sp)
+                        Icon(
+                            imageVector = Icons.Rounded.NetworkCheck,
+                            contentDescription = null,
+                            tint = AzulClaro,
+                            modifier = Modifier.padding(7.dp)
+                        )
                     }
                     Column(
                         modifier = Modifier
@@ -286,7 +302,7 @@ fun SettingsScreen(onBack: () -> Unit) {
                         Text("Probar conexión KNX/IP", color = TextoPrincipal, fontWeight = FontWeight.SemiBold)
                         Text(viewModel.statusMessage, color = TextoSecundario, fontSize = 13.sp)
                     }
-                    Text(text = "›", color = TextoSecundario, fontSize = 32.sp)
+                    Icon(Icons.Rounded.ChevronRight, contentDescription = null, tint = TextoSecundario)
                 }
             }
 
@@ -301,17 +317,13 @@ private fun SettingsHeader(onBack: () -> Unit) {
         modifier = Modifier.fillMaxWidth(),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Text(
-            text = "‹",
-            color = TextoPrincipal,
-            fontSize = 40.sp,
-            fontWeight = FontWeight.Light,
-            modifier = Modifier
-                .padding(end = 10.dp)
-                .background(Color.Transparent)
-                .clickable(onClick = onBack)
-                .padding(horizontal = 8.dp, vertical = 2.dp)
-        )
+        IconButton(onClick = onBack, modifier = Modifier.padding(end = 6.dp)) {
+            Icon(
+                imageVector = Icons.Rounded.ArrowBack,
+                contentDescription = "Volver",
+                tint = TextoPrincipal
+            )
+        }
         Text(
             text = "Configuración",
             color = TextoPrincipal,
@@ -323,7 +335,7 @@ private fun SettingsHeader(onBack: () -> Unit) {
 
 @Composable
 private fun SettingsCardHeader(
-    symbol: String,
+    icon: ImageVector,
     title: String,
     subtitle: String,
     content: @Composable () -> Unit
@@ -338,11 +350,11 @@ private fun SettingsCardHeader(
                     color = AzulClaro.copy(alpha = 0.12f),
                     shape = CircleShape
                 ) {
-                    Text(
-                        text = symbol,
-                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
-                        color = AzulClaro,
-                        fontSize = 24.sp
+                    Icon(
+                        imageVector = icon,
+                        contentDescription = null,
+                        modifier = Modifier.padding(10.dp),
+                        tint = AzulClaro
                     )
                 }
                 Column(modifier = Modifier.padding(start = 14.dp)) {
