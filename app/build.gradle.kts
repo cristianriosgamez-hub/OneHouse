@@ -16,8 +16,8 @@ android {
         applicationId = "com.onehouse.app"
         minSdk = 29
         targetSdk = 36
-        versionCode = 85
-        versionName = "1.10.8.1 Correccion STOP Persianas"
+        versionCode = 86
+        versionName = "1.10.9 Auditoria KNX"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }

@@ -1,0 +1,51 @@
+OneHouse v1.10.9 - Auditoría KNX
+
+OBJETIVO
+Revisar y proteger la integración KNX ya validada sin modificar el
+comportamiento de producción que funciona actualmente.
+
+RESULTADO DE LA AUDITORÍA ESTÁTICA
+- Direcciones KNX globales centralizadas en KnxAddressBook.
+- No se encontraron direcciones de grupo funcionales duplicadas fuera del catálogo.
+- Climatización:
+    Mando ON/OFF 5/2/2 y estado 5/3/2.
+    Consigna 5/2/1 y estado 5/2/6.
+    Temperatura actual 5/2/3.
+    Modo 5/2/4 y estado 5/3/4, DPT 20.105.
+    Ventilador 5/2/5 y estado 5/3/5, DPT 5.001.
+    Valores Schneider: 25 %, 37 % y 100 %.
+- Sensores:
+    CO2 5/1/1 DPT 9.008.
+    Luminosidad 15/0/11 DPT 9.004.
+    Viento 15/0/14 DPT 9.005.
+    Lluvia 15/0/15 DPT 1.005.
+    Incendio pasillo 5/4/2 DPT 1.005.
+- Persianas:
+    Comedor: movimiento 2/1/1, STOP 2/1/2, posición 2/1/3, estado 2/2/3.
+    Cocina: movimiento 2/1/4, STOP 2/1/5, posición 2/1/6, estado 2/2/6.
+    Habitación 1: movimiento 2/1/7, STOP 2/1/8, posición 2/1/9, estado 2/2/9.
+    Suite: movimiento 2/1/10, STOP 2/1/11, posición 2/1/12, estado 2/2/12.
+- La cola central, la caché de estados y las suscripciones compartidas evitan
+  abrir túneles independientes por pantalla.
+- No se ha añadido la escena Cena 5/5/15; sigue reservada para una fase posterior.
+
+CAMBIOS DE ESTA ENTREGA
+- No se modifica ninguna clase de producción KNX.
+- Se añade KnxAuditTest.kt con pruebas de regresión para:
+    * direcciones y DPT globales;
+    * validación de direcciones;
+    * detección de claves duplicadas;
+    * reconstrucción y comandos de persianas;
+    * STOP DPT 1.007;
+    * normalización de DPT;
+    * velocidades Schneider.
+- Se actualiza únicamente la versión de la aplicación.
+
+ARCHIVOS
+app/build.gradle.kts
+app/src/test/java/com/onehouse/app/knx/KnxAuditTest.kt
+LEEME_v1.10.9_AUDITORIA_KNX.txt
+
+VERSIÓN
+versionCode = 86
+versionName = 1.10.9 Auditoria KNX
