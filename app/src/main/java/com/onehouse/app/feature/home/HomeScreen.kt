@@ -63,7 +63,6 @@ import com.onehouse.app.design.FondoInferior
 import com.onehouse.app.design.FondoMedio
 import com.onehouse.app.design.FondoSuperior
 import com.onehouse.app.design.OneHouseCard
-import com.onehouse.app.design.OneHouseHeader
 import com.onehouse.app.design.OneHouseSceneCard
 import com.onehouse.app.design.OneHouseSectionTitle
 import com.onehouse.app.design.OneHouseStatusItem
@@ -181,11 +180,19 @@ fun HomeScreen(
                 .verticalScroll(rememberScrollState())
                 .padding(start = 18.dp, end = 18.dp, top = 24.dp, bottom = 34.dp)
         ) {
-            OneHouseHeader(
-                title = "OneHouse",
-                subtitle = "${homeGreeting()} · Tu hogar está listo",
-                badgeText = null
-            )
+            Column(modifier = Modifier.fillMaxWidth()) {
+                Text(
+                    text = "OneHouse",
+                    color = TextoPrincipal,
+                    style = MaterialTheme.typography.headlineLarge
+                )
+                Spacer(modifier = Modifier.height(6.dp))
+                Text(
+                    text = "${homeGreeting()} · Tu hogar está listo",
+                    color = TextoSecundario,
+                    style = MaterialTheme.typography.bodyMedium
+                )
+            }
 
             Spacer(modifier = Modifier.height(22.dp))
             ClimateHeroCard(dashboardState)
@@ -307,7 +314,7 @@ private fun ClimateHeroCard(homeState: HomeDashboardUiState) {
                         imageVector = Icons.Rounded.Thermostat,
                         contentDescription = null,
                         tint = AzulClaro,
-                        modifier = Modifier.padding(13.dp).size(30.dp)
+                        modifier = Modifier.padding(10.dp).size(28.dp)
                     )
                 }
                 Spacer(modifier = Modifier.size(14.dp))
@@ -319,7 +326,7 @@ private fun ClimateHeroCard(homeState: HomeDashboardUiState) {
                         fontWeight = FontWeight.Bold,
                         letterSpacing = 1.1.sp
                     )
-                    Spacer(modifier = Modifier.height(5.dp))
+                    Spacer(modifier = Modifier.height(8.dp))
                     Text(
                         text = when (homeState.climate.powered) {
                             true -> "Sistema encendido"
@@ -366,8 +373,8 @@ private fun ClimateHeroCard(homeState: HomeDashboardUiState) {
                 Text(
                     text = " °C",
                     color = TextoSecundario,
-                    fontSize = 21.sp,
-                    modifier = Modifier.padding(bottom = 6.dp)
+                    fontSize = 18.sp,
+                    modifier = Modifier.padding(bottom = 7.dp)
                 )
             }
             Text(
@@ -399,9 +406,9 @@ private fun ClimateHeroCard(homeState: HomeDashboardUiState) {
                     modifier = Modifier.weight(1f)
                 )
                 OneHouseStatusItem(
-                    title = "Modo",
-                    value = climateModeLabel(homeState.climate.mode),
-                    valueColor = AzulClaro,
+                    title = "Ventilador",
+                    value = homeState.climate.fanSpeed ?: "Sin datos",
+                    valueColor = if (homeState.climate.fanSpeed != null) AzulClaro else TextoSecundario,
                     modifier = Modifier.weight(1f)
                 )
             }
@@ -503,7 +510,7 @@ private fun HomeStatusCard(
                         imageVector = icon,
                         contentDescription = null,
                         tint = accent,
-                        modifier = Modifier.padding(9.dp).size(23.dp)
+                        modifier = Modifier.padding(7.dp).size(22.dp)
                     )
                 }
                 Spacer(modifier = Modifier.size(10.dp))
@@ -519,7 +526,7 @@ private fun HomeStatusCard(
             Text(
                 text = value,
                 color = valueColor,
-                style = MaterialTheme.typography.titleMedium,
+                style = MaterialTheme.typography.titleLarge,
                 fontWeight = FontWeight.SemiBold,
                 maxLines = 2
             )

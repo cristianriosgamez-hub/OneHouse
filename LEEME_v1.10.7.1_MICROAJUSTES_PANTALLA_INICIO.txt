@@ -1,0 +1,23 @@
+OneHouse v1.10.7.1 - Microajustes de la pantalla Inicio
+
+Base utilizada:
+- v1.10.7 Refinamiento Pantalla Inicio, compilada y validada por el usuario.
+
+Cambios realizados:
+- Sustituido el dato inferior duplicado «Modo» por «Ventilador».
+- La velocidad muestra Baja, Media o Alta según el estado KNX disponible.
+- Si no existe lectura de velocidad, se muestra «Sin datos».
+- Mayor separación entre el título OneHouse y el saludo.
+- Mayor separación entre «Climatización central» y el estado del sistema.
+- Unidad °C principal ligeramente más pequeña.
+- Contenedores de iconos algo más compactos.
+- Valores principales de las tarjetas inferiores ligeramente más destacados.
+
+No se han modificado:
+- Direcciones KNX o DPT.
+- Repositorios, motores o lógica de conexión.
+- Navegación, escenas, automatizaciones o base de datos.
+
+Versión:
+- versionCode: 83
+- versionName: 1.10.7.1 Microajustes Pantalla Inicio

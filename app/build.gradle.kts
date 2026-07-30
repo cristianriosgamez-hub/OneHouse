@@ -16,8 +16,8 @@ android {
         applicationId = "com.onehouse.app"
         minSdk = 29
         targetSdk = 36
-        versionCode = 82
-        versionName = "1.10.7 Refinamiento Pantalla Inicio"
+        versionCode = 83
+        versionName = "1.10.7.1 Microajustes Pantalla Inicio"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
