@@ -2,6 +2,7 @@ package com.onehouse.app.feature.backup
 
 import android.content.Context
 import android.content.SharedPreferences
+import com.onehouse.app.core.storage.PreferenceFiles
 import org.json.JSONArray
 import org.json.JSONObject
 import java.time.Instant
@@ -42,11 +43,11 @@ class BackupManager(context: Context) {
                 createdAtMillis = root.getLong("createdAtMillis"),
                 appVersion = root.optString("appVersion", "Desconocida"),
                 preferencesFiles = summaryJson.optInt("preferencesFiles", files.length()),
-                scenes = summaryJson.optInt("scenes", countItems(files, "onehouse_smart_scenes", "scene_count", "scene_")),
-                automations = summaryJson.optInt("automations", countSet(files, "onehouse_conditional_automations", "rules")),
-                weeklySchedules = summaryJson.optInt("weeklySchedules", countSet(files, "onehouse_weekly_schedule", "events")),
-                solarSchedules = summaryJson.optInt("solarSchedules", countSet(files, "onehouse_solar_schedule", "events")),
-                knxEntries = summaryJson.optInt("knxEntries", countObjectEntries(files, "onehouse_knx_configuration"))
+                scenes = summaryJson.optInt("scenes", countItems(files, PreferenceFiles.SMART_SCENES, "scene_count", "scene_")),
+                automations = summaryJson.optInt("automations", countSet(files, PreferenceFiles.CONDITIONAL_AUTOMATIONS, "rules")),
+                weeklySchedules = summaryJson.optInt("weeklySchedules", countSet(files, PreferenceFiles.WEEKLY_SCHEDULE, "events")),
+                solarSchedules = summaryJson.optInt("solarSchedules", countSet(files, PreferenceFiles.SOLAR_SCHEDULE, "events")),
+                knxEntries = summaryJson.optInt("knxEntries", countObjectEntries(files, PreferenceFiles.KNX_CONFIGURATION))
             ),
             rawJson = rawJson
         )
@@ -161,11 +162,11 @@ class BackupManager(context: Context) {
 
     private fun buildSummary(files: JSONObject): JSONObject = JSONObject()
         .put("preferencesFiles", files.length())
-        .put("scenes", countItems(files, "onehouse_smart_scenes", "scene_count", "scene_"))
-        .put("automations", countSet(files, "onehouse_conditional_automations", "rules"))
-        .put("weeklySchedules", countSet(files, "onehouse_weekly_schedule", "events"))
-        .put("solarSchedules", countSet(files, "onehouse_solar_schedule", "events"))
-        .put("knxEntries", countObjectEntries(files, "onehouse_knx_configuration"))
+        .put("scenes", countItems(files, PreferenceFiles.SMART_SCENES, "scene_count", "scene_"))
+        .put("automations", countSet(files, PreferenceFiles.CONDITIONAL_AUTOMATIONS, "rules"))
+        .put("weeklySchedules", countSet(files, PreferenceFiles.WEEKLY_SCHEDULE, "events"))
+        .put("solarSchedules", countSet(files, PreferenceFiles.SOLAR_SCHEDULE, "events"))
+        .put("knxEntries", countObjectEntries(files, PreferenceFiles.KNX_CONFIGURATION))
 
     private fun countItems(files: JSONObject, file: String, countKey: String, prefix: String): Int {
         val prefs = files.optJSONObject(file) ?: return 0
@@ -187,19 +188,6 @@ class BackupManager(context: Context) {
         const val SCHEMA_VERSION = 1
         const val MAX_BACKUP_BYTES = 5 * 1024 * 1024
 
-        val BACKUP_PREFERENCES = listOf(
-            "onehouse_knx_settings",
-            "onehouse_knx_configuration",
-            "insidecontrol_import",
-            "import_project_ui",
-            "onehouse_climate_schedule",
-            "onehouse_weekly_schedule",
-            "onehouse_solar_schedule",
-            "onehouse_conditional_automations",
-            "onehouse_smart_scenes",
-            "onehouse_home_assistant",
-            "onehouse_security_monitoring",
-            "onehouse_security_notifications"
-        )
+        val BACKUP_PREFERENCES = PreferenceFiles.backupFiles
     }
 }

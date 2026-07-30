@@ -1,6 +1,7 @@
 package com.onehouse.app.feature.automation
 
 import android.content.Context
+import com.onehouse.app.core.storage.PreferenceFiles
 
 interface AutomationRepository {
     fun load(): AutomationState
@@ -9,7 +10,7 @@ interface AutomationRepository {
 
 class SharedPreferencesAutomationRepository(context: Context) : AutomationRepository {
     private val preferences = context.applicationContext.getSharedPreferences(
-        "onehouse_conditional_automations",
+        PreferenceFiles.CONDITIONAL_AUTOMATIONS,
         Context.MODE_PRIVATE
     )
 

@@ -1,6 +1,7 @@
 package com.onehouse.app.feature.programming
 
 import android.content.Context
+import com.onehouse.app.core.storage.PreferenceFiles
 
 interface SolarScheduleRepository {
     fun load(): SolarScheduleState
@@ -9,7 +10,7 @@ interface SolarScheduleRepository {
 
 class SharedPreferencesSolarScheduleRepository(context: Context) : SolarScheduleRepository {
     private val preferences = context.applicationContext.getSharedPreferences(
-        "onehouse_solar_schedule",
+        PreferenceFiles.SOLAR_SCHEDULE,
         Context.MODE_PRIVATE
     )
 

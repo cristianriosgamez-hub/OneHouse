@@ -1,6 +1,7 @@
 package com.onehouse.app.feature.scenes
 
 import android.content.Context
+import com.onehouse.app.core.storage.PreferenceFiles
 
 interface SceneRepository {
     fun load(): SceneState
@@ -9,7 +10,7 @@ interface SceneRepository {
 
 class SharedPreferencesSceneRepository(context: Context) : SceneRepository {
     private val preferences = context.applicationContext.getSharedPreferences(
-        "onehouse_smart_scenes",
+        PreferenceFiles.SMART_SCENES,
         Context.MODE_PRIVATE
     )
 

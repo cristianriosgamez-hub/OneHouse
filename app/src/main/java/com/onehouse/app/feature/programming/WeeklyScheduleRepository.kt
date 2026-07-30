@@ -1,6 +1,7 @@
 package com.onehouse.app.feature.programming
 
 import android.content.Context
+import com.onehouse.app.core.storage.PreferenceFiles
 import java.time.DayOfWeek
 
 interface WeeklyScheduleRepository {
@@ -10,7 +11,7 @@ interface WeeklyScheduleRepository {
 
 class SharedPreferencesWeeklyScheduleRepository(context: Context) : WeeklyScheduleRepository {
     private val preferences = context.applicationContext.getSharedPreferences(
-        "onehouse_weekly_schedule",
+        PreferenceFiles.WEEKLY_SCHEDULE,
         Context.MODE_PRIVATE
     )
 
