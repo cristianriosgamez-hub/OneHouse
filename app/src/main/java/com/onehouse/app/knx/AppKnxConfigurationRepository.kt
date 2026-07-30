@@ -47,6 +47,19 @@ class AppKnxConfigurationRepository(context: Context) {
         KnxAddressBook.apply(this)
     }
 
+    fun climateFanValue(key: String, defaultValue: Int): Int =
+        preferences.getInt("$KEY_PARAMETER_PREFIX$key", defaultValue).coerceIn(0, 100)
+
+    fun saveClimateFanValues(low: Int, medium: Int, high: Int) {
+        createAutomaticBackup()
+        preferences.edit()
+            .putInt("${KEY_PARAMETER_PREFIX}climate_fan_low", low.coerceIn(0, 100))
+            .putInt("${KEY_PARAMETER_PREFIX}climate_fan_medium", medium.coerceIn(0, 100))
+            .putInt("${KEY_PARAMETER_PREFIX}climate_fan_high", high.coerceIn(0, 100))
+            .apply()
+        KnxAddressBook.apply(this)
+    }
+
     fun resetAllToFactory() {
         val backup = exportConfiguration()
         preferences.edit().clear().putString(KEY_BACKUP, backup).apply()
@@ -70,6 +83,11 @@ class AppKnxConfigurationRepository(context: Context) {
             globals.put(entry.key, globalAddress(entry.key, entry.defaultAddress))
         }
         root.put("globalAddresses", globals)
+        val parameters = JSONObject()
+        parameters.put("climate_fan_low", climateFanValue("climate_fan_low", 25))
+        parameters.put("climate_fan_medium", climateFanValue("climate_fan_medium", 37))
+        parameters.put("climate_fan_high", climateFanValue("climate_fan_high", 100))
+        root.put("parameters", parameters)
         return root.toString(2)
     }
 
@@ -88,6 +106,7 @@ class AppKnxConfigurationRepository(context: Context) {
             }
 
             val globals = root.optJSONObject("globalAddresses") ?: JSONObject()
+            val parameters = root.optJSONObject("parameters") ?: JSONObject()
             val importedGlobals = mutableMapOf<String, String>()
             for (entry in KnxAddressBook.entries) {
                 if (!globals.has(entry.key)) continue
@@ -106,6 +125,15 @@ class AppKnxConfigurationRepository(context: Context) {
                 }
                 importedGlobals.forEach { (key, value) ->
                     putString("$KEY_GLOBAL_PREFIX$key", value)
+                }
+                if (parameters.has("climate_fan_low")) {
+                    putInt("${KEY_PARAMETER_PREFIX}climate_fan_low", parameters.optInt("climate_fan_low", 25).coerceIn(0, 100))
+                }
+                if (parameters.has("climate_fan_medium")) {
+                    putInt("${KEY_PARAMETER_PREFIX}climate_fan_medium", parameters.optInt("climate_fan_medium", 37).coerceIn(0, 100))
+                }
+                if (parameters.has("climate_fan_high")) {
+                    putInt("${KEY_PARAMETER_PREFIX}climate_fan_high", parameters.optInt("climate_fan_high", 100).coerceIn(0, 100))
                 }
             }.apply()
 
@@ -201,6 +229,7 @@ class AppKnxConfigurationRepository(context: Context) {
         private const val PREFERENCES_NAME = "onehouse_knx_configuration"
         private const val KEY_PROJECT = "app_project_copy"
         private const val KEY_GLOBAL_PREFIX = "global_"
+        private const val KEY_PARAMETER_PREFIX = "parameter_"
         private const val KEY_BACKUP = "automatic_backup"
     }
 }

@@ -1,0 +1,13 @@
+OneHouse v1.10.8 - Corrección de clima y sensores KNX
+
+- Velocidades configurables: baja 25%, media 37%, alta 100%.
+- Configuración disponible en Más > Direcciones KNX > Climatización.
+- Los porcentajes se incluyen en exportación/importación y copia de seguridad.
+- ON/OFF escribe en 5/2/2 y verifica el estado en 5/3/2.
+- Si el envío falla se revierte el estado visual temporal.
+- Lluvia usa 15/0/15 y muestra sol/sin lluvia o lluvia según el valor recibido.
+- Escenas sin cambios.
+
+versionCode = 84
+versionName = 1.10.8 Correccion Clima y Sensores KNX
+Compilación offline en este entorno: código 126

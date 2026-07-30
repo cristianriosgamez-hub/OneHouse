@@ -52,11 +52,12 @@ class KnxCommandExecutor(context: Context) : Closeable {
         command: KnxCommand,
         toggleValue: Boolean? = null,
         retryReadOnce: Boolean = true,
+        verificationAddress: String? = null,
         onResult: (Result) -> Unit
     ) {
         queuedOperation?.close()
         queuedOperation = KnxTelegramQueue.enqueue { done ->
-            executeQueued(command, toggleValue, retryReadOnce) { result ->
+            executeQueued(command, toggleValue, retryReadOnce, verificationAddress) { result ->
                 onResult(result)
                 done()
             }
@@ -67,6 +68,7 @@ class KnxCommandExecutor(context: Context) : Closeable {
         command: KnxCommand,
         toggleValue: Boolean?,
         retryReadOnce: Boolean,
+        verificationAddress: String?,
         onResult: (Result) -> Unit
     ) {
         val telegram = telegramFor(command, toggleValue)
@@ -159,8 +161,11 @@ class KnxCommandExecutor(context: Context) : Closeable {
                             }
 
                             val expectedBoolean = expectedBooleanFor(command, toggleValue)
+                            val confirmationAddress = verificationAddress
+                                ?.takeIf(AppKnxConfigurationRepository::isValidGroupAddress)
+                                ?: command.destination.toString()
                             val cachedConfirmation = stateRepository
-                                .get(command.destination.toString())
+                                .get(confirmationAddress)
                                 ?.takeIf { state ->
                                     state.timestampMillis >= operationStartedAt &&
                                         expectedBoolean != null &&
@@ -171,7 +176,7 @@ class KnxCommandExecutor(context: Context) : Closeable {
                                 monitorRepository.record(
                                     direction = KnxTelegramEvent.Direction.SYSTEM,
                                     kind = KnxTelegramEvent.Kind.GROUP_VALUE_RESPONSE,
-                                    groupAddress = command.destination.toString(),
+                                    groupAddress = confirmationAddress,
                                     value = cachedConfirmation.rawValue,
                                     status = KnxTelegramEvent.Status.CONFIRMED,
                                     detail = buildString {
@@ -196,15 +201,15 @@ class KnxCommandExecutor(context: Context) : Closeable {
                             monitorRepository.record(
                                 direction = KnxTelegramEvent.Direction.OUTGOING,
                                 kind = KnxTelegramEvent.Kind.GROUP_VALUE_READ,
-                                groupAddress = command.destination.toString(),
+                                groupAddress = confirmationAddress,
                                 status = KnxTelegramEvent.Status.PENDING,
                                 detail = "No llegó confirmación en tiempo real; se solicita lectura de verificación"
                             )
-                            connectionManager.readGroupValue(command.destination.toString()) { verification ->
+                            connectionManager.readGroupValue(confirmationAddress) { verification ->
                                 recordOperationStatistics(verification)
                                 val verificationResult = verification.toExecutorResult()
                                 recordOutgoingResult(
-                                    groupAddress = command.destination.toString(),
+                                    groupAddress = confirmationAddress,
                                     eventKind = KnxTelegramEvent.Kind.GROUP_VALUE_READ,
                                     eventValue = null,
                                     result = verificationResult,

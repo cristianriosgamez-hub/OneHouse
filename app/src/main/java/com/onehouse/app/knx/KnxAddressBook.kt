@@ -47,6 +47,9 @@ object KnxAddressBook {
         @Volatile var TARGET_TEMPERATURE_COMMAND = "5/2/1"
         @Volatile var TARGET_TEMPERATURE_PRIMARY = "5/2/6"
         @Volatile var TARGET_TEMPERATURE_FALLBACK = "5/2/6"
+        @Volatile var FAN_SPEED_LOW_VALUE = 25
+        @Volatile var FAN_SPEED_MEDIUM_VALUE = 37
+        @Volatile var FAN_SPEED_HIGH_VALUE = 100
     }
     object Indoor {
         @Volatile var CO2_DINING = "5/1/1"
@@ -77,6 +80,9 @@ object KnxAddressBook {
         Climate.TARGET_TEMPERATURE_COMMAND = value("climate_target_command")
         Climate.TARGET_TEMPERATURE_PRIMARY = value("climate_target_primary")
         Climate.TARGET_TEMPERATURE_FALLBACK = Climate.TARGET_TEMPERATURE_PRIMARY
+        Climate.FAN_SPEED_LOW_VALUE = repository.climateFanValue("climate_fan_low", 25)
+        Climate.FAN_SPEED_MEDIUM_VALUE = repository.climateFanValue("climate_fan_medium", 37)
+        Climate.FAN_SPEED_HIGH_VALUE = repository.climateFanValue("climate_fan_high", 100)
         Indoor.CO2_DINING = value("dining_co2")
         Indoor.HUMIDITY_DINING = value("dining_humidity")
         Indoor.TEMPERATURE_DINING = value("dining_temperature")

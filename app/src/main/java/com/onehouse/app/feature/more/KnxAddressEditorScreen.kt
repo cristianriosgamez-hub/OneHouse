@@ -51,6 +51,9 @@ fun KnxAddressEditorScreen(onBack: () -> Unit) {
     var filter by remember { mutableStateOf("") }
     var selectedRoom by remember { mutableStateOf(ALL) }
     var selectedCategory by remember { mutableStateOf(ALL) }
+    var fanLowValue by remember { mutableStateOf(repository.climateFanValue("climate_fan_low", 25).toString()) }
+    var fanMediumValue by remember { mutableStateOf(repository.climateFanValue("climate_fan_medium", 37).toString()) }
+    var fanHighValue by remember { mutableStateOf(repository.climateFanValue("climate_fan_high", 100).toString()) }
 
     val exportLauncher = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/json")) { uri ->
         if (uri != null) runCatching {
@@ -65,6 +68,9 @@ fun KnxAddressEditorScreen(onBack: () -> Unit) {
             if (repository.importConfiguration(json)) {
                 project = repository.loadProject()
                 globalValues = KnxAddressBook.entries.associate { it.key to repository.globalAddress(it.key, it.defaultAddress) }
+                fanLowValue = repository.climateFanValue("climate_fan_low", 25).toString()
+                fanMediumValue = repository.climateFanValue("climate_fan_medium", 37).toString()
+                fanHighValue = repository.climateFanValue("climate_fan_high", 100).toString()
                 toast(context, "Configuración KNX importada")
             } else toast(context, "Archivo de configuración no válido")
         }.onFailure { toast(context, "No se pudo importar la configuración") }
@@ -149,6 +155,25 @@ fun KnxAddressEditorScreen(onBack: () -> Unit) {
                     restoreText = "Restaurar ${entry.defaultAddress}"
                 )
             }
+            if ((selectedRoom == ALL || selectedRoom == "Climatización") &&
+                (selectedCategory == ALL || selectedCategory == "Climatización")
+            ) {
+                OneHouseCard {
+                    Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                        Text("Climatización", color = AzulClaro, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+                        Text("Valores de velocidad del ventilador", color = TextoPrincipal, fontSize = 18.sp, fontWeight = FontWeight.SemiBold)
+                        Text("Porcentajes enviados al objeto DPT 5.001", color = TextoSecundario, fontSize = 12.sp)
+                        FanPercentageField("Velocidad baja", fanLowValue) { fanLowValue = it }
+                        FanPercentageField("Velocidad media", fanMediumValue) { fanMediumValue = it }
+                        FanPercentageField("Velocidad alta", fanHighValue) { fanHighValue = it }
+                        OutlinedButton(onClick = {
+                            fanLowValue = "25"
+                            fanMediumValue = "37"
+                            fanHighValue = "100"
+                        }) { Text("Restaurar 25% / 37% / 100%") }
+                    }
+                }
+            }
 
             if (project != null) {
                 Text("Luces, persianas y controles", color = TextoPrincipal, fontWeight = FontWeight.Bold, fontSize = 20.sp)
@@ -178,6 +203,9 @@ fun KnxAddressEditorScreen(onBack: () -> Unit) {
                             if (repository.restoreAutomaticBackup()) {
                                 project = repository.loadProject()
                                 globalValues = KnxAddressBook.entries.associate { it.key to repository.globalAddress(it.key, it.defaultAddress) }
+                                fanLowValue = repository.climateFanValue("climate_fan_low", 25).toString()
+                                fanMediumValue = repository.climateFanValue("climate_fan_medium", 37).toString()
+                                fanHighValue = repository.climateFanValue("climate_fan_high", 100).toString()
                                 toast(context, "Última copia restaurada")
                             }
                         }, modifier = Modifier.fillMaxWidth()) { Text("Restaurar última copia automática") }
@@ -190,6 +218,9 @@ fun KnxAddressEditorScreen(onBack: () -> Unit) {
                     repository.resetAllToFactory()
                     project = repository.loadProject()
                     globalValues = KnxAddressBook.entries.associate { it.key to it.defaultAddress }
+                    fanLowValue = "25"
+                    fanMediumValue = "37"
+                    fanHighValue = "100"
                     toast(context, "Valores originales de OneHouse restaurados")
                 }, modifier = Modifier.weight(1f)) { Text("Valores originales") }
                 Button(onClick = {
@@ -197,11 +228,23 @@ fun KnxAddressEditorScreen(onBack: () -> Unit) {
                     val invalidProject = projectObjects.flatMap { it.read.splitAddresses() + it.write.splitAddresses() }
                         .firstOrNull { !AppKnxConfigurationRepository.isValidGroupAddress(it) }
                     val invalid = invalidGlobal ?: invalidProject
-                    if (invalid != null) toast(context, "Dirección KNX no válida: $invalid")
-                    else {
-                        project?.let(repository::saveProject)
-                        repository.saveGlobalAddresses(globalValues)
-                        toast(context, "Direcciones KNX guardadas")
+                    val fanLow = fanLowValue.toIntOrNull()
+                    val fanMedium = fanMediumValue.toIntOrNull()
+                    val fanHigh = fanHighValue.toIntOrNull()
+                    when {
+                        invalid != null -> toast(context, "Dirección KNX no válida: $invalid")
+                        fanLow == null || fanMedium == null || fanHigh == null ->
+                            toast(context, "Las velocidades deben ser números entre 0 y 100")
+                        fanLow !in 0..100 || fanMedium !in 0..100 || fanHigh !in 0..100 ->
+                            toast(context, "Las velocidades deben estar entre 0% y 100%")
+                        !(fanLow <= fanMedium && fanMedium <= fanHigh) ->
+                            toast(context, "Las velocidades deben cumplir: baja ≤ media ≤ alta")
+                        else -> {
+                            project?.let(repository::saveProject)
+                            repository.saveGlobalAddresses(globalValues)
+                            repository.saveClimateFanValues(fanLow, fanMedium, fanHigh)
+                            toast(context, "Direcciones y velocidades KNX guardadas")
+                        }
                     }
                 }, modifier = Modifier.weight(1f)) { Text("Guardar") }
             }
@@ -263,6 +306,27 @@ private fun AddressField(value: String, label: String, duplicates: Set<String>, 
             }
         },
         isError = invalid
+    )
+}
+
+@Composable
+private fun FanPercentageField(label: String, value: String, onChange: (String) -> Unit) {
+    val number = value.toIntOrNull()
+    OutlinedTextField(
+        value = value,
+        onValueChange = { candidate ->
+            if (candidate.length <= 3 && candidate.all(Char::isDigit)) onChange(candidate)
+        },
+        modifier = Modifier.fillMaxWidth(),
+        label = { Text(label) },
+        suffix = { Text("%") },
+        singleLine = true,
+        isError = value.isBlank() || number == null || number !in 0..100,
+        supportingText = {
+            if (value.isBlank() || number == null || number !in 0..100) {
+                Text("Introduce un valor entre 0 y 100")
+            }
+        }
     )
 }
 

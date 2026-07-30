@@ -194,11 +194,15 @@ private fun KnxExteriorSensorsCard(
             )
             KnxMetric(
                 modifier = Modifier.weight(1f),
-                symbol = "☂",
+                symbol = when (raining) {
+                    true -> "☂"
+                    false -> "☀"
+                    null -> "?"
+                },
                 label = "Lluvia",
                 value = when (raining) {
-                    true -> "Sí"
-                    false -> "No"
+                    true -> "Lluvia"
+                    false -> "Sin lluvia"
                     null -> "--"
                 },
                 alarm = raining == true

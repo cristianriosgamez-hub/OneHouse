@@ -60,6 +60,9 @@ fun ClimateScreen(onBack: () -> Unit) {
     val commandExecutor = remember(context.applicationContext) {
         KnxCommandExecutor(context.applicationContext)
     }
+    val appKnxConfiguration = remember(context.applicationContext) {
+        com.onehouse.app.knx.AppKnxConfigurationRepository(context.applicationContext).also(KnxAddressBook::apply)
+    }
     DisposableEffect(commandExecutor) { onDispose(commandExecutor::close) }
     val snapshot by repository.stateFlow.collectAsState(initial = repository.snapshot())
     val climate = snapshot.climate
@@ -129,8 +132,17 @@ fun ClimateScreen(onBack: () -> Unit) {
             onEnabledChange = { requested ->
                 requestedPower = requested
                 commandExecutor.execute(
-                    KnxCommand(if (requested) KnxCommandType.ON else KnxCommandType.OFF, KnxGroupAddress.parse(KnxAddressBook.Climate.POWER_COMMAND), "1.001")
-                ) { }
+                    command = KnxCommand(
+                        if (requested) KnxCommandType.ON else KnxCommandType.OFF,
+                        KnxGroupAddress.parse(KnxAddressBook.Climate.POWER_COMMAND),
+                        "1.001"
+                    ),
+                    verificationAddress = KnxAddressBook.Climate.POWER_STATE
+                ) { result ->
+                    if (result is KnxCommandExecutor.Result.Failure) {
+                        requestedPower = null
+                    }
+                }
             }
         )
         Spacer(Modifier.height(12.dp))
@@ -174,10 +186,11 @@ fun ClimateScreen(onBack: () -> Unit) {
             enabled = true,
             onSpeedSelected = { speed ->
                 requestedFanSpeed = speed
+                KnxAddressBook.apply(appKnxConfiguration)
                 val percent = when (speed) {
-                    FanSpeed.LOW -> 33
-                    FanSpeed.MEDIUM -> 66
-                    FanSpeed.HIGH -> 100
+                    FanSpeed.LOW -> KnxAddressBook.Climate.FAN_SPEED_LOW_VALUE
+                    FanSpeed.MEDIUM -> KnxAddressBook.Climate.FAN_SPEED_MEDIUM_VALUE
+                    FanSpeed.HIGH -> KnxAddressBook.Climate.FAN_SPEED_HIGH_VALUE
                 }
                 commandExecutor.execute(KnxCommand(KnxCommandType.SET_VALUE, KnxGroupAddress.parse(KnxAddressBook.Climate.FAN_SPEED_COMMAND), "5.001", true, percent.toString())) { }
             }
