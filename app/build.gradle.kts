@@ -16,8 +16,8 @@ android {
         applicationId = "com.onehouse.app"
         minSdk = 29
         targetSdk = 36
-        versionCode = 81
-        versionName = "1.10.6.2 Correccion Datos Consumos"
+        versionCode = 82
+        versionName = "1.10.7 Refinamiento Pantalla Inicio"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }

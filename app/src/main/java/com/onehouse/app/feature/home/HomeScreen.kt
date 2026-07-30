@@ -15,9 +15,20 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.AcUnit
+import androidx.compose.material.icons.rounded.Air
+import androidx.compose.material.icons.rounded.Blinds
+import androidx.compose.material.icons.rounded.Home
+import androidx.compose.material.icons.rounded.Lightbulb
+import androidx.compose.material.icons.rounded.Security
+import androidx.compose.material.icons.rounded.Thermostat
+import androidx.compose.material.icons.rounded.WaterDrop
+import androidx.compose.material.icons.rounded.WbSunny
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -39,6 +50,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -52,7 +64,6 @@ import com.onehouse.app.design.FondoMedio
 import com.onehouse.app.design.FondoSuperior
 import com.onehouse.app.design.OneHouseCard
 import com.onehouse.app.design.OneHouseHeader
-import com.onehouse.app.design.OneHouseInfoCard
 import com.onehouse.app.design.OneHouseSceneCard
 import com.onehouse.app.design.OneHouseSectionTitle
 import com.onehouse.app.design.OneHouseStatusItem
@@ -279,7 +290,7 @@ private fun ClimateHeroCard(homeState: HomeDashboardUiState) {
                 .background(
                     Brush.linearGradient(
                         colors = listOf(
-                            AzulOneHouse.copy(alpha = 0.18f),
+                            AzulOneHouse.copy(alpha = 0.22f),
                             Color.Transparent,
                             Color.Transparent
                         )
@@ -288,53 +299,86 @@ private fun ClimateHeroCard(homeState: HomeDashboardUiState) {
                 .padding(20.dp)
         ) {
             Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                Surface(
+                    color = AzulClaro.copy(alpha = 0.13f),
+                    shape = RoundedCornerShape(18.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Rounded.Thermostat,
+                        contentDescription = null,
+                        tint = AzulClaro,
+                        modifier = Modifier.padding(13.dp).size(30.dp)
+                    )
+                }
+                Spacer(modifier = Modifier.size(14.dp))
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
                         text = "CLIMATIZACIÓN CENTRAL",
                         color = AzulClaro,
                         style = MaterialTheme.typography.labelMedium,
                         fontWeight = FontWeight.Bold,
-                        letterSpacing = 1.2.sp
+                        letterSpacing = 1.1.sp
                     )
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Row(verticalAlignment = Alignment.Bottom) {
-                        Text(
-                            text = homeState.climate.currentTemperature?.let {
-                                String.format(Locale("es", "ES"), "%.1f", it)
-                            } ?: "--,-",
-                            color = TextoPrincipal,
-                            fontSize = 46.sp,
-                            lineHeight = 48.sp,
-                            fontWeight = FontWeight.Bold
-                        )
-                        Text(
-                            text = " °C",
-                            color = TextoSecundario,
-                            fontSize = 21.sp,
-                            modifier = Modifier.padding(bottom = 5.dp)
-                        )
-                    }
+                    Spacer(modifier = Modifier.height(5.dp))
                     Text(
-                        text = "Temperatura interior confortable",
-                        color = TextoSecundario,
+                        text = when (homeState.climate.powered) {
+                            true -> "Sistema encendido"
+                            false -> "Sistema apagado"
+                            null -> "Estado no disponible"
+                        },
+                        color = if (homeState.climate.powered == true) VerdeEstado else TextoSecundario,
                         style = MaterialTheme.typography.bodySmall
                     )
                 }
-
                 Surface(color = FondoChip, shape = RoundedCornerShape(50)) {
-                    Text(
-                        text = "${climateModeSymbol(homeState.climate.mode)}  ${climateModeLabel(homeState.climate.mode)}",
-                        modifier = Modifier.padding(horizontal = 14.dp, vertical = 9.dp),
-                        color = AzulClaro,
-                        style = MaterialTheme.typography.labelLarge,
-                        fontWeight = FontWeight.SemiBold
-                    )
+                    Row(
+                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            imageVector = climateModeIcon(homeState.climate.mode),
+                            contentDescription = null,
+                            tint = AzulClaro,
+                            modifier = Modifier.size(18.dp)
+                        )
+                        Spacer(modifier = Modifier.size(6.dp))
+                        Text(
+                            text = climateModeLabel(homeState.climate.mode),
+                            color = AzulClaro,
+                            style = MaterialTheme.typography.labelLarge,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                    }
                 }
             }
 
-            Spacer(modifier = Modifier.height(20.dp))
+            Spacer(modifier = Modifier.height(18.dp))
+            Row(verticalAlignment = Alignment.Bottom) {
+                Text(
+                    text = homeState.climate.currentTemperature?.let {
+                        String.format(Locale("es", "ES"), "%.1f", it)
+                    } ?: "--,-",
+                    color = TextoPrincipal,
+                    fontSize = 48.sp,
+                    lineHeight = 50.sp,
+                    fontWeight = FontWeight.Bold
+                )
+                Text(
+                    text = " °C",
+                    color = TextoSecundario,
+                    fontSize = 21.sp,
+                    modifier = Modifier.padding(bottom = 6.dp)
+                )
+            }
+            Text(
+                text = "Temperatura interior de la vivienda",
+                color = TextoSecundario,
+                style = MaterialTheme.typography.bodySmall
+            )
+
+            Spacer(modifier = Modifier.height(18.dp))
             HorizontalDivider(color = BordeTarjeta)
-            Spacer(modifier = Modifier.height(17.dp))
+            Spacer(modifier = Modifier.height(16.dp))
 
             Row(modifier = Modifier.fillMaxWidth()) {
                 OneHouseStatusItem(
@@ -373,43 +417,45 @@ private fun QuickStatusGrid(
     onSecuritySelected: () -> Unit
 ) {
     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-        OneHouseInfoCard(
+        HomeStatusCard(
             title = "Persianas",
             value = if (homeState.blindsTotal > 0) {
                 "${homeState.blindsOpen} de ${homeState.blindsTotal} abiertas"
             } else "Sin datos",
             detail = "Estado general",
-            symbol = "▥",
-            modifier = Modifier.weight(1f).height(146.dp)
+            icon = Icons.Rounded.Blinds,
+            accent = AzulClaro,
+            modifier = Modifier.weight(1f).height(150.dp)
         )
-        OneHouseInfoCard(
-            title = "Terraza de estancia",
+        HomeStatusCard(
+            title = "Exterior",
             value = weather.temperatureC?.let {
                 String.format(Locale("es", "ES"), "%.1f °C", it)
             } ?: "-- °C",
             detail = when {
-                weather.isLoading -> "Actualizando temperatura exterior…"
+                weather.isLoading -> "Actualizando…"
                 weather.temperatureC != null -> weather.condition
-                weather.errorMessage != null -> "Último dato no disponible"
+                weather.errorMessage != null -> "Dato no disponible"
                 else -> "Temperatura exterior"
             },
-            symbol = weather.conditionSymbol.ifBlank { "◌" },
-            modifier = Modifier.weight(1f).height(146.dp)
+            icon = weatherIcon(weather),
+            accent = AzulClaro,
+            modifier = Modifier.weight(1f).height(150.dp)
         )
     }
 
     Spacer(modifier = Modifier.height(12.dp))
 
     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-        OneHouseInfoCard(
+        HomeStatusCard(
             title = "Luces",
             value = if (homeState.lightsTotal > 0) {
                 "${homeState.lightsOn} de ${homeState.lightsTotal} encendidas"
             } else "Sin datos",
             detail = "Estado general",
-            symbol = "☀",
-            symbolColor = AmarilloEstado,
-            modifier = Modifier.weight(1f).height(146.dp)
+            icon = Icons.Rounded.Lightbulb,
+            accent = AmarilloEstado,
+            modifier = Modifier.weight(1f).height(150.dp)
         )
         val securityValue = when {
             securitySummary.updatedAt == 0L -> "Sin datos"
@@ -422,16 +468,69 @@ private fun QuickStatusGrid(
             securitySummary.openCount > 0 || securitySummary.motionCount > 0 -> AmarilloEstado
             else -> VerdeEstado
         }
-        OneHouseInfoCard(
+        HomeStatusCard(
             title = "Seguridad",
             value = securityValue,
             detail = if (securitySummary.updatedAt == 0L) "Sensores Xiaomi" else "${securitySummary.entityCount} sensores",
-            symbol = "⌂",
+            icon = Icons.Rounded.Security,
+            accent = AzulClaro,
             valueColor = securityColor,
-            symbolColor = AzulClaro,
-            modifier = Modifier.weight(1f).height(146.dp),
+            modifier = Modifier.weight(1f).height(150.dp),
             onClick = onSecuritySelected
         )
+    }
+}
+
+@Composable
+private fun HomeStatusCard(
+    title: String,
+    value: String,
+    detail: String,
+    icon: ImageVector,
+    accent: Color,
+    modifier: Modifier = Modifier,
+    valueColor: Color = TextoPrincipal,
+    onClick: (() -> Unit)? = null
+) {
+    OneHouseCard(modifier = modifier, onClick = onClick) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Surface(
+                    color = accent.copy(alpha = 0.13f),
+                    shape = RoundedCornerShape(14.dp)
+                ) {
+                    Icon(
+                        imageVector = icon,
+                        contentDescription = null,
+                        tint = accent,
+                        modifier = Modifier.padding(9.dp).size(23.dp)
+                    )
+                }
+                Spacer(modifier = Modifier.size(10.dp))
+                Text(
+                    text = title,
+                    color = TextoSecundario,
+                    style = MaterialTheme.typography.labelLarge,
+                    fontWeight = FontWeight.SemiBold,
+                    maxLines = 1
+                )
+            }
+            Spacer(modifier = Modifier.height(13.dp))
+            Text(
+                text = value,
+                color = valueColor,
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.SemiBold,
+                maxLines = 2
+            )
+            Spacer(modifier = Modifier.height(4.dp))
+            Text(
+                text = detail,
+                color = TextoDesactivado,
+                style = MaterialTheme.typography.labelSmall,
+                maxLines = 1
+            )
+        }
     }
 }
 
@@ -587,13 +686,23 @@ private fun climateModeLabel(mode: String?): String {
     }
 }
 
-private fun climateModeSymbol(mode: String?): String = when (climateModeLabel(mode)) {
-    "Frío" -> "❄"
-    "Calor" -> "☀"
-    "Ventilador" -> "✣"
-    "Humidificador" -> "◉"
-    "Auto" -> "A"
-    else -> "◌"
+private fun climateModeIcon(mode: String?): ImageVector = when (climateModeLabel(mode)) {
+    "Frío" -> Icons.Rounded.AcUnit
+    "Calor" -> Icons.Rounded.WbSunny
+    "Ventilador" -> Icons.Rounded.Air
+    "Humidificador" -> Icons.Rounded.WaterDrop
+    "Auto" -> Icons.Rounded.Thermostat
+    else -> Icons.Rounded.Thermostat
+}
+
+private fun weatherIcon(weather: WeatherUiState): ImageVector {
+    val condition = weather.condition.lowercase(Locale.ROOT)
+    return when {
+        condition.contains("lluv") || condition.contains("rain") -> Icons.Rounded.WaterDrop
+        condition.contains("viento") || condition.contains("wind") -> Icons.Rounded.Air
+        condition.contains("sol") || condition.contains("despej") || condition.contains("clear") -> Icons.Rounded.WbSunny
+        else -> Icons.Rounded.Home
+    }
 }
 
 @Composable

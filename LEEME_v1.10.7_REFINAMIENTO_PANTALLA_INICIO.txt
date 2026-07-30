@@ -1,0 +1,34 @@
+ONEHOUSE v1.10.7 - REFINAMIENTO DE LA PANTALLA INICIO
+
+Base utilizada:
+- v1.10.6.2 compilada y validada por el usuario.
+
+Archivos modificados:
+- app/build.gradle.kts
+- app/src/main/java/com/onehouse/app/feature/home/HomeScreen.kt
+
+Cambios visuales:
+- Tarjeta principal de climatizacion con icono Material Rounded Thermostat.
+- Modo de climatizacion representado con iconos Material Rounded.
+- Mejor jerarquia entre estado, temperatura, consigna y modo.
+- Tarjetas de Persianas, Exterior, Luces y Seguridad renovadas.
+- Iconos Material Rounded coherentes con el resto de OneHouse.
+- Ajustes de margenes, espaciado, tipografia y bloques de color.
+- Estado de Seguridad mantiene sus colores dinamicos.
+- Se mantienen ocultas las secciones favoritas cuando estan vacias.
+
+Sin cambios funcionales:
+- No se modifican direcciones KNX ni DPT.
+- No se modifica HomeStateMapper.
+- No se modifica la conexion KNX.
+- No se modifica la navegacion.
+- No se modifica la base de datos, escenas ni automatizaciones.
+
+Version:
+- versionCode = 82
+- versionName = 1.10.7 Refinamiento Pantalla Inicio
+
+Nota de validacion:
+No se ha podido ejecutar Gradle en el entorno de entrega porque el wrapper
+requiere descargar Gradle 9.5.0 desde services.gradle.org y no existe acceso
+a Internet. Los cambios se han limitado a componentes Compose y versionado.
