@@ -1,0 +1,68 @@
+OneHouse v1.11.0 - Auditoría de Arquitectura y Calidad · Fase 1
+
+BASE
+v1.10.9 Auditoría KNX, compilada y validada por el usuario.
+
+ALCANCE DE ESTA FASE
+- Código duplicado.
+- Recursos.
+- Imports.
+- Pequeña mejora funcional solicitada para las lecturas de Climatización.
+
+RESULTADOS Y CAMBIOS
+
+1. CÓDIGO DUPLICADO
+- Existían dos implementaciones completas del diálogo para crear/editar lecturas:
+  EnergyReadingDialog.kt y ReadingEditorDialog dentro de EnergyMeterDetailScreen.kt.
+- Se conserva una sola implementación reutilizable: EnergyReadingDialog.
+- ConsumptionScreen utiliza ahora ese componente único.
+- Esto reduce mantenimiento duplicado y evita diferencias futuras entre ambos formularios.
+
+2. LECTURAS DE CLIMATIZACIÓN
+- Ahora cualquier lectura puede eliminarse, tanto manual como importada.
+- Las lecturas manuales mantienen las acciones Editar y Eliminar.
+- Las lecturas importadas muestran Eliminar, pero no Editar, para no cambiar su origen.
+- El diálogo de confirmación deja de indicar incorrectamente que siempre es una lectura manual.
+- Se eliminan del histórico Excel las lecturas de Climatización:
+    31/05/2026
+    30/06/2026
+- Se incrementa la versión del dataset a 4. En el siguiente arranque se sustituye
+  el conjunto importado por el histórico limpio, por lo que esas dos lecturas
+  también desaparecerán de instalaciones que ya tenían la versión anterior.
+
+3. RECURSOS
+- Se revisaron los recursos usados en esta modificación.
+- El histórico importado queda centralizado en energy_history.json.
+- No se han eliminado recursos gráficos o de diseño de uso dudoso para evitar
+  regresiones visuales. La retirada de recursos no referenciados se hará solo
+  cuando pueda verificarse con compilación y pruebas de todas las variantes.
+
+4. IMPORTS
+- Se eliminan de EnergyMeterDetailScreen.kt los imports que solo pertenecían
+  al diálogo duplicado: campos de texto, teclado, AlertDialog, estados locales
+  y botones del editor.
+- No se han realizado cambios masivos automáticos de imports para no introducir
+  errores en archivos no relacionados.
+
+ARCHIVOS MODIFICADOS
+- app/build.gradle.kts
+- app/src/main/java/com/onehouse/app/feature/consumption/ConsumptionScreen.kt
+- app/src/main/java/com/onehouse/app/feature/consumption/EnergyMeterDetailScreen.kt
+- app/src/main/java/com/onehouse/app/feature/consumption/EnergyReadingDialog.kt
+- app/src/main/java/com/onehouse/app/data/energy/EnergyHistorySeeder.kt
+- app/src/main/assets/energy_history.json
+- LEEME_v1.11.0_AUDITORIA_ARQUITECTURA_FASE1.txt
+
+NO MODIFICADO
+- Motor KNX.
+- Direcciones KNX y DPT.
+- Climatización KNX.
+- Persianas y STOP.
+- Navegación.
+- Base de datos y esquema Room.
+- Cálculos de consumos.
+- Backup y restauración.
+
+VERSIÓN
+versionCode = 87
+versionName = 1.11.0 Auditoria Arquitectura Fase 1

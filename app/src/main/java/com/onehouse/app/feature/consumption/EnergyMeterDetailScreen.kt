@@ -16,28 +16,18 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.DeleteOutline
 import androidx.compose.material.icons.rounded.Edit
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Button
 import androidx.compose.material3.Icon
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.onehouse.app.data.energy.EnergyDashboardState
@@ -271,12 +261,12 @@ private fun ReadingsPanel(
                     )
                     reading.cost?.let { Text("${formatNumber(it)} €", color = TextoSecundario, fontSize = 10.sp) }
                 }
-                if (reading.source == ReadingSource.MANUAL.storageValue) {
-                    Spacer(Modifier.width(8.dp))
-                    Column(
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.spacedBy(4.dp)
-                    ) {
+                Spacer(Modifier.width(8.dp))
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    if (reading.source == ReadingSource.MANUAL.storageValue) {
                         Icon(
                             imageVector = Icons.Rounded.Edit,
                             contentDescription = "Editar lectura",
@@ -286,112 +276,22 @@ private fun ReadingsPanel(
                                 .clickable { onEdit(reading) }
                                 .padding(2.dp)
                         )
-                        Icon(
-                            imageVector = Icons.Rounded.DeleteOutline,
-                            contentDescription = "Borrar lectura",
-                            tint = EnergyRed,
-                            modifier = Modifier
-                                .size(23.dp)
-                                .clickable { onDelete(reading) }
-                                .padding(2.dp)
-                        )
                     }
+                    Icon(
+                        imageVector = Icons.Rounded.DeleteOutline,
+                        contentDescription = "Borrar lectura",
+                        tint = EnergyRed,
+                        modifier = Modifier
+                            .size(23.dp)
+                            .clickable { onDelete(reading) }
+                            .padding(2.dp)
+                    )
                 }
             }
         }
     }
 }
 
-@Composable
-internal fun ReadingEditorDialog(
-    type: MeterType,
-    reading: EnergyReadingEntity?,
-    onDismiss: () -> Unit,
-    onSave: (EnergyReadingEntity) -> Unit
-) {
-    var dateText by remember(reading) {
-        mutableStateOf(reading?.let { inputDateFormat.format(Date(it.timestamp)) } ?: inputDateFormat.format(Date()))
-    }
-    var meterText by remember(reading) { mutableStateOf(reading?.meterValue?.let(::plainNumber) ?: "") }
-    var consumptionText by remember(reading) { mutableStateOf(reading?.consumption?.let(::plainNumber) ?: "") }
-    var costText by remember(reading) { mutableStateOf(reading?.cost?.let(::plainNumber) ?: "") }
-    var noteText by remember(reading) { mutableStateOf(reading?.note.orEmpty()) }
-    var error by remember(reading) { mutableStateOf<String?>(null) }
-
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text(if (reading == null) "Añadir lectura" else "Editar lectura") },
-        text = {
-            Column(verticalArrangement = Arrangement.spacedBy(9.dp)) {
-                Text(type.title, color = accentFor(type), fontWeight = FontWeight.SemiBold)
-                OutlinedTextField(
-                    value = dateText,
-                    onValueChange = { dateText = it },
-                    label = { Text("Fecha (dd/MM/yyyy)") },
-                    singleLine = true
-                )
-                OutlinedTextField(
-                    value = meterText,
-                    onValueChange = { meterText = it },
-                    label = { Text("Lectura del contador (${type.unit})") },
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                    singleLine = true
-                )
-                OutlinedTextField(
-                    value = consumptionText,
-                    onValueChange = { consumptionText = it },
-                    label = { Text("Consumo del periodo (${type.unit})") },
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                    singleLine = true
-                )
-                if (type != MeterType.ACS && type != MeterType.CLIMATIZATION) {
-                    OutlinedTextField(
-                        value = costText,
-                        onValueChange = { costText = it },
-                        label = { Text("Coste opcional (€)") },
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                        singleLine = true
-                    )
-                }
-                OutlinedTextField(
-                    value = noteText,
-                    onValueChange = { noteText = it },
-                    label = { Text("Observaciones") }
-                )
-                error?.let { Text(it, color = EnergyRed, fontSize = 12.sp) }
-            }
-        },
-        confirmButton = {
-            Button(onClick = {
-                val timestamp = runCatching { inputDateFormat.parse(dateText)?.time }.getOrNull()
-                val meter = meterText.toNormalizedDoubleOrNull()
-                val consumption = consumptionText.toNormalizedDoubleOrNull()
-                val cost = if (type == MeterType.ACS || type == MeterType.CLIMATIZATION) null else costText.toNormalizedDoubleOrNull()
-                when {
-                    timestamp == null -> error = "La fecha no es válida."
-                    meter == null && consumption == null -> error = "Introduce la lectura o el consumo del periodo."
-                    meter != null && meter < 0 -> error = "La lectura no puede ser negativa."
-                    consumption != null && consumption < 0 -> error = "El consumo no puede ser negativo."
-                    cost != null && cost < 0 -> error = "El coste no puede ser negativo."
-                    else -> onSave(
-                        EnergyReadingEntity(
-                            id = reading?.id ?: 0,
-                            meterType = type.storageValue,
-                            timestamp = timestamp,
-                            meterValue = meter,
-                            consumption = consumption,
-                            cost = cost,
-                            unit = type.unit,
-                            source = ReadingSource.MANUAL.storageValue,
-                            note = noteText.trim().takeIf { it.isNotEmpty() }
-                        )
-                    )
-                }
-            }) { Text("Guardar") }
-        },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancelar") } }
-    )
-}
 
 private fun formatAxisDate(timestamp: Long, period: com.onehouse.app.data.energy.EnergyPeriod): String =
     SimpleDateFormat(if (period == com.onehouse.app.data.energy.EnergyPeriod.ALL) "yyyy" else "MMM yy", Locale.getDefault()).format(Date(timestamp))

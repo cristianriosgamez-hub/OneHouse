@@ -16,8 +16,8 @@ android {
         applicationId = "com.onehouse.app"
         minSdk = 29
         targetSdk = 36
-        versionCode = 86
-        versionName = "1.10.9 Auditoria KNX"
+        versionCode = 87
+        versionName = "1.11.0 Auditoria Arquitectura Fase 1"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }

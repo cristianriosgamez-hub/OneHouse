@@ -106,7 +106,7 @@ fun ConsumptionScreen(onBack: (() -> Unit)? = null) {
 
     if (state.isEditorVisible) {
         state.selectedType?.let { type ->
-            ReadingEditorDialog(
+            EnergyReadingDialog(
                 type = type,
                 reading = state.editorReading,
                 onDismiss = viewModel::dismissEditor,
@@ -119,7 +119,7 @@ fun ConsumptionScreen(onBack: (() -> Unit)? = null) {
         AlertDialog(
             onDismissRequest = viewModel::dismissDelete,
             title = { Text("Eliminar lectura") },
-            text = { Text("La lectura manual se eliminará definitivamente de la base de datos.") },
+            text = { Text("La lectura se eliminará definitivamente de la base de datos.") },
             confirmButton = {
                 TextButton(onClick = viewModel::confirmDelete) {
                     Text("Eliminar", color = EnergyRed)
