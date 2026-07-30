@@ -16,8 +16,8 @@ android {
         applicationId = "com.onehouse.app"
         minSdk = 29
         targetSdk = 36
-        versionCode = 84
-        versionName = "1.10.8 Correccion Clima y Sensores KNX"
+        versionCode = 85
+        versionName = "1.10.8.1 Correccion STOP Persianas"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }

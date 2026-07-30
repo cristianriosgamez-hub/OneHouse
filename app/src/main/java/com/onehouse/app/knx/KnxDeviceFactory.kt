@@ -14,8 +14,15 @@ object KnxDeviceFactory {
     fun create(index: Int, source: ImportedKnxObject): ImportedKnxDevice {
         val readAddresses = source.readAddresses.mapNotNull(::parseAddress)
         val importedWriteAddresses = source.writeAddresses.mapNotNull(::parseAddress)
-        val writeAddresses = importedWriteAddresses.ifEmpty {
-            inferWriteAddresses(source, readAddresses)
+        val writeAddresses = if (source.category == ImportedKnxCategory.BLIND) {
+            resolveBlindWriteAddresses(
+                importedWriteAddresses = importedWriteAddresses,
+                readAddresses = readAddresses
+            )
+        } else {
+            importedWriteAddresses.ifEmpty {
+                inferWriteAddresses(source, readAddresses)
+            }
         }
         val kind = controlKindFor(source, writeAddresses.isNotEmpty())
         val resolvedDpt = KnxDptResolver.resolve(source, kind)
@@ -55,6 +62,29 @@ object KnxDeviceFactory {
      * La inferencia solo se usa cuando el proyecto importado no incluye ninguna
      * dirección de escritura. Las direcciones explícitas siempre tienen prioridad.
      */
+    /**
+     * Normaliza los tres objetos de comunicación de una persiana:
+     * movimiento, parada y posición.
+     *
+     * Algunos proyectos InsideControl importan solo una parte de las direcciones
+     * de escritura. En ese caso no debemos interpretar la dirección de posición
+     * como si fuera la de parada. Cuando existe el estado de altura 2/2/n se
+     * reconstruye de forma segura el patrón confirmado 2/1/(n-2), 2/1/(n-1),
+     * 2/1/n y se conservan las direcciones explícitas que coincidan.
+     */
+    private fun resolveBlindWriteAddresses(
+        importedWriteAddresses: List<KnxGroupAddress>,
+        readAddresses: List<KnxGroupAddress>
+    ): List<KnxGroupAddress> {
+        val inferred = inferBlindWriteAddresses(readAddresses)
+        if (inferred.size != 3) return importedWriteAddresses
+        if (importedWriteAddresses.size >= 3) return importedWriteAddresses
+
+        return inferred.map { expected ->
+            importedWriteAddresses.firstOrNull { it == expected } ?: expected
+        }
+    }
+
     private fun inferWriteAddresses(
         source: ImportedKnxObject,
         readAddresses: List<KnxGroupAddress>
