@@ -35,7 +35,6 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.mutableStateOf
@@ -46,6 +45,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
@@ -102,7 +102,7 @@ fun HomeScreen(
     val exteriorWeather = rememberWeatherState()
     val context = LocalContext.current
     val homeRepository = remember { KnxHomeStateRepository(context) }
-    val homeState by homeRepository.stateFlow.collectAsState(initial = homeRepository.snapshot())
+    val homeState by homeRepository.stateFlow.collectAsStateWithLifecycle(initialValue = homeRepository.snapshot())
     val dashboardState = remember(homeState) { HomeStateMapper.dashboard(homeState) }
     val settingsDataStore = remember(context) { SettingsDataStore(context.applicationContext) }
     val connectionViewModel = remember(context) {

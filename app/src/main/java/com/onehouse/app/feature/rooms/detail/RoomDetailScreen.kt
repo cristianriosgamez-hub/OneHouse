@@ -14,12 +14,12 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -39,7 +39,7 @@ fun RoomDetailScreen(roomType: RoomType, onBack: () -> Unit) {
     val context = LocalContext.current
     val commandExecutor = remember { KnxCommandExecutor(context) }
     val homeRepository = remember { KnxHomeStateRepository(context) }
-    val homeSnapshot by homeRepository.stateFlow.collectAsState(initial = homeRepository.snapshot())
+    val homeSnapshot by homeRepository.stateFlow.collectAsStateWithLifecycle(initialValue = homeRepository.snapshot())
     val roomState = remember(homeSnapshot, roomType) { HomeStateMapper.room(homeSnapshot, roomType) }
 
     var contentVisible by remember(roomType) { mutableStateOf(false) }

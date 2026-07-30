@@ -28,11 +28,11 @@ import com.onehouse.app.knx.KnxCommandExecutor
 import com.onehouse.app.knx.KnxCommand
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -64,7 +64,7 @@ fun ClimateScreen(onBack: () -> Unit) {
         com.onehouse.app.knx.AppKnxConfigurationRepository(context.applicationContext).also(KnxAddressBook::apply)
     }
     DisposableEffect(commandExecutor) { onDispose(commandExecutor::close) }
-    val snapshot by repository.stateFlow.collectAsState(initial = repository.snapshot())
+    val snapshot by repository.stateFlow.collectAsStateWithLifecycle(initialValue = repository.snapshot())
     val climate = snapshot.climate
     val exteriorWeather = rememberWeatherState()
 

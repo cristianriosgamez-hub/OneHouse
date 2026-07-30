@@ -25,9 +25,9 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
@@ -54,9 +54,9 @@ fun ConsumptionScreen(onBack: (() -> Unit)? = null) {
     }
     val repository = remember(database) { EnergyRepository(database.energyReadingDao()) }
     val viewModel = remember(repository) { EnergyViewModel(repository) }
-    val state by viewModel.state.collectAsState()
-    val analyticsPoints by viewModel.analyticsPoints.collectAsState()
-    val smartEnergy by viewModel.smartEnergy.collectAsState()
+    val state by viewModel.state.collectAsStateWithLifecycle()
+    val analyticsPoints by viewModel.analyticsPoints.collectAsStateWithLifecycle()
+    val smartEnergy by viewModel.smartEnergy.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
 
     LaunchedEffect(repository) {
