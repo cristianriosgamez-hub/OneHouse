@@ -354,6 +354,7 @@ private object PeriodicKnxStateRefresh {
         KnxAddressBook.Indoor.PIR_BLOCK_ENTRANCE,
         KnxAddressBook.Indoor.FLOOD_KITCHEN,
         KnxAddressBook.Indoor.FLOOD_BATHROOM,
+        KnxAddressBook.Indoor.FIRE_HALLWAY,
         KnxAddressBook.Terrace.LUMINOSITY,
         KnxAddressBook.Terrace.EXCESSIVE_WIND,
         KnxAddressBook.Terrace.WIND_SPEED,

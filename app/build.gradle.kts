@@ -16,8 +16,8 @@ android {
         applicationId = "com.onehouse.app"
         minSdk = 29
         targetSdk = 36
-        versionCode = 92
-        versionName = "1.11.4.2 Navegacion lecturas historicas"
+        versionCode = 93
+        versionName = "1.11.4.3 Ajustes Terraza y Mantenimiento"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }

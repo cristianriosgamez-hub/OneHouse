@@ -55,7 +55,6 @@ import com.onehouse.app.knx.KnxCommandExecutor
 import com.onehouse.app.knx.KnxCommandType
 import com.onehouse.app.knx.KnxHomeStateRepository
 
-private val TerraceGreen = Color(0xFF55C865)
 private val TerraceBlue = Color(0xFF168EFF)
 private val TerraceRed = Color(0xFFFF4D45)
 private val TerraceCard = Color(0xE60A1926)
@@ -156,7 +155,7 @@ private fun KnxExteriorSensorsCard(
             .padding(20.dp),
         verticalArrangement = Arrangement.spacedBy(14.dp)
     ) {
-        Text("Sensores KNX de terraza", color = TextoPrincipal, fontSize = 20.sp, fontWeight = FontWeight.SemiBold)
+        Text("Sensores de Terraza", color = TextoPrincipal, fontSize = 20.sp, fontWeight = FontWeight.SemiBold)
         Text(
             if (listOf(luminosity, windSpeed, excessiveWind, raining).all { it == null }) {
                 "Esperando datos reales del bus KNX"
@@ -303,9 +302,9 @@ private fun ExteriorLightCard(
                         !available -> "No encontrada en el proyecto"
                         lightOn == true -> "Encendida"
                         lightOn == false -> "Apagada"
-                        else -> "Esperando estado KNX"
+                        else -> "Apagada"
                     },
-                    color = if (lightOn == true) TerraceGreen else TextoSecundario,
+                    color = if (lightOn == true) TerraceBlue else TextoSecundario,
                     fontSize = 14.sp
                 )
             }

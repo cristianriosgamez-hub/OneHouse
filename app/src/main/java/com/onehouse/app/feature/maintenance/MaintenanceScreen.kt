@@ -24,6 +24,8 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.platform.LocalContext
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -36,6 +38,8 @@ import com.onehouse.app.design.FondoSuperior
 import com.onehouse.app.design.TextoPrincipal
 import com.onehouse.app.design.TextoSecundario
 import com.onehouse.app.feature.rooms.detail.RoomHeader
+import com.onehouse.app.knx.KnxAddressBook
+import com.onehouse.app.knx.KnxHomeStateRepository
 
 private val MaintenanceCard = Color(0xFF0A1926)
 private val Blue = Color(0xFF168EFF)
@@ -46,6 +50,21 @@ private val Red = Color(0xFFFF4D45)
 
 @Composable
 fun MaintenanceScreen(onBack: () -> Unit) {
+    val context = LocalContext.current
+    val repository = remember(context.applicationContext) {
+        KnxHomeStateRepository(context.applicationContext)
+    }
+    val snapshot by repository.stateFlow.collectAsStateWithLifecycle(initialValue = repository.snapshot())
+
+    val kitchenFlood = snapshot.booleanAt(KnxAddressBook.Indoor.FLOOD_KITCHEN)
+    val bathroomFlood = snapshot.booleanAt(KnxAddressBook.Indoor.FLOOD_BATHROOM)
+    val floodDetected: Boolean? = when {
+        kitchenFlood == true || bathroomFlood == true -> true
+        kitchenFlood == false && bathroomFlood == false -> false
+        else -> null
+    }
+    val fireDetected = snapshot.booleanAt(KnxAddressBook.Indoor.FIRE_HALLWAY)
+
     var valveOpen by remember { mutableStateOf(true) }
     Column(
         modifier = Modifier
@@ -67,9 +86,9 @@ fun MaintenanceScreen(onBack: () -> Unit) {
         Spacer(Modifier.height(12.dp))
         ActionCard("▤", "Cerrar todas las persianas", "Cerrar todas las persianas de la vivienda", Orange)
         Spacer(Modifier.height(12.dp))
-        SensorCard("◉", "Sensor inundación", false, Color(0xFF28DDE3))
+        SensorCard("◉", "Sensor inundación", floodDetected, Color(0xFF28DDE3))
         Spacer(Modifier.height(12.dp))
-        SensorCard("♨", "Sensor incendio", false, Red)
+        SensorCard("♨", "Sensor incendio", fireDetected, Red)
         Spacer(Modifier.height(12.dp))
         ValveCard(open = valveOpen, onChange = { valveOpen = it })
         Spacer(Modifier.height(64.dp))
@@ -95,7 +114,7 @@ private fun ActionCard(symbol: String, title: String, subtitle: String, accent: 
 }
 
 @Composable
-private fun SensorCard(symbol: String, title: String, detected: Boolean, accent: Color) {
+private fun SensorCard(symbol: String, title: String, detected: Boolean?, accent: Color) {
     Row(
         modifier = Modifier.fillMaxWidth().background(MaintenanceCard, RoundedCornerShape(22.dp)).border(1.dp, BordeTarjeta, RoundedCornerShape(22.dp)).padding(18.dp),
         verticalAlignment = Alignment.CenterVertically
@@ -106,7 +125,19 @@ private fun SensorCard(symbol: String, title: String, detected: Boolean, accent:
             Text(title, color = TextoPrincipal, fontSize = 17.sp, fontWeight = FontWeight.SemiBold)
             Text("Estado actual", color = TextoSecundario, fontSize = 12.sp)
         }
-        Text(if (detected) "⚠ Detección" else "✓ Sin detecciones", color = if (detected) Red else Green, fontSize = 13.sp)
+        Text(
+            when (detected) {
+                true -> "⚠ Detección"
+                false -> "✓ Sin detecciones"
+                null -> "-- Sin datos"
+            },
+            color = when (detected) {
+                true -> Red
+                false -> Green
+                null -> TextoSecundario
+            },
+            fontSize = 13.sp
+        )
     }
 }
 
