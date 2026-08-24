@@ -3,6 +3,7 @@ package com.onehouse.app.feature.consumption.transfer
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -55,9 +56,30 @@ fun ConsumptionTransferScreen(onBack: () -> Unit) {
 
     Box(Modifier.fillMaxSize().background(Brush.verticalGradient(listOf(FondoSuperior, FondoInferior)))) {
         Column(Modifier.fillMaxSize().statusBarsPadding().verticalScroll(rememberScrollState()).padding(18.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
-            TextButton(onClick = onBack) { Text("‹ Volver", color = AzulClaro) }
-            Text("Importar / Exportar consumos", color = TextoPrincipal, style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
-            Text("Gestiona en un único Excel el histórico de ENDESA, AGBAR, Climatización y ACS.", color = TextoSecundario)
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = androidx.compose.ui.Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "‹",
+                    color = TextoPrincipal,
+                    style = MaterialTheme.typography.headlineLarge,
+                    modifier = Modifier
+                        .clickable(enabled = !busy, onClick = onBack)
+                        .padding(end = 16.dp)
+                )
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        "Importar / Exportar consumos",
+                        color = TextoPrincipal,
+                        style = MaterialTheme.typography.headlineSmall
+                    )
+                    Text(
+                        "Gestiona en un único Excel el histórico de ENDESA, AGBAR, Climatización y ACS.",
+                        color = TextoSecundario
+                    )
+                }
+            }
 
             OneHouseCard {
                 Column(Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {

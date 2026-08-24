@@ -17,6 +17,7 @@ import com.onehouse.app.feature.importproject.ImportProjectScreen
 import com.onehouse.app.feature.maintenance.MaintenanceScreen
 import com.onehouse.app.feature.more.MoreScreen
 import com.onehouse.app.feature.more.ToolsScreen
+import com.onehouse.app.feature.more.AutomationControlScreen
 import com.onehouse.app.feature.more.KnxAddressEditorScreen
 import com.onehouse.app.feature.more.KnxDiagnosticsScreen
 import com.onehouse.app.feature.rooms.RoomsScreen
@@ -60,7 +61,8 @@ private enum class InternalScreen {
     SCENES,
     BACKUP_RESTORE,
     CONSUMPTION_TRANSFER,
-    TOOLS
+    TOOLS,
+    AUTOMATION_CONTROL
 }
 
 @Composable
@@ -153,6 +155,21 @@ fun OneHouseNavigation() {
             return
         }
 
+        InternalScreen.AUTOMATION_CONTROL -> {
+            AutomationControlScreen(
+                onBack = {
+                    internalScreen = InternalScreen.MAIN
+                    selectedSection = OneHouseSection.MORE
+                },
+                onScenesSelected = { internalScreen = InternalScreen.SCENES },
+                onAutomationsSelected = { internalScreen = InternalScreen.AUTOMATIONS },
+                onSolarSchedulesSelected = { internalScreen = InternalScreen.SOLAR_SCHEDULES },
+                onWeeklySchedulesSelected = { internalScreen = InternalScreen.WEEKLY_SCHEDULES },
+                onKnxAddressesSelected = { internalScreen = InternalScreen.KNX_ADDRESS_EDITOR }
+            )
+            return
+        }
+
         InternalScreen.IMPORT_PROJECT -> {
             ImportProjectScreen(
                 onBack = {
@@ -175,8 +192,7 @@ fun OneHouseNavigation() {
         InternalScreen.KNX_ADDRESS_EDITOR -> {
             KnxAddressEditorScreen(
                 onBack = {
-                    internalScreen = InternalScreen.MAIN
-                    selectedSection = OneHouseSection.MORE
+                    internalScreen = InternalScreen.AUTOMATION_CONTROL
                 }
             )
             return
@@ -194,8 +210,7 @@ fun OneHouseNavigation() {
         InternalScreen.WEEKLY_SCHEDULES -> {
             WeeklyScheduleScreen(
                 onBack = {
-                    internalScreen = InternalScreen.MAIN
-                    selectedSection = OneHouseSection.MORE
+                    internalScreen = InternalScreen.AUTOMATION_CONTROL
                 }
             )
             return
@@ -204,8 +219,7 @@ fun OneHouseNavigation() {
         InternalScreen.SOLAR_SCHEDULES -> {
             SolarScheduleScreen(
                 onBack = {
-                    internalScreen = InternalScreen.MAIN
-                    selectedSection = OneHouseSection.MORE
+                    internalScreen = InternalScreen.AUTOMATION_CONTROL
                 }
             )
             return
@@ -214,8 +228,7 @@ fun OneHouseNavigation() {
         InternalScreen.AUTOMATIONS -> {
             AutomationScreen(
                 onBack = {
-                    internalScreen = InternalScreen.MAIN
-                    selectedSection = OneHouseSection.MORE
+                    internalScreen = InternalScreen.AUTOMATION_CONTROL
                 }
             )
             return
@@ -224,8 +237,7 @@ fun OneHouseNavigation() {
         InternalScreen.SCENES -> {
             ScenesScreen(
                 onBack = {
-                    internalScreen = InternalScreen.MAIN
-                    selectedSection = OneHouseSection.MORE
+                    internalScreen = InternalScreen.AUTOMATION_CONTROL
                 }
             )
             return
@@ -328,11 +340,7 @@ fun OneHouseNavigation() {
                 OneHouseSection.CONSUMPTION -> ConsumptionScreen()
                 OneHouseSection.MORE -> MoreScreen(
                     onConfigurationSelected = { internalScreen = InternalScreen.SETTINGS },
-                    onKnxAddressesSelected = { internalScreen = InternalScreen.KNX_ADDRESS_EDITOR },
-                    onWeeklySchedulesSelected = { internalScreen = InternalScreen.WEEKLY_SCHEDULES },
-                    onSolarSchedulesSelected = { internalScreen = InternalScreen.SOLAR_SCHEDULES },
-                    onAutomationsSelected = { internalScreen = InternalScreen.AUTOMATIONS },
-                    onScenesSelected = { internalScreen = InternalScreen.SCENES },
+                    onAutomationControlSelected = { internalScreen = InternalScreen.AUTOMATION_CONTROL },
                     onToolsSelected = { internalScreen = InternalScreen.TOOLS }
                 )
             }

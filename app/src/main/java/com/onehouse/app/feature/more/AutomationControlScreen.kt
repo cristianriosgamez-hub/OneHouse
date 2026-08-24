@@ -1,6 +1,7 @@
 package com.onehouse.app.feature.more
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -28,15 +29,17 @@ import com.onehouse.app.design.AzulClaro
 import com.onehouse.app.design.FondoInferior
 import com.onehouse.app.design.FondoSuperior
 import com.onehouse.app.design.OneHouseCard
-import com.onehouse.app.design.TextoDesactivado
 import com.onehouse.app.design.TextoPrincipal
 import com.onehouse.app.design.TextoSecundario
 
 @Composable
-fun MoreScreen(
-    onConfigurationSelected: () -> Unit,
-    onAutomationControlSelected: () -> Unit,
-    onToolsSelected: () -> Unit
+fun AutomationControlScreen(
+    onBack: () -> Unit,
+    onScenesSelected: () -> Unit,
+    onAutomationsSelected: () -> Unit,
+    onSolarSchedulesSelected: () -> Unit,
+    onWeeklySchedulesSelected: () -> Unit,
+    onKnxAddressesSelected: () -> Unit
 ) {
     Box(
         modifier = Modifier
@@ -51,46 +54,61 @@ fun MoreScreen(
                 .padding(horizontal = 18.dp, vertical = 18.dp),
             verticalArrangement = Arrangement.spacedBy(14.dp)
         ) {
-            Text(
-                text = "Más",
-                color = TextoPrincipal,
-                style = MaterialTheme.typography.headlineLarge
-            )
-            Text(
-                text = "Opciones y herramientas de OneHouse",
-                color = TextoSecundario,
-                style = MaterialTheme.typography.bodyMedium
-            )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "‹",
+                    color = TextoPrincipal,
+                    fontSize = 44.sp,
+                    modifier = Modifier
+                        .clickable(onClick = onBack)
+                        .padding(end = 14.dp)
+                )
+                Column {
+                    Text(
+                        text = "Automatización y control",
+                        color = TextoPrincipal,
+                        style = MaterialTheme.typography.headlineLarge
+                    )
+                    Text(
+                        text = "Escenas, horarios y configuración avanzada",
+                        color = TextoSecundario,
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+                }
+            }
 
-            MoreOptionCard(
-                symbol = "⚙",
-                title = "Configuración",
-                subtitle = "Conexión KNX y preferencias de la aplicación",
-                onClick = onConfigurationSelected
+            AutomationOptionCard(
+                symbol = "★",
+                title = "Escenas inteligentes",
+                subtitle = "Varias acciones KNX con una sola pulsación",
+                onClick = onScenesSelected
             )
-            MoreOptionCard(
-                symbol = "ⓘ",
-                title = "Acerca de",
-                subtitle = "Información de OneHouse",
-                enabled = false
+            AutomationOptionCard(
+                symbol = "⚡",
+                title = "Automatizaciones",
+                subtitle = "Condiciones KNX y acciones automáticas",
+                onClick = onAutomationsSelected
             )
-            MoreOptionCard(
-                symbol = "⌘",
-                title = "Automatización y control",
-                subtitle = "Escenas, automatizaciones, horarios y KNX",
-                onClick = onAutomationControlSelected
+            AutomationOptionCard(
+                symbol = "☀",
+                title = "Amanecer y atardecer",
+                subtitle = "Acciones KNX según la luz solar",
+                onClick = onSolarSchedulesSelected
             )
-            MoreOptionCard(
-                symbol = "?",
-                title = "Manual",
-                subtitle = "Ayuda y documentación de la aplicación",
-                enabled = false
+            AutomationOptionCard(
+                symbol = "◷",
+                title = "Horarios semanales",
+                subtitle = "Luces, climatización y persianas",
+                onClick = onWeeklySchedulesSelected
             )
-            MoreOptionCard(
-                symbol = "⌘",
-                title = "Herramientas",
-                subtitle = "Utilidades avanzadas de OneHouse",
-                onClick = onToolsSelected
+            AutomationOptionCard(
+                symbol = "⌁",
+                title = "Direcciones KNX",
+                subtitle = "Ver y editar mandos, estados y sensores X/X/X",
+                onClick = onKnxAddressesSelected
             )
 
             Spacer(modifier = Modifier.height(10.dp))
@@ -99,14 +117,13 @@ fun MoreScreen(
 }
 
 @Composable
-private fun MoreOptionCard(
+private fun AutomationOptionCard(
     symbol: String,
     title: String,
     subtitle: String,
-    enabled: Boolean = true,
-    onClick: (() -> Unit)? = null
+    onClick: () -> Unit
 ) {
-    OneHouseCard(onClick = if (enabled) onClick else null) {
+    OneHouseCard(onClick = onClick) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -114,13 +131,13 @@ private fun MoreOptionCard(
             verticalAlignment = Alignment.CenterVertically
         ) {
             Surface(
-                color = AzulClaro.copy(alpha = if (enabled) 0.12f else 0.06f),
+                color = AzulClaro.copy(alpha = 0.12f),
                 shape = CircleShape
             ) {
                 Text(
                     text = symbol,
                     modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
-                    color = if (enabled) AzulClaro else TextoDesactivado,
+                    color = AzulClaro,
                     fontSize = 24.sp
                 )
             }
@@ -131,26 +148,18 @@ private fun MoreOptionCard(
             ) {
                 Text(
                     text = title,
-                    color = if (enabled) TextoPrincipal else TextoDesactivado,
+                    color = TextoPrincipal,
                     fontWeight = FontWeight.SemiBold,
                     fontSize = 18.sp
                 )
                 Text(
                     text = subtitle,
-                    color = if (enabled) TextoSecundario else TextoDesactivado,
+                    color = TextoSecundario,
                     fontSize = 13.sp
                 )
-                if (!enabled) {
-                    Text(
-                        text = "Próximamente",
-                        color = AzulClaro.copy(alpha = 0.7f),
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.Medium
-                    )
-                }
             }
             Text(
-                text = if (enabled) "›" else "",
+                text = "›",
                 color = TextoSecundario,
                 fontSize = 32.sp
             )
