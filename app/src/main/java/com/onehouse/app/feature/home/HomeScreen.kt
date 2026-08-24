@@ -684,11 +684,11 @@ private fun climateModeLabel(mode: String?): String {
     val normalized = mode?.trim()?.lowercase(Locale.ROOT).orEmpty()
     return when {
         normalized.isBlank() -> "Sin datos"
-        normalized in setOf("1", "frio", "frío", "cold", "cool") -> "Frío"
-        normalized in setOf("2", "calor", "heat", "heating") -> "Calor"
-        normalized in setOf("3", "ventilador", "ventilación", "ventilacion", "vent.", "fan", "fan only") -> "Ventilador"
-        normalized in setOf("4", "humidificador", "dry", "deshumidificación", "deshumidificacion") -> "Humidificador"
-        normalized in setOf("5", "auto", "automatico", "automático") -> "Auto"
+        normalized in setOf("3", "frio", "frío", "cold", "cool") -> "Frío"
+        normalized in setOf("1", "calor", "heat", "heating") -> "Calor"
+        normalized in setOf("9", "ventilador", "ventilación", "ventilacion", "vent.", "fan", "fan only") -> "Ventilador"
+        normalized in setOf("14", "dry", "seco", "deshumidificación", "deshumidificacion") -> "Dry"
+        normalized in setOf("0", "auto", "automatico", "automático") -> "Auto"
         else -> mode.orEmpty()
     }
 }
@@ -697,7 +697,7 @@ private fun climateModeIcon(mode: String?): ImageVector = when (climateModeLabel
     "Frío" -> Icons.Rounded.AcUnit
     "Calor" -> Icons.Rounded.WbSunny
     "Ventilador" -> Icons.Rounded.Air
-    "Humidificador" -> Icons.Rounded.WaterDrop
+    "Dry" -> Icons.Rounded.WaterDrop
     "Auto" -> Icons.Rounded.Thermostat
     else -> Icons.Rounded.Thermostat
 }

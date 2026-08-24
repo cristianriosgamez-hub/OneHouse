@@ -8,6 +8,7 @@ import com.onehouse.app.device.ImportedKnxDevice
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import java.util.Locale
+import kotlin.math.abs
 import kotlin.math.pow
 
 /** Estado KNX agregado que comparten la portada y todas las estancias. */
@@ -163,7 +164,8 @@ class KnxHomeStateRepository(context: Context) {
         fun findByAddress(address: String): KnxStateRepository.State? =
             states[address]?.takeIf(StateFreshness::isTrusted)
         fun boolAt(address: String) = findByAddress(address)?.booleanValue
-        fun byteAt(address: String) = KnxValueDecoder.decode(findByAddress(address)?.rawValue, "20.105")?.toInt()
+        fun numericAt(address: String, dpt: String) =
+            KnxValueDecoder.decode(findByAddress(address)?.rawValue, dpt)
 
         fun normalized(value: String): String = value
             .lowercase(Locale.ROOT)
@@ -217,21 +219,32 @@ class KnxHomeStateRepository(context: Context) {
                 KnxDptResolver.mainNumber(device.resolvedDpt) == 1
         }
 
-        val modeCode = numericFromDevices(modeDevices)?.toInt() ?: byteAt(KnxAddressBook.Climate.MODE_STATE)
-        val fanCode = numericFromDevices(fanDevices)?.toInt() ?: byteAt(KnxAddressBook.Climate.FAN_SPEED_STATE)
+        // El objeto de ESTADO es la fuente autoritativa. Solo usamos el objeto
+        // semántico importado como respaldo si todavía no existe lectura real.
+        val modeCode = numericAt(KnxAddressBook.Climate.MODE_STATE, "20.105")?.toInt()
+            ?: numericFromDevices(modeDevices)?.toInt()
+        val fanPercent = numericAt(KnxAddressBook.Climate.FAN_SPEED_STATE, "5.001")
+            ?: numericFromDevices(fanDevices)
+
+        // Los códigos son los mismos que utiliza OneHouse al escribir sobre
+        // 5/2/4. Antes 9 y 14 se interpretaban como modos distintos al enviado.
         val mode = when (modeCode) {
-            0 -> "Automático"
-            1, 4 -> "Calor"
-            2, 3, 9 -> "Frío"
-            5 -> "Dry"
-            6, 14 -> "Ventilación"
+            0 -> "Auto"
+            1 -> "Calor"
+            3 -> "Frío"
+            9 -> "Ventilador"
+            14 -> "Dry"
             else -> null
         }
-        val fan = when {
-            fanCode == null -> null
-            fanCode <= 40 -> "Baja"
-            fanCode <= 80 -> "Media"
-            else -> "Alta"
+
+        // Schneider configura 25 / 37 / 100 %. No utilizamos umbrales
+        // genéricos: elegimos el valor configurado más próximo a la lectura.
+        val fan = fanPercent?.let { value ->
+            listOf(
+                "Baja" to KnxAddressBook.Climate.FAN_SPEED_LOW_VALUE.toFloat(),
+                "Media" to KnxAddressBook.Climate.FAN_SPEED_MEDIUM_VALUE.toFloat(),
+                "Alta" to KnxAddressBook.Climate.FAN_SPEED_HIGH_VALUE.toFloat()
+            ).minByOrNull { (_, configured) -> abs(value - configured) }?.first
         }
 
         val diningTemperature = numericFromDevices(

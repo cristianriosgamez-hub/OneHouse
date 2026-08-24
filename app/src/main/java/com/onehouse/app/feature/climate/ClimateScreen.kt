@@ -213,7 +213,7 @@ fun ClimateScreen(onBack: () -> Unit) {
 private fun String?.toClimateMode(): ClimateMode? = when (this?.trim()?.lowercase()) {
     "frío", "frio", "cold", "cool" -> ClimateMode.COLD
     "calor", "heat", "heating" -> ClimateMode.HEAT
-    "vent.", "vent", "fan", "ventilador" -> ClimateMode.FAN
+    "vent.", "vent", "fan", "ventilador", "ventilación", "ventilacion" -> ClimateMode.FAN
     "dry", "seco", "deshumidificación", "deshumidificacion" -> ClimateMode.DRY
     "auto", "automático", "automatico" -> ClimateMode.AUTO
     else -> null

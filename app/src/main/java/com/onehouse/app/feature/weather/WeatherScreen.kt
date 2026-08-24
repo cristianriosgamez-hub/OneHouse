@@ -108,8 +108,6 @@ fun WeatherScreen(onBack: (() -> Unit)? = null) {
         ForecastCard(state.forecast)
         Spacer(Modifier.height(14.dp))
         SunAndMoonCards(state)
-        Spacer(Modifier.height(14.dp))
-        AdditionalDetailsCard(state)
         Spacer(Modifier.height(96.dp))
     }
 }
@@ -358,8 +356,46 @@ private fun TimePoint(label: String, value: String, accent: Color) {
     }
 }
 
+private data class MoonPhaseInfo(
+    val name: String,
+    val symbol: String,
+    val illumination: Float
+)
+
+private fun currentMoonPhase(nowMillis: Long = System.currentTimeMillis()): MoonPhaseInfo {
+    // Luna nueva de referencia: 06/01/2000 18:14 UTC. El cálculo es local y
+    // deliberadamente independiente de Internet; su precisión es más que
+    // suficiente para la tarjeta informativa diaria de OneHouse.
+    val referenceNewMoonMillis = 947_182_440_000L
+    val synodicMonthDays = 29.53058867
+    val millisPerDay = 86_400_000.0
+    val elapsedDays = (nowMillis - referenceNewMoonMillis) / millisPerDay
+    val ageDays = ((elapsedDays % synodicMonthDays) + synodicMonthDays) % synodicMonthDays
+    val cycle = ageDays / synodicMonthDays
+    val illumination = ((1.0 - kotlin.math.cos(2.0 * Math.PI * cycle)) / 2.0)
+        .toFloat()
+        .coerceIn(0f, 1f)
+    val phaseIndex = kotlin.math.floor(cycle * 8.0 + 0.5).toInt() % 8
+
+    val phases = listOf(
+        Triple("Luna nueva", "●", 0),
+        Triple("Luna creciente", "◔", 1),
+        Triple("Cuarto creciente", "◐", 2),
+        Triple("Gibosa creciente", "◕", 3),
+        Triple("Luna llena", "○", 4),
+        Triple("Gibosa menguante", "◕", 5),
+        Triple("Cuarto menguante", "◑", 6),
+        Triple("Luna menguante", "◒", 7)
+    )
+    val phase = phases[phaseIndex]
+    return MoonPhaseInfo(phase.first, phase.second, illumination)
+}
+
 @Composable
 private fun MoonPhaseCard(modifier: Modifier = Modifier) {
+    val moon = currentMoonPhase()
+    val illuminationPercent = (moon.illumination * 100f).toInt().coerceIn(0, 100)
+
     Column(
         modifier = modifier
             .height(156.dp)
@@ -379,7 +415,7 @@ private fun MoonPhaseCard(modifier: Modifier = Modifier) {
                     .background(Color(0x22B06CFF), RoundedCornerShape(12.dp)),
                 contentAlignment = Alignment.Center
             ) {
-                Text("◐", color = WeatherPurple, fontSize = 25.sp)
+                Text(moon.symbol, color = WeatherPurple, fontSize = 25.sp)
             }
             Spacer(Modifier.width(10.dp))
             Text(
@@ -390,7 +426,7 @@ private fun MoonPhaseCard(modifier: Modifier = Modifier) {
             )
         }
         Spacer(Modifier.height(14.dp))
-        Text("Luna creciente", color = TextoPrincipal, fontSize = 16.sp, fontWeight = FontWeight.Medium)
+        Text(moon.name, color = TextoPrincipal, fontSize = 16.sp, fontWeight = FontWeight.Medium)
         Spacer(Modifier.height(6.dp))
         Box(
             modifier = Modifier
@@ -398,95 +434,20 @@ private fun MoonPhaseCard(modifier: Modifier = Modifier) {
                 .height(7.dp)
                 .background(Color(0xFF172C3E), RoundedCornerShape(50))
         ) {
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth(0.32f)
-                    .height(7.dp)
-                    .background(
-                        Brush.horizontalGradient(listOf(WeatherPurple, WeatherBlue)),
-                        RoundedCornerShape(50)
-                    )
-            )
+            if (moon.illumination > 0f) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth(moon.illumination.coerceAtLeast(0.01f))
+                        .height(7.dp)
+                        .background(
+                            Brush.horizontalGradient(listOf(WeatherPurple, WeatherBlue)),
+                            RoundedCornerShape(50)
+                        )
+                )
+            }
         }
         Spacer(Modifier.height(8.dp))
-        Text("32% iluminada", color = WeatherPurple, fontSize = 12.sp)
-    }
-}
-
-@Composable
-private fun AdditionalDetailsCard(state: WeatherUiState) {
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .background(
-                Brush.linearGradient(
-                    listOf(Color(0xFF0D2535), Color(0xFF091A28))
-                ),
-                RoundedCornerShape(24.dp)
-            )
-            .border(1.dp, BordeTarjeta, RoundedCornerShape(24.dp))
-            .padding(18.dp)
-    ) {
-        Text(
-            text = "Detalles adicionales",
-            color = TextoPrincipal,
-            fontSize = 17.sp,
-            fontWeight = FontWeight.SemiBold
-        )
-        Spacer(Modifier.height(14.dp))
-        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-            DetailTile("◉", "Presión", state.pressureHpa?.let { "%.0f hPa".format(it) } ?: "--", WeatherBlue, Modifier.weight(1f))
-            DetailTile("◇", "Punto de rocío", state.dewPointC?.let { "%.1f°C".format(it) } ?: "--", WeatherPurple, Modifier.weight(1f))
-        }
-        Spacer(Modifier.height(10.dp))
-        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-            DetailTile("≈", "Sensación", state.feelsLike, WeatherOrange, Modifier.weight(1f))
-            DetailTile("≋", "Dirección viento", windDirection(state.windDirectionDegrees), WeatherGreen, Modifier.weight(1f))
-        }
-    }
-}
-
-@Composable
-private fun DetailTile(
-    symbol: String,
-    title: String,
-    value: String,
-    accent: Color,
-    modifier: Modifier = Modifier
-) {
-    Row(
-        modifier = modifier
-            .height(78.dp)
-            .background(Color(0xB30B1D2B), RoundedCornerShape(17.dp))
-            .border(1.dp, Color(0x443B6D8C), RoundedCornerShape(17.dp))
-            .padding(horizontal = 12.dp, vertical = 10.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Box(
-            modifier = Modifier
-                .size(34.dp)
-                .background(accent.copy(alpha = 0.13f), RoundedCornerShape(11.dp)),
-            contentAlignment = Alignment.Center
-        ) {
-            Text(symbol, color = accent, fontSize = 18.sp)
-        }
-        Spacer(Modifier.width(9.dp))
-        Column(modifier = Modifier.weight(1f)) {
-            Text(
-                text = title,
-                color = TextoSecundario,
-                fontSize = 10.sp,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
-            )
-            Text(
-                text = value,
-                color = TextoPrincipal,
-                fontSize = 14.sp,
-                fontWeight = FontWeight.SemiBold,
-                maxLines = 1
-            )
-        }
+        Text("$illuminationPercent% iluminada", color = WeatherPurple, fontSize = 12.sp)
     }
 }
 

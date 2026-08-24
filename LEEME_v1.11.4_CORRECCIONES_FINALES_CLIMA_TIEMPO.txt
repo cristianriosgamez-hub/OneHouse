@@ -1,0 +1,24 @@
+OneHouse v1.11.4 - Correcciones finales Clima y Tiempo
+
+CAMBIOS
+- Fase lunar calculada localmente según fecha/hora actual.
+- Porcentaje de iluminación lunar dinámico, sin depender de Internet.
+- Eliminado el bloque completo «Detalles adicionales» de Tiempo.
+- Estado de modo KNX 5/3/4 decodificado como DPT 20.105 y priorizado frente a objetos de mando.
+- Mapeo de modo unificado con los códigos usados por OneHouse al escribir:
+  0 Auto, 1 Calor, 3 Frío, 9 Ventilador, 14 Dry.
+- Inicio y Climatización muestran las mismas etiquetas de modo.
+- Estado de velocidad 5/3/5 decodificado correctamente como DPT 5.001.
+- Velocidad clasificada contra los valores Schneider configurados (25/37/100 por defecto), no con umbrales genéricos.
+- La tarjeta «Climatización central» representa ON/OFF independientemente de que el modo aún no haya llegado; deja de mostrar «Esperando modo KNX» cuando el equipo está confirmado encendido.
+
+NO SE MODIFICA
+- Direcciones KNX configurables.
+- DPT de escritura.
+- Comandos ON/OFF, consigna, modos ni velocidad.
+- Persianas, luces, escenas, automatizaciones, programación o consumos.
+- Motor KNX actual.
+
+VERSIÓN
+versionCode = 90
+versionName = 1.11.4 Correcciones finales Clima y Tiempo

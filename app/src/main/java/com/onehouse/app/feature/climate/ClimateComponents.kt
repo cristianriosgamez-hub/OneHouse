@@ -383,7 +383,7 @@ internal fun ClimateSystemCard(
     onEnabledChange: (Boolean) -> Unit
 ) {
     val activeAccent by animateColorAsState(
-        targetValue = if (enabled) (selectedMode?.accent ?: ClimateMuted) else ClimateMuted,
+        targetValue = if (enabled) (selectedMode?.accent ?: ClimateGreen) else ClimateMuted,
         label = "systemCardAccent"
     )
     val cardAlpha by animateFloatAsState(
@@ -393,7 +393,7 @@ internal fun ClimateSystemCard(
 
     val statusText = when {
         !enabled -> "Sistema detenido"
-        selectedMode == null -> "Esperando modo KNX"
+        selectedMode == null -> "Sistema encendido"
         selectedMode == ClimateMode.COLD -> "Refrigerando"
         selectedMode == ClimateMode.HEAT -> "Calentando"
         selectedMode == ClimateMode.FAN -> "Ventilando"
@@ -474,7 +474,7 @@ internal fun ClimateSystemCard(
 
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(
-                        text = if (enabled) selectedMode?.let { "Modo ${it.label}" } ?: "Modo ---" else "Sistema desactivado",
+                        text = if (enabled) selectedMode?.let { "Modo ${it.label}" } ?: "Encendido" else "Sistema desactivado",
                         color = activeAccent.copy(alpha = cardAlpha),
                         fontSize = 12.sp,
                         fontWeight = FontWeight.Medium
