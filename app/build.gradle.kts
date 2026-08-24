@@ -16,8 +16,8 @@ android {
         applicationId = "com.onehouse.app"
         minSdk = 29
         targetSdk = 36
-        versionCode = 97
-        versionName = "1.11.4.7 Limpieza sensores KNX"
+        versionCode = 98
+        versionName = "1.11.4.8 Reorganizacion apartado Mas"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }

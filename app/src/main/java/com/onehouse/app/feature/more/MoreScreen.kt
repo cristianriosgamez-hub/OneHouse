@@ -35,15 +35,12 @@ import com.onehouse.app.design.TextoSecundario
 @Composable
 fun MoreScreen(
     onConfigurationSelected: () -> Unit,
-    onImportProjectSelected: () -> Unit,
     onKnxAddressesSelected: () -> Unit,
-    onKnxDiagnosticsSelected: () -> Unit,
     onWeeklySchedulesSelected: () -> Unit,
     onSolarSchedulesSelected: () -> Unit,
     onAutomationsSelected: () -> Unit,
     onScenesSelected: () -> Unit,
-    onBackupRestoreSelected: () -> Unit,
-    onConsumptionTransferSelected: () -> Unit
+    onToolsSelected: () -> Unit
 ) {
     Box(
         modifier = Modifier
@@ -76,12 +73,6 @@ fun MoreScreen(
                 onClick = onConfigurationSelected
             )
             MoreOptionCard(
-                symbol = "⇩",
-                title = "Importar InsideControl",
-                subtitle = "Leer habitaciones y direcciones de un proyecto .knx",
-                onClick = onImportProjectSelected
-            )
-            MoreOptionCard(
                 symbol = "⌁",
                 title = "Direcciones KNX",
                 subtitle = "Ver y editar mandos, estados y sensores X/X/X",
@@ -92,12 +83,6 @@ fun MoreScreen(
                 title = "Acerca de",
                 subtitle = "Información de OneHouse",
                 enabled = false
-            )
-            MoreOptionCard(
-                symbol = "◫",
-                title = "Diagnóstico KNX",
-                subtitle = "Valores reales, tiempos y prueba de lectura",
-                onClick = onKnxDiagnosticsSelected
             )
             MoreOptionCard(
                 symbol = "◷",
@@ -130,22 +115,10 @@ fun MoreScreen(
                 enabled = false
             )
             MoreOptionCard(
-                symbol = "⇅",
-                title = "Backup y restauración",
-                subtitle = "Exportar y recuperar la configuración",
-                onClick = onBackupRestoreSelected
-            )
-            MoreOptionCard(
-                symbol = "▦",
-                title = "Importar / Exportar consumos",
-                subtitle = "Excel con ENDESA, AGBAR, Climatización y ACS",
-                onClick = onConsumptionTransferSelected
-            )
-            MoreOptionCard(
                 symbol = "⌘",
                 title = "Herramientas",
                 subtitle = "Utilidades avanzadas de OneHouse",
-                enabled = false
+                onClick = onToolsSelected
             )
 
             Spacer(modifier = Modifier.height(10.dp))

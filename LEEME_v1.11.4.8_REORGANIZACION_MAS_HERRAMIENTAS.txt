@@ -1,0 +1,20 @@
+OneHouse v1.11.4.8 - Reorganización apartado Más / Herramientas
+
+OBJETIVO
+Dejar el apartado Más más limpio y reservar las opciones avanzadas para una pantalla específica de Herramientas.
+
+CAMBIOS
+- En Más se eliminan del primer nivel:
+  * Importar InsideControl
+  * Diagnóstico KNX
+  * Backup y restauración
+  * Importar / Exportar consumos
+- La tarjeta Herramientas pasa a estar activa.
+- Nueva pantalla Herramientas con esas cuatro opciones avanzadas.
+- Al entrar en cualquiera de esas opciones desde Herramientas, la flecha Atrás vuelve a Herramientas y no directamente a Más.
+- Configuración, Direcciones KNX, Horarios, Amanecer/atardecer, Automatizaciones y Escenas siguen en el primer nivel de Más.
+- No se modifica ninguna lógica funcional, KNX, consumos, backup ni importación.
+
+VERSIÓN
+versionCode = 98
+versionName = 1.11.4.8 Reorganizacion apartado Mas

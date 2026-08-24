@@ -16,6 +16,7 @@ import com.onehouse.app.feature.home.HomeScreen
 import com.onehouse.app.feature.importproject.ImportProjectScreen
 import com.onehouse.app.feature.maintenance.MaintenanceScreen
 import com.onehouse.app.feature.more.MoreScreen
+import com.onehouse.app.feature.more.ToolsScreen
 import com.onehouse.app.feature.more.KnxAddressEditorScreen
 import com.onehouse.app.feature.more.KnxDiagnosticsScreen
 import com.onehouse.app.feature.rooms.RoomsScreen
@@ -58,7 +59,8 @@ private enum class InternalScreen {
     AUTOMATIONS,
     SCENES,
     BACKUP_RESTORE,
-    CONSUMPTION_TRANSFER
+    CONSUMPTION_TRANSFER,
+    TOOLS
 }
 
 @Composable
@@ -137,11 +139,24 @@ fun OneHouseNavigation() {
             return
         }
 
-        InternalScreen.IMPORT_PROJECT -> {
-            ImportProjectScreen(
+        InternalScreen.TOOLS -> {
+            ToolsScreen(
                 onBack = {
                     internalScreen = InternalScreen.MAIN
                     selectedSection = OneHouseSection.MORE
+                },
+                onImportProjectSelected = { internalScreen = InternalScreen.IMPORT_PROJECT },
+                onKnxDiagnosticsSelected = { internalScreen = InternalScreen.KNX_DIAGNOSTICS },
+                onBackupRestoreSelected = { internalScreen = InternalScreen.BACKUP_RESTORE },
+                onConsumptionTransferSelected = { internalScreen = InternalScreen.CONSUMPTION_TRANSFER }
+            )
+            return
+        }
+
+        InternalScreen.IMPORT_PROJECT -> {
+            ImportProjectScreen(
+                onBack = {
+                    internalScreen = InternalScreen.TOOLS
                 }
             )
             return
@@ -170,8 +185,7 @@ fun OneHouseNavigation() {
         InternalScreen.KNX_DIAGNOSTICS -> {
             KnxDiagnosticsScreen(
                 onBack = {
-                    internalScreen = InternalScreen.MAIN
-                    selectedSection = OneHouseSection.MORE
+                    internalScreen = InternalScreen.TOOLS
                 }
             )
             return
@@ -220,8 +234,7 @@ fun OneHouseNavigation() {
         InternalScreen.BACKUP_RESTORE -> {
             BackupRestoreScreen(
                 onBack = {
-                    internalScreen = InternalScreen.MAIN
-                    selectedSection = OneHouseSection.MORE
+                    internalScreen = InternalScreen.TOOLS
                 }
             )
             return
@@ -230,8 +243,7 @@ fun OneHouseNavigation() {
         InternalScreen.CONSUMPTION_TRANSFER -> {
             ConsumptionTransferScreen(
                 onBack = {
-                    internalScreen = InternalScreen.MAIN
-                    selectedSection = OneHouseSection.MORE
+                    internalScreen = InternalScreen.TOOLS
                 }
             )
             return
@@ -316,15 +328,12 @@ fun OneHouseNavigation() {
                 OneHouseSection.CONSUMPTION -> ConsumptionScreen()
                 OneHouseSection.MORE -> MoreScreen(
                     onConfigurationSelected = { internalScreen = InternalScreen.SETTINGS },
-                    onImportProjectSelected = { internalScreen = InternalScreen.IMPORT_PROJECT },
                     onKnxAddressesSelected = { internalScreen = InternalScreen.KNX_ADDRESS_EDITOR },
-                    onKnxDiagnosticsSelected = { internalScreen = InternalScreen.KNX_DIAGNOSTICS },
                     onWeeklySchedulesSelected = { internalScreen = InternalScreen.WEEKLY_SCHEDULES },
                     onSolarSchedulesSelected = { internalScreen = InternalScreen.SOLAR_SCHEDULES },
                     onAutomationsSelected = { internalScreen = InternalScreen.AUTOMATIONS },
                     onScenesSelected = { internalScreen = InternalScreen.SCENES },
-                    onBackupRestoreSelected = { internalScreen = InternalScreen.BACKUP_RESTORE },
-                    onConsumptionTransferSelected = { internalScreen = InternalScreen.CONSUMPTION_TRANSFER }
+                    onToolsSelected = { internalScreen = InternalScreen.TOOLS }
                 )
             }
         }
