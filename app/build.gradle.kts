@@ -16,8 +16,8 @@ android {
         applicationId = "com.onehouse.app"
         minSdk = 29
         targetSdk = 36
-        versionCode = 95
-        versionName = "1.11.4.5 Personalizacion Excel Consumos"
+        versionCode = 96
+        versionName = "1.11.4.6 Correccion formato Excel"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
