@@ -31,6 +31,7 @@ import com.onehouse.app.feature.programming.SolarScheduleScreen
 import com.onehouse.app.feature.automation.AutomationScreen
 import com.onehouse.app.feature.scenes.ScenesScreen
 import com.onehouse.app.feature.backup.BackupRestoreScreen
+import com.onehouse.app.feature.consumption.transfer.ConsumptionTransferScreen
 import com.onehouse.app.design.FondoSuperior
 
 private enum class InternalScreen {
@@ -56,7 +57,8 @@ private enum class InternalScreen {
     SOLAR_SCHEDULES,
     AUTOMATIONS,
     SCENES,
-    BACKUP_RESTORE
+    BACKUP_RESTORE,
+    CONSUMPTION_TRANSFER
 }
 
 @Composable
@@ -225,6 +227,16 @@ fun OneHouseNavigation() {
             return
         }
 
+        InternalScreen.CONSUMPTION_TRANSFER -> {
+            ConsumptionTransferScreen(
+                onBack = {
+                    internalScreen = InternalScreen.MAIN
+                    selectedSection = OneHouseSection.MORE
+                }
+            )
+            return
+        }
+
         InternalScreen.ENTRANCE,
         InternalScreen.HALLWAY,
         InternalScreen.STORAGE,
@@ -311,7 +323,8 @@ fun OneHouseNavigation() {
                     onSolarSchedulesSelected = { internalScreen = InternalScreen.SOLAR_SCHEDULES },
                     onAutomationsSelected = { internalScreen = InternalScreen.AUTOMATIONS },
                     onScenesSelected = { internalScreen = InternalScreen.SCENES },
-                    onBackupRestoreSelected = { internalScreen = InternalScreen.BACKUP_RESTORE }
+                    onBackupRestoreSelected = { internalScreen = InternalScreen.BACKUP_RESTORE },
+                    onConsumptionTransferSelected = { internalScreen = InternalScreen.CONSUMPTION_TRANSFER }
                 )
             }
         }

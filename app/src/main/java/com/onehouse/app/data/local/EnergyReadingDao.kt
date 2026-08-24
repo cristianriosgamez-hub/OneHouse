@@ -38,6 +38,9 @@ interface EnergyReadingDao {
     @Delete
     suspend fun delete(reading: EnergyReadingEntity)
 
+    @Query("SELECT * FROM energy_readings ORDER BY timestamp ASC")
+    suspend fun getAllOnce(): List<EnergyReadingEntity>
+
     @Query("SELECT COUNT(*) FROM energy_readings")
     suspend fun count(): Int
 }

@@ -1,0 +1,12 @@
+OneHouse v1.11.4.4 - Importación / Exportación Excel de Consumos
+
+- Nueva opción en Más: "Importar / Exportar consumos".
+- Exporta un XLSX real con cuatro hojas: ENDESA, AGBAR, CLIMATIZACION y ACS.
+- Incluye todo el histórico disponible (fecha, lectura, consumo, coste, unidad, origen y nota).
+- Importa el mismo formato generado por OneHouse.
+- Las lecturas existentes (mismo contador + fecha) se ignoran: no se duplican ni sobrescriben.
+- Resumen final de nuevas, existentes e incorrectas.
+- No modifica KNX ni la estructura de la base de datos.
+
+versionCode 94
+versionName 1.11.4.4 Import Export Excel Consumos

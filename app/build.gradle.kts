@@ -16,8 +16,8 @@ android {
         applicationId = "com.onehouse.app"
         minSdk = 29
         targetSdk = 36
-        versionCode = 93
-        versionName = "1.11.4.3 Ajustes Terraza y Mantenimiento"
+        versionCode = 94
+        versionName = "1.11.4.4 Import Export Excel Consumos"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }

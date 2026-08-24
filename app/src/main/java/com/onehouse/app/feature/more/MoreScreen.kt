@@ -42,7 +42,8 @@ fun MoreScreen(
     onSolarSchedulesSelected: () -> Unit,
     onAutomationsSelected: () -> Unit,
     onScenesSelected: () -> Unit,
-    onBackupRestoreSelected: () -> Unit
+    onBackupRestoreSelected: () -> Unit,
+    onConsumptionTransferSelected: () -> Unit
 ) {
     Box(
         modifier = Modifier
@@ -133,6 +134,12 @@ fun MoreScreen(
                 title = "Backup y restauración",
                 subtitle = "Exportar y recuperar la configuración",
                 onClick = onBackupRestoreSelected
+            )
+            MoreOptionCard(
+                symbol = "▦",
+                title = "Importar / Exportar consumos",
+                subtitle = "Excel con ENDESA, AGBAR, Climatización y ACS",
+                onClick = onConsumptionTransferSelected
             )
             MoreOptionCard(
                 symbol = "⌘",
