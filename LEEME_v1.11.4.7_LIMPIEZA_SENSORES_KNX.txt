@@ -1,0 +1,38 @@
+OneHouse v1.11.4.7 - Limpieza de sensores KNX
+
+OBJETIVO
+Eliminar del editor de Direcciones KNX las tarjetas redundantes de inundación
+e incendio, manteniendo una única fuente de configuración por sensor.
+
+DIRECCIONES CONFIRMADAS
+- Inundación Cocina: 5/4/1
+- Inundación Baño: 5/4/1
+- Sensor incendio Pasillo: 5/4/2
+
+CAMBIOS
+1. KnxAddressBook
+   - Cocina y Baño usan como dirección original 5/4/1.
+   - Pasillo mantiene 5/4/2.
+   - Mantenimiento no obtiene direcciones propias: sigue reutilizando los estados
+     definidos para Cocina/Baño/Pasillo.
+
+2. Editor de Direcciones KNX / Diagnóstico
+   - Se ocultan las copias importadas redundantes de:
+     * Inundación Cocina.
+     * Inundación Baño.
+     * Incendio Pasillo.
+     * Inundación e Incendio bajo Mantenimiento.
+   - Permanecen visibles únicamente las entradas propias de OneHouse con las
+     direcciones reales.
+
+3. Funcionamiento
+   - No se elimina ningún sensor del motor KNX.
+   - No se modifica la pantalla de Mantenimiento.
+   - Mantenimiento sigue leyendo:
+     * Inundación desde los estados de Cocina/Baño.
+     * Incendio desde el estado de Pasillo.
+   - No se modifican luces, persianas, clima, escenas, automatizaciones ni consumos.
+
+VERSIÓN
+versionCode = 97
+versionName = 1.11.4.7 Limpieza sensores KNX

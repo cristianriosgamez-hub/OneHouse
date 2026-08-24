@@ -34,6 +34,18 @@ internal object AppKnxObjectFilter {
         val text = "${device.name} ${device.unit.orEmpty()} ${device.dataPointType.orEmpty()}"
             .lowercase()
 
+        // Estos sensores tienen una única fuente KNX definida en KnxAddressBook.
+        // Las copias importadas de InsideControl y las tarjetas de Mantenimiento
+        // serían duplicados del mismo estado y se ocultan del editor/diagnóstico.
+        val duplicatedAlarm = when (normalizedRoom) {
+            "Cocina", "Baño" -> device.category == ImportedKnxCategory.ALARM && text.contains("inund")
+            "Pasillo" -> device.category == ImportedKnxCategory.ALARM && text.contains("incend")
+            "Mantenimiento" -> device.category == ImportedKnxCategory.ALARM &&
+                (text.contains("inund") || text.contains("incend"))
+            else -> false
+        }
+        if (duplicatedAlarm) return false
+
         // Evita objetos auxiliares típicos de InsideControl que no se muestran en OneHouse.
         val excludedTokens = listOf(
             "icono", "texto", "etiqueta", "navigation", "navegación",

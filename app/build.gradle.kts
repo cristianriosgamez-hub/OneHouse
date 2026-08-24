@@ -16,8 +16,8 @@ android {
         applicationId = "com.onehouse.app"
         minSdk = 29
         targetSdk = 36
-        versionCode = 96
-        versionName = "1.11.4.6 Correccion formato Excel"
+        versionCode = 97
+        versionName = "1.11.4.7 Limpieza sensores KNX"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }

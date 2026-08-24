@@ -27,8 +27,8 @@ object KnxAddressBook {
         Entry("dining_temperature", "Comedor", "Temperatura interior", "Temperatura", "9.001", "Lectura", "5/1/3"),
         Entry("suite_temperature", "Suite", "Temperatura interior", "Temperatura", "9.001", "Lectura", "5/2/3"),
         Entry("entrance_pir_block", "Entrada", "Bloqueo PIR", "Interruptor", "1.001", "Lectura y mando", "5/5/1"),
-        Entry("kitchen_flood", "Cocina", "Sensor de inundación", "Alarma", "1.005", "Lectura", "2/4/1"),
-        Entry("bathroom_flood", "Baño", "Sensor de inundación", "Alarma", "1.005", "Lectura", "2/4/2"),
+        Entry("kitchen_flood", "Cocina", "Sensor de inundación", "Alarma", "1.005", "Lectura", "5/4/1"),
+        Entry("bathroom_flood", "Baño", "Sensor de inundación", "Alarma", "1.005", "Lectura", "5/4/1"),
         Entry("hallway_fire", "Pasillo", "Sensor de incendio", "Alarma", "1.005", "Lectura", "5/4/2"),
         Entry("terrace_luminosity", "Terraza", "Luminosidad", "Sensor", "9.004", "Lectura", "15/0/11"),
         Entry("terrace_excessive_wind", "Terraza", "Viento excesivo", "Alarma", "1.005", "Lectura", "15/0/13"),
@@ -57,8 +57,8 @@ object KnxAddressBook {
         @Volatile var TEMPERATURE_DINING = "5/1/3"
         @Volatile var TEMPERATURE_SUITE = "5/2/3"
         @Volatile var PIR_BLOCK_ENTRANCE = "5/5/1"
-        @Volatile var FLOOD_KITCHEN = "2/4/1"
-        @Volatile var FLOOD_BATHROOM = "2/4/2"
+        @Volatile var FLOOD_KITCHEN = "5/4/1"
+        @Volatile var FLOOD_BATHROOM = "5/4/1"
         @Volatile var FIRE_HALLWAY = "5/4/2"
     }
     object Terrace {
