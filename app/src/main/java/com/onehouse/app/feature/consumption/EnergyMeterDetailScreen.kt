@@ -20,10 +20,17 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.DeleteOutline
 import androidx.compose.material.icons.rounded.Edit
+import androidx.compose.material.icons.rounded.ExpandMore
 import androidx.compose.material3.Button
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
@@ -171,7 +178,7 @@ internal fun EnergyMeterDetailScreen(
         StatisticsPanel(type, state)
         Spacer(Modifier.height(14.dp))
         ReadingsPanel(
-            readings = state.selectedReadings.takeLast(12).reversed(),
+            readings = state.allSelectedReadings,
             onEdit = onEditReading,
             onDelete = onDeleteReading
         )
@@ -233,6 +240,21 @@ private fun ReadingsPanel(
     onEdit: (EnergyReadingEntity) -> Unit,
     onDelete: (EnergyReadingEntity) -> Unit
 ) {
+    var selectedYear by remember(readings) { mutableStateOf<Int?>(null) }
+    var yearMenuExpanded by remember { mutableStateOf(false) }
+    val years = remember(readings) {
+        readings.asSequence()
+            .map { readingYear(it.timestamp) }
+            .distinct()
+            .sortedDescending()
+            .toList()
+    }
+    val visibleReadings = remember(readings, selectedYear) {
+        val ordered = readings.sortedByDescending { it.timestamp }
+        selectedYear?.let { year -> ordered.filter { readingYear(it.timestamp) == year } }
+            ?: ordered.take(12)
+    }
+
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -240,12 +262,68 @@ private fun ReadingsPanel(
             .border(1.dp, BordeTarjeta, RoundedCornerShape(24.dp))
             .padding(18.dp)
     ) {
-        Text("Últimas lecturas", color = TextoPrincipal, fontSize = 19.sp, fontWeight = FontWeight.SemiBold)
-        Spacer(Modifier.height(10.dp))
-        if (readings.isEmpty()) {
-            Text("No hay lecturas en este periodo", color = TextoSecundario, fontSize = 13.sp)
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Text("Últimas lecturas", color = TextoPrincipal, fontSize = 19.sp, fontWeight = FontWeight.SemiBold)
+            Box {
+                Row(
+                    modifier = Modifier
+                        .background(EnergyCardAlt, RoundedCornerShape(14.dp))
+                        .clickable { yearMenuExpanded = true }
+                        .padding(horizontal = 12.dp, vertical = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        selectedYear?.toString() ?: "Todos",
+                        color = TextoPrincipal,
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Medium
+                    )
+                    Spacer(Modifier.width(4.dp))
+                    Icon(
+                        imageVector = Icons.Rounded.ExpandMore,
+                        contentDescription = "Seleccionar año",
+                        tint = TextoSecundario,
+                        modifier = Modifier.size(18.dp)
+                    )
+                }
+                DropdownMenu(
+                    expanded = yearMenuExpanded,
+                    onDismissRequest = { yearMenuExpanded = false }
+                ) {
+                    DropdownMenuItem(
+                        text = { Text("Todos") },
+                        onClick = {
+                            selectedYear = null
+                            yearMenuExpanded = false
+                        }
+                    )
+                    years.forEach { year ->
+                        DropdownMenuItem(
+                            text = { Text(year.toString()) },
+                            onClick = {
+                                selectedYear = year
+                                yearMenuExpanded = false
+                            }
+                        )
+                    }
+                }
+            }
         }
-        readings.forEachIndexed { index, reading ->
+        Spacer(Modifier.height(6.dp))
+        Text(
+            if (selectedYear == null) "Mostrando las 12 lecturas más recientes" else "Lecturas de $selectedYear",
+            color = TextoSecundario,
+            fontSize = 11.sp
+        )
+        Spacer(Modifier.height(10.dp))
+        if (visibleReadings.isEmpty()) {
+            Text("No hay lecturas para el año seleccionado", color = TextoSecundario, fontSize = 13.sp)
+        }
+        visibleReadings.forEachIndexed { index, reading ->
             if (index > 0) Spacer(Modifier.height(8.dp))
             Row(
                 modifier = Modifier
@@ -300,6 +378,10 @@ private fun ReadingsPanel(
         }
     }
 }
+
+private fun readingYear(timestamp: Long): Int =
+    java.util.Calendar.getInstance().apply { timeInMillis = timestamp }.get(java.util.Calendar.YEAR)
+
 
 
 private fun formatAxisDate(timestamp: Long, period: com.onehouse.app.data.energy.EnergyPeriod): String =

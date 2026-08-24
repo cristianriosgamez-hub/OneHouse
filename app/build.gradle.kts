@@ -16,8 +16,8 @@ android {
         applicationId = "com.onehouse.app"
         minSdk = 29
         targetSdk = 36
-        versionCode = 91
-        versionName = "1.11.4.1 Ajuste visual e Historico Consumos"
+        versionCode = 92
+        versionName = "1.11.4.2 Navegacion lecturas historicas"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }

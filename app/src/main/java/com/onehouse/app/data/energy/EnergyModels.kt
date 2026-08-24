@@ -71,6 +71,7 @@ data class EnergyDashboardState(
     val selectedType: MeterType? = null,
     val selectedPeriod: EnergyPeriod = EnergyPeriod.YEAR,
     val selectedReadings: List<EnergyReadingEntity> = emptyList(),
+    val allSelectedReadings: List<EnergyReadingEntity> = emptyList(),
     val chartPoints: List<EnergyChartPoint> = emptyList(),
     val statistics: EnergyStatistics = EnergyStatistics(),
     val editorReading: EnergyReadingEntity? = null,

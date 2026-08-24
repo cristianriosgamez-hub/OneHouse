@@ -238,6 +238,7 @@ class EnergyViewModel(
     private fun rebuildSelectedMeter() {
         val currentState = _state.value
         val type = currentState.selectedType ?: return
+        val selectedTypeReadings = allReadings.filter { it.meterType == type.storageValue }
         val filtered = repository.readingsForPeriod(
             readings = allReadings,
             type = type,
@@ -245,6 +246,7 @@ class EnergyViewModel(
         )
         _state.value = currentState.copy(
             selectedReadings = filtered,
+            allSelectedReadings = selectedTypeReadings,
             chartPoints = if (currentState.selectedPeriod == EnergyPeriod.ALL) {
                 repository.buildYearlyChartPoints(filtered)
             } else {
