@@ -155,6 +155,26 @@ class EnergyRepository(private val dao: EnergyReadingDao) {
             reading.consumption?.let { EnergyChartPoint(reading.timestamp, it) }
         }
 
+    fun buildYearlyChartPoints(readings: List<EnergyReadingEntity>): List<EnergyChartPoint> =
+        readings
+            .asSequence()
+            .mapNotNull { reading ->
+                reading.consumption?.let { consumption ->
+                    calendarField(reading.timestamp, Calendar.YEAR) to consumption
+                }
+            }
+            .groupBy({ it.first }, { it.second })
+            .toSortedMap()
+            .map { (year, values) ->
+                val timestamp = Calendar.getInstance().apply {
+                    clear()
+                    set(Calendar.YEAR, year)
+                    set(Calendar.MONTH, Calendar.JANUARY)
+                    set(Calendar.DAY_OF_MONTH, 1)
+                }.timeInMillis
+                EnergyChartPoint(timestamp, values.sum())
+            }
+
     private fun percentageVariation(current: Double, previous: Double): Double? =
         if (previous > 0.0) ((current - previous) / previous) * 100.0 else null
 

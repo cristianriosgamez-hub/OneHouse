@@ -392,7 +392,7 @@ internal fun ClimateSystemCard(
     )
 
     val statusText = when {
-        !enabled -> "Sistema detenido"
+        !enabled -> "Detenido"
         selectedMode == null -> "Sistema encendido"
         selectedMode == ClimateMode.COLD -> "Refrigerando"
         selectedMode == ClimateMode.HEAT -> "Calentando"

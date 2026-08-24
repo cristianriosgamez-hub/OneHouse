@@ -121,7 +121,11 @@ internal fun EnergyMeterDetailScreen(
             Spacer(Modifier.height(6.dp))
             Text(
                 if (state.chartPoints.isNotEmpty()) {
-                    "${formatMonth(state.chartPoints.first().timestamp)} — ${formatMonth(state.chartPoints.last().timestamp)}"
+                    if (state.selectedPeriod == com.onehouse.app.data.energy.EnergyPeriod.ALL) {
+                        "${formatAxisDate(state.chartPoints.first().timestamp, state.selectedPeriod)} — ${formatAxisDate(state.chartPoints.last().timestamp, state.selectedPeriod)}"
+                    } else {
+                        "${formatMonth(state.chartPoints.first().timestamp)} — ${formatMonth(state.chartPoints.last().timestamp)}"
+                    }
                 } else {
                     "Sin datos para mostrar"
                 },
@@ -129,7 +133,11 @@ internal fun EnergyMeterDetailScreen(
                 fontSize = 11.sp
             )
             Spacer(Modifier.height(14.dp))
-            val visibleChartPoints = state.chartPoints.takeLast(36)
+            val visibleChartPoints = if (state.selectedPeriod == com.onehouse.app.data.energy.EnergyPeriod.ALL) {
+                state.chartPoints
+            } else {
+                state.chartPoints.takeLast(36)
+            }
             val chartMin = visibleChartPoints.minOfOrNull { it.value } ?: 0.0
             val chartMax = visibleChartPoints.maxOfOrNull { it.value } ?: 0.0
             val chartMid = (chartMin + chartMax) / 2.0
@@ -152,7 +160,7 @@ internal fun EnergyMeterDetailScreen(
             }
             Spacer(Modifier.height(6.dp))
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                val labels = state.chartPoints.takeLast(36)
+                val labels = visibleChartPoints
                 labels.firstOrNull()?.let { Text(formatAxisDate(it.timestamp, state.selectedPeriod), color = TextoSecundario, fontSize = 9.sp) }
                 if (labels.size > 2) Text(formatAxisDate(labels[labels.size / 2].timestamp, state.selectedPeriod), color = TextoSecundario, fontSize = 9.sp)
                 labels.lastOrNull()?.let { Text(formatAxisDate(it.timestamp, state.selectedPeriod), color = TextoSecundario, fontSize = 9.sp) }

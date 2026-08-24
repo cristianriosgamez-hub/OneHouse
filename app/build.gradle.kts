@@ -16,8 +16,8 @@ android {
         applicationId = "com.onehouse.app"
         minSdk = 29
         targetSdk = 36
-        versionCode = 90
-        versionName = "1.11.4 Correcciones finales Clima y Tiempo"
+        versionCode = 91
+        versionName = "1.11.4.1 Ajuste visual e Historico Consumos"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }

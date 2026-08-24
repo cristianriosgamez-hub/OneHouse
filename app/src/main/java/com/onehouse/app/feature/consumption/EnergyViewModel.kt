@@ -245,7 +245,11 @@ class EnergyViewModel(
         )
         _state.value = currentState.copy(
             selectedReadings = filtered,
-            chartPoints = repository.buildChartPoints(filtered),
+            chartPoints = if (currentState.selectedPeriod == EnergyPeriod.ALL) {
+                repository.buildYearlyChartPoints(filtered)
+            } else {
+                repository.buildChartPoints(filtered)
+            },
             statistics = repository.buildStatistics(
                 allReadings = allReadings,
                 type = type,
