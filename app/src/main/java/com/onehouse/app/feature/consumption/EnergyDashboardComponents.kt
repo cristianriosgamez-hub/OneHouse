@@ -446,8 +446,12 @@ internal val monthDateFormat = SimpleDateFormat("MMM yy", Locale.getDefault())
 
 internal fun formatDate(timestamp: Long): String = displayDateFormat.format(Date(timestamp))
 internal fun formatMonth(timestamp: Long): String = monthDateFormat.format(Date(timestamp))
-internal fun formatNumber(value: Double): String = String.format(Locale.getDefault(), "%.2f", value)
-internal fun plainNumber(value: Double): String = value.toString().replace('.', ',')
+internal fun formatNumber(value: Double): String {
+    val symbols = java.text.DecimalFormatSymbols(Locale.getDefault())
+    return java.text.DecimalFormat("0.##", symbols).apply { isGroupingUsed = false }.format(value)
+}
+internal fun plainNumber(value: Double): String =
+    java.math.BigDecimal.valueOf(value).stripTrailingZeros().toPlainString().replace('.', ',')
 internal fun String.toNormalizedDoubleOrNull(): Double? =
     trim().takeIf { it.isNotEmpty() }?.replace(',', '.')?.toDoubleOrNull()
 

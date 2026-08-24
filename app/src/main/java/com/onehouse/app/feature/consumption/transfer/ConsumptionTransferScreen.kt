@@ -16,6 +16,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.onehouse.app.design.*
+import com.onehouse.app.data.energy.MeterType
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -28,12 +29,15 @@ fun ConsumptionTransferScreen(onBack: () -> Unit) {
     val manager = remember { ConsumptionExcelManager(context.applicationContext) }
     var message by remember { mutableStateOf<String?>(null) }
     var busy by remember { mutableStateOf(false) }
+    var selectedTypes by remember {
+        mutableStateOf(setOf(MeterType.ENDESA, MeterType.AGBAR, MeterType.CLIMATIZATION, MeterType.ACS))
+    }
 
     val exportLauncher = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")) { uri ->
         uri ?: return@rememberLauncherForActivityResult
         scope.launch {
             busy = true
-            message = runCatching { manager.export(uri) }.fold({ "$it lecturas exportadas correctamente." }, { "Error al exportar: ${it.message}" })
+            message = runCatching { manager.export(uri, selectedTypes) }.fold({ "$it lecturas exportadas correctamente." }, { "Error al exportar: ${it.message}" })
             busy = false
         }
     }
@@ -58,11 +62,37 @@ fun ConsumptionTransferScreen(onBack: () -> Unit) {
             OneHouseCard {
                 Column(Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     Text("Exportar a Excel", color = TextoPrincipal, fontSize = 18.sp, fontWeight = FontWeight.SemiBold)
-                    Text("Crea un .xlsx con cuatro hojas y todo el histórico disponible, incluidas las lecturas desde 2014.", color = TextoSecundario)
-                    Button(enabled = !busy, onClick = {
+                    Text("Elige qué contadores quieres incluir. Cada contador se exporta en su propia hoja.", color = TextoSecundario)
+
+                    MeterType.entries.forEach { type ->
+                        val checked = type in selectedTypes
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = androidx.compose.ui.Alignment.CenterVertically
+                        ) {
+                            Checkbox(
+                                checked = checked,
+                                onCheckedChange = { selected ->
+                                    selectedTypes = if (selected) selectedTypes + type else selectedTypes - type
+                                },
+                                enabled = !busy
+                            )
+                            Text(
+                                text = when (type) {
+                                    MeterType.ENDESA -> "ENDESA"
+                                    MeterType.AGBAR -> "AGBAR"
+                                    MeterType.CLIMATIZATION -> "CLIMATIZACIÓN"
+                                    MeterType.ACS -> "ACS"
+                                },
+                                color = TextoPrincipal
+                            )
+                        }
+                    }
+
+                    Button(enabled = !busy && selectedTypes.isNotEmpty(), onClick = {
                         val stamp = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date())
                         exportLauncher.launch("OneHouse_Consumos_$stamp.xlsx")
-                    }, modifier = Modifier.fillMaxWidth()) { Text("Exportar consumos") }
+                    }, modifier = Modifier.fillMaxWidth()) { Text("Exportar seleccionados") }
                 }
             }
             OneHouseCard {
@@ -74,7 +104,7 @@ fun ConsumptionTransferScreen(onBack: () -> Unit) {
             }
             if (busy) LinearProgressIndicator(Modifier.fillMaxWidth())
             message?.let { Surface(color = FondoTarjeta, shape = RoundedCornerShape(16.dp)) { Text(it, Modifier.padding(16.dp), color = TextoPrincipal) } }
-            Text("Formato: Fecha · Lectura · Consumo · Coste · Unidad · Origen · Nota", color = TextoSecundario, fontSize = 12.sp)
+            Text("Formato: Fecha · Lectura · Consumo · Coste · Unidad · Origen · Nota. La fecha se exporta como yyyy-MM-dd.", color = TextoSecundario, fontSize = 12.sp)
         }
     }
 }

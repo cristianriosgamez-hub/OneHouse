@@ -20,12 +20,19 @@ import javax.xml.parsers.DocumentBuilderFactory
 
 class ConsumptionExcelManager(private val context: Context) {
     private val dao = OneHouseDatabase.getInstance(context).energyReadingDao()
-    private val dateFormat = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.US)
+    private val exportDateFormat = SimpleDateFormat("yyyy-MM-dd", Locale.US)
+    private val importDateFormats = listOf(
+        SimpleDateFormat("yyyy-MM-dd", Locale.US).apply { isLenient = false },
+        SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.US).apply { isLenient = false }
+    )
 
-    suspend fun export(uri: Uri): Int = withContext(Dispatchers.IO) {
-        val readings = dao.getAllOnce()
+    suspend fun export(uri: Uri, selectedTypes: Set<MeterType>): Int = withContext(Dispatchers.IO) {
+        require(selectedTypes.isNotEmpty()) { "Selecciona al menos un contador para exportar" }
+        val readings = dao.getAllOnce().filter { reading ->
+            selectedTypes.any { it.storageValue == reading.meterType }
+        }
         context.contentResolver.openOutputStream(uri)?.use { output ->
-            ZipOutputStream(output).use { zip -> writeWorkbook(zip, readings) }
+            ZipOutputStream(output).use { zip -> writeWorkbook(zip, readings, selectedTypes) }
         } ?: error("No se pudo abrir el archivo de destino")
         readings.size
     }
@@ -54,8 +61,13 @@ class ConsumptionExcelManager(private val context: Context) {
         ImportResult(newReadings = after - before, duplicates = parsed.size - (after - before), invalid = invalid)
     }
 
-    private fun writeWorkbook(zip: ZipOutputStream, readings: List<EnergyReadingEntity>) {
+    private fun writeWorkbook(
+        zip: ZipOutputStream,
+        readings: List<EnergyReadingEntity>,
+        selectedTypes: Set<MeterType>
+    ) {
         val types = listOf(MeterType.ENDESA, MeterType.AGBAR, MeterType.CLIMATIZATION, MeterType.ACS)
+            .filter { it in selectedTypes }
         put(zip, "[Content_Types].xml", contentTypes(types.size))
         put(zip, "_rels/.rels", rootRels())
         put(zip, "xl/workbook.xml", workbook(types))
@@ -70,7 +82,7 @@ class ConsumptionExcelManager(private val context: Context) {
         append("<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?><worksheet xmlns=\"http://schemas.openxmlformats.org/spreadsheetml/2006/main\"><sheetData>")
         row(1, listOf("Fecha", "Lectura", "Consumo", "Coste", "Unidad", "Origen", "Nota"))
         rows.sortedBy { it.timestamp }.forEachIndexed { i, r ->
-            row(i + 2, listOf(dateFormat.format(Date(r.timestamp)), r.meterValue?.toString().orEmpty(), r.consumption?.toString().orEmpty(), r.cost?.toString().orEmpty(), r.unit, r.source, r.note.orEmpty()))
+            row(i + 2, listOf(exportDateFormat.format(Date(r.timestamp)), r.meterValue?.let(::excelNumber).orEmpty(), r.consumption?.let(::excelNumber).orEmpty(), r.cost?.let(::excelNumber).orEmpty(), r.unit, r.source, r.note.orEmpty()))
         }
         append("</sheetData></worksheet>")
     }
@@ -103,7 +115,7 @@ class ConsumptionExcelManager(private val context: Context) {
                 if (values[0].isBlank()) continue
                 result += EnergyReadingEntity(
                     meterType = type.storageValue,
-                    timestamp = dateFormat.parse(values[0])?.time ?: error("Fecha inválida"),
+                    timestamp = parseImportDate(values[0]) ?: error("Fecha inválida"),
                     meterValue = values[1].toDoubleOrNull(),
                     consumption = values[2].toDoubleOrNull(),
                     cost = values[3].toDoubleOrNull(),
@@ -115,6 +127,14 @@ class ConsumptionExcelManager(private val context: Context) {
         }
         return result to invalid
     }
+
+    private fun parseImportDate(value: String): Long? =
+        importDateFormats.firstNotNullOfOrNull { format ->
+            runCatching { format.parse(value.trim())?.time }.getOrNull()
+        }
+
+    private fun excelNumber(value: Double): String =
+        java.math.BigDecimal.valueOf(value).stripTrailingZeros().toPlainString()
 
     private fun cellText(c: Element, sharedStrings: List<String>): String {
         val t = c.getElementsByTagNameNS("*", "t")
