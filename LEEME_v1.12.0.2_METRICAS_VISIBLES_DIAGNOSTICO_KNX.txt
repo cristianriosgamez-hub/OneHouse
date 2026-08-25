@@ -1,0 +1,20 @@
+OneHouse v1.12.0.2 - Métricas visibles en Diagnóstico KNX
+
+CAMBIO
+- Las métricas de v1.12.0 ahora aparecen en:
+  Más > Herramientas > Diagnóstico KNX.
+- Se añade una tarjeta "Métricas v1.12.0" después del resumen.
+- Incluye Estados aceptados, Estados duplicados,
+  Caché último/media/máximo y Observers último/media/máximo.
+- Botón Actualizar para refrescar los valores.
+- Botón Limpiar para iniciar una prueba desde cero.
+
+NO MODIFICADO
+- Motor KNX.
+- Direcciones KNX ni DPT.
+- Lecturas/escrituras KNX.
+- Luces, persianas o climatización.
+
+VERSIÓN
+versionCode = 103
+versionName = 1.12.0.2 Metricas visibles Diagnostico KNX

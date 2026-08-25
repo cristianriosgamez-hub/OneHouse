@@ -45,6 +45,7 @@ import com.onehouse.app.knx.KnxCommand
 import com.onehouse.app.knx.KnxCommandExecutor
 import com.onehouse.app.knx.KnxCommandType
 import com.onehouse.app.knx.KnxGroupAddress
+import com.onehouse.app.knx.KnxPerformanceMetrics
 import com.onehouse.app.knx.KnxStateRepository
 import com.onehouse.app.knx.KnxTelegramEvent
 import com.onehouse.app.knx.KnxTelegramMonitorRepository
@@ -73,6 +74,7 @@ fun KnxDiagnosticsScreen(onBack: () -> Unit) {
 
     var states by remember { mutableStateOf(stateRepository.snapshot()) }
     var events by remember { mutableStateOf(monitorRepository.recent(20)) }
+    var performanceMetrics by remember { mutableStateOf(KnxPerformanceMetrics.snapshot()) }
     var filter by remember { mutableStateOf("") }
     var testingAddress by remember { mutableStateOf<String?>(null) }
 
@@ -187,6 +189,56 @@ fun KnxDiagnosticsScreen(onBack: () -> Unit) {
                         color = if (invalidAddresses.isEmpty()) AzulClaro else MaterialTheme.colorScheme.error,
                         fontSize = 12.sp
                     )
+                }
+            }
+
+            OneHouseCard {
+                Column(
+                    modifier = Modifier.padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Text("Métricas v1.12.0", color = TextoPrincipal, fontWeight = FontWeight.Bold)
+                    Text(
+                        "Medición interna de la ruta actual de estados KNX.",
+                        color = TextoSecundario,
+                        fontSize = 12.sp
+                    )
+                    Text("Estados aceptados: ${performanceMetrics.acceptedStateUpdates}", color = TextoSecundario)
+                    Text("Estados duplicados: ${performanceMetrics.duplicateStateUpdates}", color = TextoSecundario)
+                    Text(
+                        "Caché · último / media / máximo: " +
+                            "${formatMicros(performanceMetrics.lastCacheUpdateMicros)} / " +
+                            "${formatMicros(performanceMetrics.averageCacheUpdateMicros)} / " +
+                            formatMicros(performanceMetrics.maxCacheUpdateMicros),
+                        color = TextoSecundario
+                    )
+                    Text(
+                        "Observers · último / media / máximo: " +
+                            "${formatMicros(performanceMetrics.lastObserverDispatchMicros)} / " +
+                            "${formatMicros(performanceMetrics.averageObserverDispatchMicros)} / " +
+                            formatMicros(performanceMetrics.maxObserverDispatchMicros),
+                        color = TextoSecundario
+                    )
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Button(
+                            onClick = { performanceMetrics = KnxPerformanceMetrics.snapshot() },
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            Text("Actualizar")
+                        }
+                        OutlinedButton(
+                            onClick = {
+                                KnxPerformanceMetrics.clear()
+                                performanceMetrics = KnxPerformanceMetrics.snapshot()
+                            },
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            Text("Limpiar")
+                        }
+                    }
                 }
             }
 
@@ -365,6 +417,8 @@ private fun displayValue(state: KnxStateRepository.State): String = when {
     !state.rawValue.isNullOrBlank() -> "0x${state.rawValue}"
     else -> "---"
 }
+
+private fun formatMicros(value: Long?): String = value?.let { "$it µs" } ?: "—"
 
 private fun formatAge(milliseconds: Long): String {
     val safe = milliseconds.coerceAtLeast(0L)

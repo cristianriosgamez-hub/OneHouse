@@ -16,8 +16,8 @@ android {
         applicationId = "com.onehouse.app"
         minSdk = 29
         targetSdk = 36
-        versionCode = 102
-        versionName = "1.12.0.1 Correccion compilacion metricas KNX"
+        versionCode = 103
+        versionName = "1.12.0.2 Metricas visibles Diagnostico KNX"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
