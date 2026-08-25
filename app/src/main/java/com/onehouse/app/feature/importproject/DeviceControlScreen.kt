@@ -55,6 +55,7 @@ import com.onehouse.app.knx.KnxCommandType
 import com.onehouse.app.knx.KnxCommunicationStatus
 import com.onehouse.app.knx.KnxDeviceState
 import com.onehouse.app.knx.KnxDeviceStateRepository
+import com.onehouse.app.knx.KnxPerformanceMetrics
 import com.onehouse.app.knx.KnxTelegramEvent
 import com.onehouse.app.knx.KnxTelegramMonitorRepository
 import com.onehouse.app.knx.KnxSessionStatisticsRepository
