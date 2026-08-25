@@ -12,7 +12,8 @@ data class HomeDashboardUiState(
     val lightsTotal: Int,
     val blindsOpen: Int,
     val blindsTotal: Int,
-    val climate: KnxClimateSnapshot
+    val climate: KnxClimateSnapshot,
+    val climateReferenceTemperature: Float?
 )
 
 data class RoomLightUiState(
@@ -50,7 +51,13 @@ object HomeStateMapper {
         lightsTotal = snapshot.lightsTotal,
         blindsOpen = snapshot.blindsOpen,
         blindsTotal = snapshot.blindsTotal,
-        climate = snapshot.climate
+        climate = snapshot.climate,
+        // La tarjeta de Inicio usa la sonda de Suite, que es la referencia
+        // asociada a la climatización central.
+        climateReferenceTemperature = snapshot.numericAt(
+            KnxAddressBook.Indoor.TEMPERATURE_SUITE,
+            "9.001"
+        )
     )
 
     fun room(snapshot: KnxHomeSnapshot, roomType: RoomType): RoomUiState {

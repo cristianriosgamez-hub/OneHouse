@@ -16,8 +16,8 @@ android {
         applicationId = "com.onehouse.app"
         minSdk = 29
         targetSdk = 36
-        versionCode = 99
-        versionName = "1.11.4.9 Reorganizacion Automatizacion y Control"
+        versionCode = 100
+        versionName = "1.11.4.10 Temperatura Suite en Inicio"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }

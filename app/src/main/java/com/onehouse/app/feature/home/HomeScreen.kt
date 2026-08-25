@@ -362,7 +362,7 @@ private fun ClimateHeroCard(homeState: HomeDashboardUiState) {
             Spacer(modifier = Modifier.height(18.dp))
             Row(verticalAlignment = Alignment.Bottom) {
                 Text(
-                    text = homeState.climate.currentTemperature?.let {
+                    text = homeState.climateReferenceTemperature?.let {
                         String.format(Locale("es", "ES"), "%.1f", it)
                     } ?: "--,-",
                     color = TextoPrincipal,
