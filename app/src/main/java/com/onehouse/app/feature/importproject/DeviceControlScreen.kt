@@ -87,6 +87,7 @@ fun DeviceControlScreen(device: ImportedKnxDevice, onBack: () -> Unit) {
     var deviceState by remember(device.id) { mutableStateOf(stateRepository.get(device.id)) }
     var status by remember { mutableStateOf("Preparado para enviar al bus KNX") }
     var statistics by remember { mutableStateOf(statisticsRepository.snapshot()) }
+    var performanceMetrics by remember { mutableStateOf(KnxPerformanceMetrics.snapshot()) }
 
     DisposableEffect(
         executor,
@@ -323,7 +324,11 @@ fun DeviceControlScreen(device: ImportedKnxDevice, onBack: () -> Unit) {
 
             KnxDiagnosticsCard(
                 statistics = statistics,
-                onRefresh = { statistics = statisticsRepository.snapshot() },
+                performance = performanceMetrics,
+                onRefresh = {
+                    statistics = statisticsRepository.snapshot()
+                    performanceMetrics = KnxPerformanceMetrics.snapshot()
+                },
                 onCopy = {
                     val report = buildDiagnosticReport(
                         device = device,
@@ -373,6 +378,7 @@ private fun formatDeviceState(
 @Composable
 private fun KnxDiagnosticsCard(
     statistics: KnxSessionStatisticsRepository.Snapshot,
+    performance: KnxPerformanceMetrics.Snapshot,
     onRefresh: () -> Unit,
     onCopy: () -> Unit
 ) {
@@ -388,6 +394,15 @@ private fun KnxDiagnosticsCard(
             ControlDetail("Retransmisiones", statistics.retransmissions.toString())
             ControlDetail("Último ACK", statistics.lastAckMillis?.let { "$it ms" } ?: "—")
             ControlDetail("Latencia ACK media", statistics.averageAckMillis?.let { "$it ms" } ?: "—")
+            Text("Métricas v1.12.0", color = AzulClaro, fontWeight = FontWeight.Bold)
+            ControlDetail("Estados aceptados", performance.acceptedStateUpdates.toString())
+            ControlDetail("Estados duplicados", performance.duplicateStateUpdates.toString())
+            ControlDetail("Caché último", performance.lastCacheUpdateMicros?.let { "$it µs" } ?: "—")
+            ControlDetail("Caché media", performance.averageCacheUpdateMicros?.let { "$it µs" } ?: "—")
+            ControlDetail("Caché máximo", performance.maxCacheUpdateMicros?.let { "$it µs" } ?: "—")
+            ControlDetail("Observers último", performance.lastObserverDispatchMicros?.let { "$it µs" } ?: "—")
+            ControlDetail("Observers media", performance.averageObserverDispatchMicros?.let { "$it µs" } ?: "—")
+            ControlDetail("Observers máximo", performance.maxObserverDispatchMicros?.let { "$it µs" } ?: "—")
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 OutlinedButton(onClick = onRefresh, modifier = Modifier.weight(1f)) { Text("Actualizar") }
                 Button(

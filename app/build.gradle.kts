@@ -16,8 +16,8 @@ android {
         applicationId = "com.onehouse.app"
         minSdk = 29
         targetSdk = 36
-        versionCode = 100
-        versionName = "1.11.4.10 Temperatura Suite en Inicio"
+        versionCode = 101
+        versionName = "1.12.0 Instrumentacion y metricas KNX"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }

@@ -128,6 +128,7 @@ class KnxStateRepository(context: Context) {
      * considerado un duplicado inmediato del telegrama anterior.
      */
     fun record(telegram: KnxConnectionManager.IncomingGroupTelegram): Boolean {
+        val measurementStartNanos = System.nanoTime()
         val now = System.currentTimeMillis()
         val address = telegram.destination.toString()
         val updatedStates: Map<String, State>
@@ -145,6 +146,7 @@ class KnxStateRepository(context: Context) {
                 now - previous.timestampMillis in 0..DUPLICATE_WINDOW_MILLIS
 
             if (isDuplicate) {
+                KnxPerformanceMetrics.recordDuplicate()
                 return false
             }
 
@@ -170,8 +172,11 @@ class KnxStateRepository(context: Context) {
             sharedStateFlow.value = updatedStates
         }
 
+        KnxPerformanceMetrics.recordCacheUpdate(System.nanoTime() - measurementStartNanos)
         sharedUpdates.tryEmit(Update.StateChanged(acceptedState))
+        val observerStartNanos = System.nanoTime()
         notifyObservers(updatedStates)
+        KnxPerformanceMetrics.recordObserverDispatch(System.nanoTime() - observerStartNanos)
         return true
     }
 
