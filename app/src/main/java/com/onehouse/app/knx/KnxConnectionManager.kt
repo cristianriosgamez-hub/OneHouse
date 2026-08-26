@@ -300,6 +300,7 @@ class KnxConnectionManager(
                                 duplicateIncomingCount += 1
                             } else {
                                 lastIncomingSequence = parsed.sequence
+                                KnxParallelEventBus.publish(parsed.telegram)
                                 val acceptedByStateCache = stateRepository?.record(parsed.telegram) ?: true
                                 if (!acceptedByStateCache) {
                                     duplicateIncomingCount += 1

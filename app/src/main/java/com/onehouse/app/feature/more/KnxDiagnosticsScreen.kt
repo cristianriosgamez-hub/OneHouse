@@ -219,6 +219,18 @@ fun KnxDiagnosticsScreen(onBack: () -> Unit) {
                             formatMicros(performanceMetrics.maxObserverDispatchMicros),
                         color = TextoSecundario
                     )
+                    Text(
+                        "Motor paralelo v1.12.1 · eventos: ${performanceMetrics.parallelEventsReceived}",
+                        color = AzulClaro,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                    Text(
+                        "EventBus · último / media / máximo: " +
+                            "${formatMicros(performanceMetrics.lastParallelDispatchMicros)} / " +
+                            "${formatMicros(performanceMetrics.averageParallelDispatchMicros)} / " +
+                            formatMicros(performanceMetrics.maxParallelDispatchMicros),
+                        color = TextoSecundario
+                    )
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.spacedBy(8.dp)

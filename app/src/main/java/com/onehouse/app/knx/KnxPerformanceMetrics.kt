@@ -18,7 +18,11 @@ object KnxPerformanceMetrics {
         val maxCacheUpdateMicros: Long?,
         val lastObserverDispatchMicros: Long?,
         val averageObserverDispatchMicros: Long?,
-        val maxObserverDispatchMicros: Long?
+        val maxObserverDispatchMicros: Long?,
+        val parallelEventsReceived: Long,
+        val lastParallelDispatchMicros: Long?,
+        val averageParallelDispatchMicros: Long?,
+        val maxParallelDispatchMicros: Long?
     )
 
     private val accepted = AtomicLong(0)
@@ -33,6 +37,12 @@ object KnxPerformanceMetrics {
     private val observerTotalNanos = AtomicLong(0)
     private val observerLastNanos = AtomicLong(-1)
     private val observerMaxNanos = AtomicLong(-1)
+
+    private val parallelEvents = AtomicLong(0)
+    private val parallelSamples = AtomicLong(0)
+    private val parallelTotalNanos = AtomicLong(0)
+    private val parallelLastNanos = AtomicLong(-1)
+    private val parallelMaxNanos = AtomicLong(-1)
 
     fun recordDuplicate() {
         duplicates.incrementAndGet()
@@ -53,9 +63,19 @@ object KnxPerformanceMetrics {
         updateMax(observerMaxNanos, elapsedNanos)
     }
 
+    fun recordParallelDispatch(elapsedNanos: Long) {
+        val safe = elapsedNanos.coerceAtLeast(0)
+        parallelEvents.incrementAndGet()
+        parallelSamples.incrementAndGet()
+        parallelTotalNanos.addAndGet(safe)
+        parallelLastNanos.set(safe)
+        updateMax(parallelMaxNanos, safe)
+    }
+
     fun snapshot(): Snapshot {
         val cacheCount = cacheSamples.get()
         val observerCount = observerSamples.get()
+        val parallelCount = parallelSamples.get()
         return Snapshot(
             acceptedStateUpdates = accepted.get(),
             duplicateStateUpdates = duplicates.get(),
@@ -64,7 +84,11 @@ object KnxPerformanceMetrics {
             maxCacheUpdateMicros = cacheMaxNanos.get().takeIf { it >= 0 }?.div(1_000),
             lastObserverDispatchMicros = observerLastNanos.get().takeIf { it >= 0 }?.div(1_000),
             averageObserverDispatchMicros = if (observerCount > 0) observerTotalNanos.get().div(observerCount).div(1_000) else null,
-            maxObserverDispatchMicros = observerMaxNanos.get().takeIf { it >= 0 }?.div(1_000)
+            maxObserverDispatchMicros = observerMaxNanos.get().takeIf { it >= 0 }?.div(1_000),
+            parallelEventsReceived = parallelEvents.get(),
+            lastParallelDispatchMicros = parallelLastNanos.get().takeIf { it >= 0 }?.div(1_000),
+            averageParallelDispatchMicros = if (parallelCount > 0) parallelTotalNanos.get().div(parallelCount).div(1_000) else null,
+            maxParallelDispatchMicros = parallelMaxNanos.get().takeIf { it >= 0 }?.div(1_000)
         )
     }
 
@@ -79,6 +103,11 @@ object KnxPerformanceMetrics {
         observerTotalNanos.set(0)
         observerLastNanos.set(-1)
         observerMaxNanos.set(-1)
+        parallelEvents.set(0)
+        parallelSamples.set(0)
+        parallelTotalNanos.set(0)
+        parallelLastNanos.set(-1)
+        parallelMaxNanos.set(-1)
     }
 
     private fun updateMax(target: AtomicLong, value: Long) {
