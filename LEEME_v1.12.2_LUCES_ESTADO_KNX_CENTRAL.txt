@@ -1,0 +1,28 @@
+OneHouse v1.12.2 - Luces / estado KNX central
+
+OBJETIVO
+Dar el primer paso de migración funcional sobre el motor paralelo ya validado,
+centrándolo exclusivamente en las luces y manteniendo intacta la gestión del
+túnel conseguida en v1.12.1.5.
+
+CAMBIOS
+- Nuevo KnxLightStateResolver como punto único para resolver el estado real de una luz.
+- Si una luz dispone de GA de lectura/estado, su estado visual se obtiene de esa GA confirmada.
+- La GA de mando solo se utiliza como fuente de estado cuando el dispositivo no tiene una GA de lectura independiente.
+- El contador de luces de Inicio utiliza exactamente la misma resolución central que las estancias.
+- Se mantiene la actualización por la caché/eventos KNX central, sin crear polling ni túneles adicionales.
+- versionCode 109.
+- versionName 1.12.2 Luces estado KNX central.
+
+NO SE MODIFICA
+- Ninguna dirección de grupo ni DPT.
+- Escritura ON/OFF de las luces.
+- Gestión/reutilización del túnel v1.12.1.5.
+- Persianas, climatización, sensores, escenas, automatizaciones o consumos.
+
+PRUEBA RECOMENDADA
+1. Abrir la app y esperar la carga inicial KNX.
+2. Comprobar el contador de luces de Inicio.
+3. Entrar en varias estancias y encender/apagar luces desde OneHouse.
+4. Accionar alguna luz desde pulsador físico y comprobar que OneHouse refleja el estado real.
+5. Revisar Diagnóstico KNX: Código 36 debe mantenerse en 0 y las reutilizaciones deben seguir creciendo.

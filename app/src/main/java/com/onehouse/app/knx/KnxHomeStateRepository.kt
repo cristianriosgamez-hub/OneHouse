@@ -39,11 +39,7 @@ data class KnxHomeSnapshot(
      * aparecer una luz encendida aunque el actuador esté realmente apagado.
      */
     fun booleanValue(device: ImportedKnxDevice): Boolean? =
-        stateAddresses(device)
-            .asSequence()
-            .mapNotNull { address -> states[address.toString()]?.takeIf(StateFreshness::isTrusted) }
-            .mapNotNull { state -> state.booleanValue }
-            .firstOrNull()
+        KnxLightStateResolver.confirmedBoolean(device, states)
 
     fun numericValue(device: ImportedKnxDevice): Float? {
         val state = stateAddresses(device)
@@ -155,7 +151,11 @@ class KnxHomeStateRepository(context: Context) {
 
         val lights = devices.filter { it.controlKind == ControlKind.BOOLEAN_SWITCH }
         val blinds = devices.filter { it.controlKind == ControlKind.BLIND }
-        val lightOn = lights.count { stateFor(it)?.booleanValue == true }
+        // v1.12.2: el contador de luces usa la misma resolución de estado
+        // confirmado que las estancias. No se deduce el estado del último mando.
+        val lightOn = lights.count { device ->
+            KnxLightStateResolver.confirmedBoolean(device, states) == true
+        }
         val blindOpen = blinds.count { device ->
             val value = stateFor(device)?.let { KnxValueDecoder.decode(it.rawValue, "5.001") }
             value != null && value < 95f

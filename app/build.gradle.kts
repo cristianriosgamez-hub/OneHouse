@@ -16,8 +16,8 @@ android {
         applicationId = "com.onehouse.app"
         minSdk = 29
         targetSdk = 36
-        versionCode = 108
-        versionName = "1.12.1.5 Reutilizacion tunel Connection Test"
+        versionCode = 109
+        versionName = "1.12.2 Luces estado KNX central"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
