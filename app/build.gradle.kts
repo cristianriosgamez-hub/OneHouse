@@ -16,8 +16,8 @@ android {
         applicationId = "com.onehouse.app"
         minSdk = 29
         targetSdk = 36
-        versionCode = 104
-        versionName = "1.12.1.1 Estabilizacion tunel KNX"
+        versionCode = 105
+        versionName = "1.12.1.2 Reutilizacion real tunel KNX"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }

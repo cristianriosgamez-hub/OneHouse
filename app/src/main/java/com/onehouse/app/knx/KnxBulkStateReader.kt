@@ -27,7 +27,10 @@ class KnxBulkStateReader(context: Context) : Closeable {
     private val centralResources = KnxCentralEngine.get(appContext)
     private val stateRepository = centralResources.stateRepository
     private val deviceStateRepository = KnxDeviceStateRepository(appContext)
-    private var connectionManager: KnxConnectionManager? = null
+    // v1.12.1.2: la carga masiva comparte exactamente el mismo gestor de túnel
+    // que comandos, navegación y resto del motor. Abrir un manager propio aquí
+    // era una de las principales fuentes de conexiones simultáneas/código 36.
+    private val connectionManager = centralResources.connectionManager
 
     fun read(
         devices: List<ImportedKnxDevice>,
@@ -74,13 +77,13 @@ class KnxBulkStateReader(context: Context) : Closeable {
 
         // Timeout corto para la carga masiva. Una GA que no responde no debe
         // bloquear durante cuatro segundos al resto de sensores.
-        val manager = KnxConnectionManager(timeoutMillis = 1_600, stateRepository = stateRepository)
-        connectionManager = manager
+        val manager = connectionManager
         manager.connect(endpoint) { connectResult ->
             if (cancelled.get()) return@connect
             if (connectResult !is KnxConnectionManager.ConnectResult.Success) {
-                manager.close()
-                if (connectionManager === manager) connectionManager = null
+                // No cerramos el gestor central: puede estar siendo reutilizado por
+                // otra pantalla. Si no hay sesión activa, esta llamada es inocua.
+                manager.scheduleDisconnect()
                 val result = Progress(0, addresses.size, addresses.size, null)
                 onProgress(result)
                 onComplete(result)
@@ -90,8 +93,9 @@ class KnxBulkStateReader(context: Context) : Closeable {
             fun readAt(index: Int, failures: Int) {
                 if (cancelled.get()) return
                 if (index >= addresses.size) {
-                    manager.close()
-                    if (connectionManager === manager) connectionManager = null
+                    // Mantener la sesión unos segundos permite que al volver a Inicio
+                    // o entrar en otra estancia se reutilice el mismo túnel.
+                    manager.scheduleDisconnect()
                     val result = Progress(addresses.size, addresses.size, failures, null)
                     onProgress(result)
                     onComplete(result)
@@ -153,8 +157,11 @@ class KnxBulkStateReader(context: Context) : Closeable {
 
     fun cancel() {
         cancelled.set(true)
-        connectionManager?.close()
-        connectionManager = null
+        // Antes, salir/cambiar de pantalla cerraba inmediatamente el túnel de la
+        // carga masiva y la pantalla siguiente abría otro. Eso favorecía el código 36.
+        // Ahora solo dejamos un cierre diferido del gestor compartido. Una nueva
+        // operación cancelará automáticamente ese cierre y reutilizará la sesión.
+        connectionManager.scheduleDisconnect()
     }
 
     override fun close() = cancel()

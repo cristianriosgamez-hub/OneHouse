@@ -174,7 +174,7 @@ class KnxConnectionManager(
      * (escenas, navegación y controles consecutivos). Si llega otra operación
      * antes del vencimiento, el cierre pendiente se cancela automáticamente.
      */
-    fun scheduleDisconnect(delayMillis: Long = 3_000L) {
+    fun scheduleDisconnect(delayMillis: Long = DEFAULT_IDLE_DISCONNECT_MILLIS) {
         if (delayMillis <= 0L) {
             disconnect()
             return
@@ -557,6 +557,8 @@ class KnxConnectionManager(
 /**
  * Parámetros comunes del transporte KNXnet/IP.
  */
+private const val DEFAULT_IDLE_DISCONNECT_MILLIS = 30_000L
+
 internal object KnxProtocol {
     const val DEFAULT_TIMEOUT_MILLIS = 4_000
     const val MAX_PACKET_SIZE = 512

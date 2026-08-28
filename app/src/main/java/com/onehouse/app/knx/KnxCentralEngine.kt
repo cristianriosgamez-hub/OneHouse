@@ -13,8 +13,8 @@ import android.content.Context
  * telegrama aceptado por la caché central se publica una sola vez y puede ser
  * observado por todas las pantallas sin lanzar lecturas adicionales.
  *
- * Se mantiene el ciclo de conexión por operación para no alterar todavía el
- * comportamiento de red ya validado.
+ * Desde v1.12.1.2 la carga masiva y los comandos comparten también el mismo
+ * gestor de túnel, evitando que la navegación abra sesiones KNX/IP paralelas.
  */
 internal object KnxCentralEngine {
 

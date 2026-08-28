@@ -1,0 +1,54 @@
+OneHouse v1.12.1.2 - Reutilización real del túnel KNX
+
+OBJETIVO
+Corregir el patrón observado en v1.12.1.1: muchas aperturas, 0 reutilizaciones
+y aparición frecuente del código 36 al entrar/salir de estancias.
+
+CAUSA LOCALIZADA
+KnxBulkStateReader (la carga masiva de estados que se activa al refrescar/navegar)
+creaba su propio KnxConnectionManager y lo cerraba al terminar o cancelar.
+Mientras tanto, los comandos normales utilizaban el gestor central.
+Esto podía provocar túneles consecutivos o simultáneos y dejar al interfaz KNX/IP
+sin canales disponibles (código 36).
+
+CAMBIOS
+1. KnxBulkStateReader usa ahora KnxCentralEngine.connectionManager.
+   - La carga masiva y los comandos comparten un único gestor de túnel.
+   - Ya no crea un túnel independiente para cada carga masiva.
+   - Al cambiar de pantalla ya no cierra inmediatamente el túnel compartido.
+
+2. Cierre por inactividad ampliado de 3 s a 30 s.
+   - Una nueva operación durante ese intervalo cancela el cierre pendiente.
+   - Permite reutilizar el mismo canal al navegar por Inicio/Estancias o ejecutar
+     varias acciones próximas entre sí.
+
+3. Se mantienen las métricas existentes.
+   En Más > Herramientas > Diagnóstico KNX comprobar especialmente:
+   - Aperturas
+   - Reutilizados
+   - Conectados
+   - Código 36
+   - Cierres
+
+PRUEBA RECOMENDADA
+1. Con KNX disponible, entrar en Diagnóstico KNX y pulsar Limpiar.
+2. Volver a Inicio.
+3. Navegar varias veces Inicio -> Estancia -> Inicio (Suite, Comedor, Cocina...).
+4. Encender/apagar alguna luz y mover alguna persiana.
+5. Esperar unos minutos y volver al diagnóstico.
+6. Pulsar Actualizar y enviar captura completa de las métricas.
+
+RESULTADO ESPERADO
+- Reutilizados debe dejar de estar permanentemente en 0.
+- Las aperturas deben crecer mucho menos que las operaciones realizadas.
+- Código 36 debería reducirse de forma clara o quedar en 0.
+
+NO MODIFICADO
+- Direcciones KNX ni DPT.
+- Lógica de luces, persianas y climatización.
+- Motor paralelo/EventBus.
+- Base de datos, escenas, automatizaciones o programaciones.
+
+VERSIÓN
+versionCode = 105
+versionName = 1.12.1.2 Reutilizacion real tunel KNX
