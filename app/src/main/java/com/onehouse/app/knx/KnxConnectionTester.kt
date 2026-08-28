@@ -23,13 +23,18 @@ object KnxConnectionTester {
     fun test(
         endpoint: KnxEndpoint,
         timeoutMillis: Int = KnxProtocol.DEFAULT_TIMEOUT_MILLIS,
+        connectionManager: KnxConnectionManager? = null,
         onResult: (Result) -> Unit
     ): Closeable {
-        val manager = KnxConnectionManager(timeoutMillis)
+        val ownsManager = connectionManager == null
+        val manager = connectionManager ?: KnxConnectionManager(timeoutMillis)
         val operation = manager.connect(endpoint, source = "CONNECTION_TEST") { result ->
             when (result) {
                 is KnxConnectionManager.ConnectResult.Success -> {
-                    manager.disconnect()
+                    // v1.12.1.5: una comprobación no debe destruir el túnel central.
+                    // Lo dejamos disponible unos segundos para que navegación,
+                    // lecturas y comandos puedan reutilizar la misma sesión.
+                    manager.scheduleDisconnect()
                     onResult(Result.Success(result.deviceAddress, result.channelId))
                 }
                 KnxConnectionManager.ConnectResult.Timeout -> onResult(Result.Timeout)
@@ -48,7 +53,9 @@ object KnxConnectionTester {
 
         return Closeable {
             operation.close()
-            manager.close()
+            // Si el manager pertenece al motor central no se cierra desde el test:
+            // cerrarlo aquí era precisamente lo que forzaba nuevas aperturas.
+            if (ownsManager) manager.close()
         }
     }
 

@@ -16,8 +16,8 @@ android {
         applicationId = "com.onehouse.app"
         minSdk = 29
         targetSdk = 36
-        versionCode = 107
-        versionName = "1.12.1.4 Diagnostico origen aperturas tunel"
+        versionCode = 108
+        versionName = "1.12.1.5 Reutilizacion tunel Connection Test"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }

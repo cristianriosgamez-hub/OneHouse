@@ -232,7 +232,7 @@ fun KnxDiagnosticsScreen(onBack: () -> Unit) {
                         color = TextoSecundario
                     )
                     Text(
-                        "Túnel v1.12.1.4 · aperturas / reutilizados / conectados: " +
+                        "Túnel v1.12.1.5 · aperturas / reutilizados / conectados: " +
                             "${performanceMetrics.tunnelOpenAttempts} / " +
                             "${performanceMetrics.tunnelReuses} / " +
                             performanceMetrics.tunnelConnectSuccesses,

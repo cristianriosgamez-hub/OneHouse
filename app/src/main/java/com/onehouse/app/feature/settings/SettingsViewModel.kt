@@ -6,6 +6,7 @@ import com.onehouse.app.data.knx.KnxConnectionStatus
 import com.onehouse.app.data.knx.KnxSettings
 import com.onehouse.app.data.knx.KnxSettingsRepository
 import com.onehouse.app.data.knx.KnxSettingsValidation
+import com.onehouse.app.knx.KnxConnectionManager
 import com.onehouse.app.knx.KnxConnectionTester
 import com.onehouse.app.knx.KnxEndpoint
 import com.onehouse.app.knx.NetworkConnectionDetector
@@ -13,7 +14,8 @@ import java.io.Closeable
 
 class SettingsViewModel(
     private val repository: KnxSettingsRepository,
-    private val networkDetector: NetworkConnectionDetector
+    private val networkDetector: NetworkConnectionDetector,
+    private val connectionManager: KnxConnectionManager? = null
 ) {
     enum class ConnectionRoute {
         LOCAL,
@@ -135,7 +137,10 @@ class SettingsViewModel(
         )
 
         val testedRoute = selectedRoute
-        connectionTest = KnxConnectionTester.test(endpoint) { result ->
+        connectionTest = KnxConnectionTester.test(
+            endpoint = endpoint,
+            connectionManager = connectionManager
+        ) { result ->
             connectionTest = null
             val finalStatus: KnxConnectionStatus
             val finalMessage: String

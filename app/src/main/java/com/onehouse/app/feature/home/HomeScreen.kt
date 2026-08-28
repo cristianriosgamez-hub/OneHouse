@@ -87,6 +87,7 @@ import com.onehouse.app.feature.settings.SettingsViewModel
 import com.onehouse.app.feature.security.SecuritySummary
 import com.onehouse.app.knx.KnxHomeSnapshot
 import com.onehouse.app.knx.NetworkConnectionDetector
+import com.onehouse.app.knx.KnxCentralEngine
 import com.onehouse.app.knx.KnxHomeStateRepository
 import java.text.DateFormat
 import java.util.Date
@@ -108,7 +109,8 @@ fun HomeScreen(
     val connectionViewModel = remember(context) {
         SettingsViewModel(
             repository = KnxSettingsRepository(settingsDataStore),
-            networkDetector = NetworkConnectionDetector(context.applicationContext)
+            networkDetector = NetworkConnectionDetector(context.applicationContext),
+            connectionManager = KnxCentralEngine.get(context.applicationContext).connectionManager
         )
     }
     val securitySnapshotStore = remember(context) { HomeAssistantSecuritySnapshotStore(context) }

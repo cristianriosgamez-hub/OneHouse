@@ -54,6 +54,7 @@ import androidx.compose.ui.unit.sp
 import com.onehouse.app.data.knx.KnxConnectionStatus
 import com.onehouse.app.data.knx.KnxSettingsRepository
 import com.onehouse.app.data.knx.SettingsDataStore
+import com.onehouse.app.knx.KnxCentralEngine
 import com.onehouse.app.knx.NetworkConnectionDetector
 import com.onehouse.app.design.AzulClaro
 import com.onehouse.app.design.AzulOneHouse
@@ -78,7 +79,8 @@ fun SettingsScreen(onBack: () -> Unit) {
     val viewModel = remember {
         SettingsViewModel(
             repository = KnxSettingsRepository(SettingsDataStore(context.applicationContext)),
-            networkDetector = NetworkConnectionDetector(context.applicationContext)
+            networkDetector = NetworkConnectionDetector(context.applicationContext),
+            connectionManager = KnxCentralEngine.get(context.applicationContext).connectionManager
         )
     }
     var revision by remember { mutableIntStateOf(0) }
