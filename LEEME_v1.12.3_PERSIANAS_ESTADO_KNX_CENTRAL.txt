@@ -1,0 +1,38 @@
+OneHouse v1.12.3 - Persianas: estado KNX central
+
+OBJETIVO
+Migrar la lectura de posición de persianas al estado KNX central, manteniendo
+intactos los mandos Up/Down/Stop y la gestión de túnel validada en v1.12.1.5.
+
+CAMBIOS
+1. Nuevo KnxBlindStateResolver
+   - Usa la realimentación de posición DPT 5.001 del actuador.
+   - Prioriza la GA de lectura que corresponde a la GA de escritura de posición.
+   - Solo acepta estados frescos de la sesión actual y valores 0..100 %.
+   - No deduce posición del último comando local Up/Down/Stop.
+
+2. Estado compartido
+   - Las estancias obtienen la posición de persiana mediante el resolver central.
+   - El contador de persianas de Inicio usa exactamente la misma resolución.
+   - Una maniobra desde pulsador físico debe verse en OneHouse cuando el actuador
+     publique su estado de posición, sin necesidad de salir y volver a entrar.
+
+3. Compatibilidad
+   - Se mantiene la lógica actual de "abierta" del resumen (posición < 95 %).
+   - No se cambian GAs ni DPTs.
+   - No se cambian los comandos Up/Down/Stop/Position.
+   - No se toca la solución de código 36 ni el túnel compartido.
+   - No se modifican luces, climatización, sensores ni consumos.
+
+PRUEBA RECOMENDADA
+- Compilar e instalar.
+- Limpiar métricas KNX.
+- Mover cada persiana desde OneHouse y comprobar posición real.
+- Mover las mismas persianas desde pulsadores físicos y verificar que la posición
+  cambia en OneHouse sin refresco manual.
+- Comprobar Inicio: número de persianas abiertas coherente con las estancias.
+- Revisar Diagnóstico KNX: Código 36 debe permanecer en 0.
+
+VERSIÓN
+versionCode = 112
+versionName = 1.12.3 Persianas estado KNX central

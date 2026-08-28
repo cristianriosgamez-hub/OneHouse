@@ -42,6 +42,9 @@ data class KnxHomeSnapshot(
         KnxLightStateResolver.confirmedBoolean(device, states)
 
     fun numericValue(device: ImportedKnxDevice): Float? {
+        if (device.controlKind == ControlKind.BLIND) {
+            return KnxBlindStateResolver.confirmedPositionPercent(device, states)
+        }
         val state = stateAddresses(device)
             .asSequence()
             .mapNotNull { address -> states[address.toString()]?.takeIf(StateFreshness::isTrusted) }
@@ -156,8 +159,10 @@ class KnxHomeStateRepository(context: Context) {
         val lightOn = lights.count { device ->
             KnxLightStateResolver.confirmedBoolean(device, states) == true
         }
+        // v1.12.3: Inicio y Estancias comparten la misma posición real DPT 5.001.
+        // No se interpreta el último mando Up/Down/Stop como posición de persiana.
         val blindOpen = blinds.count { device ->
-            val value = stateFor(device)?.let { KnxValueDecoder.decode(it.rawValue, "5.001") }
+            val value = KnxBlindStateResolver.confirmedPositionPercent(device, states)
             value != null && value < 95f
         }
 

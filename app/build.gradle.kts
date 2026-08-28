@@ -16,8 +16,8 @@ android {
         applicationId = "com.onehouse.app"
         minSdk = 29
         targetSdk = 36
-        versionCode = 111
-        versionName = "1.12.2.2 Luces eventos fisicos en tiempo real"
+        versionCode = 112
+        versionName = "1.12.3 Persianas estado KNX central"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
