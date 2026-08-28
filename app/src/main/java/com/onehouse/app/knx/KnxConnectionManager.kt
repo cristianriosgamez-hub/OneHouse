@@ -97,6 +97,11 @@ class KnxConnectionManager(
     private val sequenceCounter = AtomicInteger(0)
     private val operationLock = Any()
     private var scheduledDisconnect: Runnable? = null
+    // v1.12.1.3: cuando varias pantallas solicitan conexión mientras el mismo
+    // túnel todavía está en CONNECTING, no abrimos/cancelamos sesiones nuevas.
+    // Las solicitudes se agrupan y reciben el mismo resultado.
+    private var connectingEndpoint: KnxEndpoint? = null
+    private val pendingConnectCallbacks = mutableListOf<(ConnectResult) -> Unit>()
 
     @Volatile
     var state: State = State.DISCONNECTED
@@ -114,26 +119,49 @@ class KnxConnectionManager(
 
         cancelScheduledDisconnect()
 
-        val reusableChannel = synchronized(lock) {
-            channelId?.takeIf { currentChannel ->
+        val decision = synchronized(lock) {
+            val currentChannel = channelId
+            when {
                 state == State.CONNECTED &&
                     socket?.isClosed == false &&
                     this.endpoint == endpoint &&
-                    currentChannel >= 0
+                    currentChannel != null -> ConnectDecision.Reuse(currentChannel)
+
+                state == State.CONNECTING && connectingEndpoint == endpoint -> {
+                    pendingConnectCallbacks += onResult
+                    ConnectDecision.JoinPending
+                }
+
+                else -> ConnectDecision.OpenNew
             }
         }
-        if (reusableChannel != null) {
-            KnxPerformanceMetrics.recordTunnelReuse()
-            mainHandler.post {
-                onResult(ConnectResult.Success(endpoint.host, reusableChannel))
+
+        when (decision) {
+            is ConnectDecision.Reuse -> {
+                KnxPerformanceMetrics.recordTunnelReuse()
+                mainHandler.post {
+                    onResult(ConnectResult.Success(endpoint.host, decision.channelId))
+                }
+                return Closeable { }
             }
-            return Closeable { }
+
+            ConnectDecision.JoinPending -> {
+                // Contabilizamos también como reutilización: la solicitud aprovecha
+                // el intento de apertura que ya está en curso en vez de crear otro.
+                KnxPerformanceMetrics.recordTunnelReuse()
+                return Closeable {
+                    synchronized(lock) { pendingConnectCallbacks.remove(onResult) }
+                }
+            }
+
+            ConnectDecision.OpenNew -> Unit
         }
 
         KnxPerformanceMetrics.recordTunnelOpenAttempt()
         disconnectInternal(sendRequest = true)
         cancelled = AtomicBoolean(false)
         state = State.CONNECTING
+        synchronized(lock) { connectingEndpoint = endpoint }
 
         val currentCancellation = cancelled
         val thread = Thread {
@@ -141,7 +169,14 @@ class KnxConnectionManager(
 
             if (!currentCancellation.get()) {
                 mainHandler.post {
-                    if (!currentCancellation.get()) onResult(result)
+                    if (!currentCancellation.get()) {
+                        val joinedCallbacks = synchronized(lock) {
+                            connectingEndpoint = null
+                            pendingConnectCallbacks.toList().also { pendingConnectCallbacks.clear() }
+                        }
+                        onResult(result)
+                        joinedCallbacks.forEach { callback -> callback(result) }
+                    }
                 }
             }
         }.apply {
@@ -156,12 +191,25 @@ class KnxConnectionManager(
 
         return Closeable {
             currentCancellation.set(true)
+            val joinedCallbacks = synchronized(lock) {
+                connectingEndpoint = null
+                pendingConnectCallbacks.toList().also { pendingConnectCallbacks.clear() }
+            }
             synchronized(lock) {
                 socket?.close()
                 worker?.interrupt()
             }
             if (state == State.CONNECTING) state = State.DISCONNECTED
+            if (joinedCallbacks.isNotEmpty()) {
+                mainHandler.post { joinedCallbacks.forEach { it(ConnectResult.Cancelled) } }
+            }
         }
+    }
+
+    private sealed interface ConnectDecision {
+        data class Reuse(val channelId: Int) : ConnectDecision
+        data object JoinPending : ConnectDecision
+        data object OpenNew : ConnectDecision
     }
 
     fun disconnect() {
@@ -548,6 +596,7 @@ class KnxConnectionManager(
             channelId = null
             localAddress = null
             endpoint = null
+            connectingEndpoint = null
             worker = null
             state = State.DISCONNECTED
         }

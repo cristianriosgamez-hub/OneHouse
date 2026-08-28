@@ -1,0 +1,46 @@
+OneHouse v1.12.1.3 - Túnel único durante navegación
+
+OBJETIVO
+Corregir el patrón observado en v1.12.1.2: al navegar entre Inicio y estancias
+se producían muchas aperturas simultáneas, reutilización 0 y varios rechazos
+KNX/IP código 36 aun sin accionar dispositivos.
+
+CAUSA CORREGIDA
+KnxConnectionManager solo podía reutilizar un túnel cuando ya estaba en estado
+CONNECTED. Si otra pantalla solicitaba conexión mientras la primera todavía
+estaba en CONNECTING, la nueva llamada cancelaba el intento anterior y trataba
+de abrir otro túnel. La navegación rápida podía encadenar varios intentos y
+agotar temporalmente los canales disponibles de la interfaz KNX/IP.
+
+CAMBIOS
+1. Coalescencia de conexiones en curso
+   - Si ya hay una conexión CONNECTING hacia el mismo endpoint, las nuevas
+     solicitudes se unen a ese mismo intento.
+   - No se abre un segundo túnel.
+   - Todas las solicitudes reciben el mismo resultado cuando termina la apertura.
+
+2. Reutilización
+   - Sigue reutilizándose el túnel ya CONNECTED como en v1.12.1.2.
+   - Una solicitud que se une a un intento CONNECTING también cuenta como
+     reutilización en las métricas, porque evita una apertura adicional.
+
+3. Diagnóstico
+   - La etiqueta del bloque pasa a "Túnel v1.12.1.3".
+   - Se conservan aperturas, reutilizados, conectados, código 36 y cierres.
+
+NO MODIFICADO
+- Direcciones KNX ni DPT.
+- Luces, persianas, climatización o sensores.
+- Motor paralelo/EventBus.
+- Lógica de pantallas.
+- Tiempo de cierre diferido de 30 s de v1.12.1.2.
+
+PRUEBA RECOMENDADA
+1. Más > Herramientas > Diagnóstico KNX > Limpiar.
+2. Navegar Inicio -> Estancia -> Inicio unas 5 veces sin accionar dispositivos.
+3. Volver a Diagnóstico KNX y pulsar Actualizar.
+4. Objetivo: pocas aperturas, reutilizados > 0 y código 36 = 0 o claramente menor.
+
+VERSIÓN
+versionCode = 106
+versionName = 1.12.1.3 Tunel unico durante navegacion
