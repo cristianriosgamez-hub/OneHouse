@@ -231,6 +231,18 @@ fun KnxDiagnosticsScreen(onBack: () -> Unit) {
                             formatMicros(performanceMetrics.maxParallelDispatchMicros),
                         color = TextoSecundario
                     )
+                    Text(
+                        "Túnel v1.12.1.1 · aperturas / reutilizados / conectados: " +
+                            "${performanceMetrics.tunnelOpenAttempts} / " +
+                            "${performanceMetrics.tunnelReuses} / " +
+                            performanceMetrics.tunnelConnectSuccesses,
+                        color = AzulClaro,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                    Text(
+                        "Código 36: ${performanceMetrics.tunnelRejected36} · cierres: ${performanceMetrics.tunnelDisconnects}",
+                        color = TextoSecundario
+                    )
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.spacedBy(8.dp)

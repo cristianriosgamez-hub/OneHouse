@@ -138,7 +138,7 @@ class KnxCommandExecutor(context: Context) : Closeable {
                                 number == 1 &&
                                 retryReadOnce
                             ) {
-                                connectionManager.disconnect()
+                                connectionManager.scheduleDisconnect()
                                 attempt(2)
                                 return@sendTelegram
                             }
@@ -155,7 +155,7 @@ class KnxCommandExecutor(context: Context) : Closeable {
                             val shouldVerifyWrite = command.type != KnxCommandType.READ &&
                                 operation is KnxConnectionManager.OperationResult.Success
                             if (!shouldVerifyWrite) {
-                                connectionManager.disconnect()
+                                connectionManager.scheduleDisconnect()
                                 onResult(primaryResult)
                                 return@sendTelegram
                             }
@@ -185,7 +185,7 @@ class KnxCommandExecutor(context: Context) : Closeable {
                                         append(" · ${cachedConfirmation.apci}")
                                     }
                                 )
-                                connectionManager.disconnect()
+                                connectionManager.scheduleDisconnect()
                                 onResult(
                                     Result.Success(
                                         busValue = cachedConfirmation.booleanValue?.let {
@@ -215,7 +215,7 @@ class KnxCommandExecutor(context: Context) : Closeable {
                                     result = verificationResult,
                                     successPrefix = "Verificación posterior a escritura"
                                 )
-                                connectionManager.disconnect()
+                                connectionManager.scheduleDisconnect()
 
                                 val combined = when {
                                     primaryResult is Result.Failure -> primaryResult

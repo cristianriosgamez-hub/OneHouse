@@ -96,6 +96,7 @@ class KnxConnectionManager(
     private var cancelled = AtomicBoolean(false)
     private val sequenceCounter = AtomicInteger(0)
     private val operationLock = Any()
+    private var scheduledDisconnect: Runnable? = null
 
     @Volatile
     var state: State = State.DISCONNECTED
@@ -111,6 +112,25 @@ class KnxConnectionManager(
         require(endpoint.port in 1..65535) { "Puerto KNX/IP fuera de rango" }
         require(timeoutMillis > 0) { "El tiempo de espera debe ser mayor que cero" }
 
+        cancelScheduledDisconnect()
+
+        val reusableChannel = synchronized(lock) {
+            channelId?.takeIf { currentChannel ->
+                state == State.CONNECTED &&
+                    socket?.isClosed == false &&
+                    this.endpoint == endpoint &&
+                    currentChannel >= 0
+            }
+        }
+        if (reusableChannel != null) {
+            KnxPerformanceMetrics.recordTunnelReuse()
+            mainHandler.post {
+                onResult(ConnectResult.Success(endpoint.host, reusableChannel))
+            }
+            return Closeable { }
+        }
+
+        KnxPerformanceMetrics.recordTunnelOpenAttempt()
         disconnectInternal(sendRequest = true)
         cancelled = AtomicBoolean(false)
         state = State.CONNECTING
@@ -145,7 +165,42 @@ class KnxConnectionManager(
     }
 
     fun disconnect() {
+        cancelScheduledDisconnect()
         disconnectInternal(sendRequest = true)
+    }
+
+    /**
+     * Mantiene el túnel unos instantes para reutilizarlo en ráfagas de comandos
+     * (escenas, navegación y controles consecutivos). Si llega otra operación
+     * antes del vencimiento, el cierre pendiente se cancela automáticamente.
+     */
+    fun scheduleDisconnect(delayMillis: Long = 3_000L) {
+        if (delayMillis <= 0L) {
+            disconnect()
+            return
+        }
+        cancelScheduledDisconnect()
+        lateinit var task: Runnable
+        task = Runnable {
+            val shouldDisconnect = synchronized(lock) {
+                if (scheduledDisconnect !== task) {
+                    false
+                } else {
+                    scheduledDisconnect = null
+                    true
+                }
+            }
+            if (shouldDisconnect) disconnectInternal(sendRequest = true)
+        }
+        synchronized(lock) { scheduledDisconnect = task }
+        mainHandler.postDelayed(task, delayMillis)
+    }
+
+    private fun cancelScheduledDisconnect() {
+        val pending = synchronized(lock) {
+            scheduledDisconnect.also { scheduledDisconnect = null }
+        }
+        pending?.let(mainHandler::removeCallbacks)
     }
 
     /** Envía un telegrama de grupo por el túnel KNXnet/IP activo. */
@@ -153,6 +208,7 @@ class KnxConnectionManager(
         telegram: KnxTelegram,
         onResult: (OperationResult) -> Unit
     ) {
+        cancelScheduledDisconnect()
         val thread = Thread {
             val result = synchronized(operationLock) { sendTelegramBlocking(telegram) }
             mainHandler.post { onResult(result) }
@@ -354,6 +410,7 @@ class KnxConnectionManager(
     }
 
     override fun close() {
+        cancelScheduledDisconnect()
         disconnectInternal(sendRequest = true)
     }
 
@@ -403,6 +460,7 @@ class KnxConnectionManager(
                             channelId = parsed.channelId
                             sequenceCounter.set(0)
                             state = State.CONNECTED
+                            KnxPerformanceMetrics.recordTunnelConnectSuccess()
                             ConnectResult.Success(
                                 deviceAddress = response.address.hostAddress ?: target.host,
                                 channelId = parsed.channelId
@@ -411,6 +469,7 @@ class KnxConnectionManager(
                     }
 
                     is KnxProtocol.ConnectResponse.Rejected -> {
+                        KnxPerformanceMetrics.recordTunnelRejected(parsed.status)
                         udpSocket.close()
                         clearSession()
                         ConnectResult.Rejected(parsed.status)
@@ -476,6 +535,9 @@ class KnxConnectionManager(
             }
         }
 
+        if (udpSocket != null && !udpSocket.isClosed && currentChannel != null) {
+            KnxPerformanceMetrics.recordTunnelDisconnect()
+        }
         udpSocket?.close()
         clearSession()
     }
