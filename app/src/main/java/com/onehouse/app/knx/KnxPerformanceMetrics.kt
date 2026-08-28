@@ -1,5 +1,6 @@
 package com.onehouse.app.knx
 
+import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicLong
 
 /**
@@ -27,7 +28,10 @@ object KnxPerformanceMetrics {
         val tunnelReuses: Long,
         val tunnelConnectSuccesses: Long,
         val tunnelRejected36: Long,
-        val tunnelDisconnects: Long
+        val tunnelDisconnects: Long,
+        val tunnelOpenAttemptsBySource: Map<String, Long>,
+        val tunnelReusesBySource: Map<String, Long>,
+        val tunnelRejected36BySource: Map<String, Long>
     )
 
     private val accepted = AtomicLong(0)
@@ -54,6 +58,9 @@ object KnxPerformanceMetrics {
     private val tunnelConnectSuccessesCounter = AtomicLong(0)
     private val tunnelRejected36Counter = AtomicLong(0)
     private val tunnelDisconnectsCounter = AtomicLong(0)
+    private val tunnelOpenAttemptsBySource = ConcurrentHashMap<String, AtomicLong>()
+    private val tunnelReusesBySource = ConcurrentHashMap<String, AtomicLong>()
+    private val tunnelRejected36BySource = ConcurrentHashMap<String, AtomicLong>()
 
     fun recordDuplicate() {
         duplicates.incrementAndGet()
@@ -74,14 +81,25 @@ object KnxPerformanceMetrics {
         updateMax(observerMaxNanos, elapsedNanos)
     }
 
-    fun recordTunnelOpenAttempt() { tunnelOpenAttemptsCounter.incrementAndGet() }
+    fun recordTunnelOpenAttempt(source: String = "OTRO") {
+        tunnelOpenAttemptsCounter.incrementAndGet()
+        incrementSource(tunnelOpenAttemptsBySource, source)
+    }
 
-    fun recordTunnelReuse() { tunnelReusesCounter.incrementAndGet() }
+    fun recordTunnelReuse(source: String = "OTRO") {
+        tunnelReusesCounter.incrementAndGet()
+        incrementSource(tunnelReusesBySource, source)
+    }
 
-    fun recordTunnelConnectSuccess() { tunnelConnectSuccessesCounter.incrementAndGet() }
+    fun recordTunnelConnectSuccess(source: String = "OTRO") {
+        tunnelConnectSuccessesCounter.incrementAndGet()
+    }
 
-    fun recordTunnelRejected(status: Int) {
-        if ((status and 0xFF) == 36) tunnelRejected36Counter.incrementAndGet()
+    fun recordTunnelRejected(status: Int, source: String = "OTRO") {
+        if ((status and 0xFF) == 36) {
+            tunnelRejected36Counter.incrementAndGet()
+            incrementSource(tunnelRejected36BySource, source)
+        }
     }
 
     fun recordTunnelDisconnect() { tunnelDisconnectsCounter.incrementAndGet() }
@@ -116,7 +134,10 @@ object KnxPerformanceMetrics {
             tunnelReuses = tunnelReusesCounter.get(),
             tunnelConnectSuccesses = tunnelConnectSuccessesCounter.get(),
             tunnelRejected36 = tunnelRejected36Counter.get(),
-            tunnelDisconnects = tunnelDisconnectsCounter.get()
+            tunnelDisconnects = tunnelDisconnectsCounter.get(),
+            tunnelOpenAttemptsBySource = snapshotSources(tunnelOpenAttemptsBySource),
+            tunnelReusesBySource = snapshotSources(tunnelReusesBySource),
+            tunnelRejected36BySource = snapshotSources(tunnelRejected36BySource)
         )
     }
 
@@ -141,7 +162,22 @@ object KnxPerformanceMetrics {
         tunnelConnectSuccessesCounter.set(0)
         tunnelRejected36Counter.set(0)
         tunnelDisconnectsCounter.set(0)
+        tunnelOpenAttemptsBySource.clear()
+        tunnelReusesBySource.clear()
+        tunnelRejected36BySource.clear()
     }
+
+    private fun incrementSource(target: ConcurrentHashMap<String, AtomicLong>, source: String) {
+        val key = source.trim().ifBlank { "OTRO" }
+        target.computeIfAbsent(key) { AtomicLong(0) }.incrementAndGet()
+    }
+
+    private fun snapshotSources(source: ConcurrentHashMap<String, AtomicLong>): Map<String, Long> =
+        source.entries
+            .associate { (key, value) -> key to value.get() }
+            .toList()
+            .sortedByDescending { it.second }
+            .toMap()
 
     private fun updateMax(target: AtomicLong, value: Long) {
         val safeValue = value.coerceAtLeast(0)

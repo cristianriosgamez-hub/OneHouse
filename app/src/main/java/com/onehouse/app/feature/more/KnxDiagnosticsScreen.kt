@@ -232,7 +232,7 @@ fun KnxDiagnosticsScreen(onBack: () -> Unit) {
                         color = TextoSecundario
                     )
                     Text(
-                        "Túnel v1.12.1.3 · aperturas / reutilizados / conectados: " +
+                        "Túnel v1.12.1.4 · aperturas / reutilizados / conectados: " +
                             "${performanceMetrics.tunnelOpenAttempts} / " +
                             "${performanceMetrics.tunnelReuses} / " +
                             performanceMetrics.tunnelConnectSuccesses,
@@ -242,6 +242,21 @@ fun KnxDiagnosticsScreen(onBack: () -> Unit) {
                     Text(
                         "Código 36: ${performanceMetrics.tunnelRejected36} · cierres: ${performanceMetrics.tunnelDisconnects}",
                         color = TextoSecundario
+                    )
+                    Text(
+                        "Origen aperturas: ${formatSourceCounts(performanceMetrics.tunnelOpenAttemptsBySource)}",
+                        color = TextoSecundario,
+                        fontSize = 12.sp
+                    )
+                    Text(
+                        "Origen reutilizaciones: ${formatSourceCounts(performanceMetrics.tunnelReusesBySource)}",
+                        color = TextoSecundario,
+                        fontSize = 12.sp
+                    )
+                    Text(
+                        "Origen código 36: ${formatSourceCounts(performanceMetrics.tunnelRejected36BySource)}",
+                        color = if (performanceMetrics.tunnelRejected36 == 0L) TextoSecundario else MaterialTheme.colorScheme.error,
+                        fontSize = 12.sp
                     )
                     Row(
                         modifier = Modifier.fillMaxWidth(),
@@ -441,6 +456,9 @@ private fun displayValue(state: KnxStateRepository.State): String = when {
     !state.rawValue.isNullOrBlank() -> "0x${state.rawValue}"
     else -> "---"
 }
+
+private fun formatSourceCounts(values: Map<String, Long>): String =
+    if (values.isEmpty()) "—" else values.entries.joinToString(" · ") { (source, count) -> "$source=$count" }
 
 private fun formatMicros(value: Long?): String = value?.let { "$it µs" } ?: "—"
 

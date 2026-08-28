@@ -112,7 +112,7 @@ class KnxCommandExecutor(context: Context) : Closeable {
                 }
             )
 
-            connectionManager.connect(endpoint) { connectResult ->
+            connectionManager.connect(endpoint, source = "COMMAND_EXECUTOR") { connectResult ->
                 when (connectResult) {
                     is KnxConnectionManager.ConnectResult.Success -> {
                         statisticsRepository.recordConnectionSuccess()

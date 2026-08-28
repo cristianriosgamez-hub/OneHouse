@@ -78,7 +78,7 @@ class KnxBulkStateReader(context: Context) : Closeable {
         // Timeout corto para la carga masiva. Una GA que no responde no debe
         // bloquear durante cuatro segundos al resto de sensores.
         val manager = connectionManager
-        manager.connect(endpoint) { connectResult ->
+        manager.connect(endpoint, source = "BULK_STATE_READER") { connectResult ->
             if (cancelled.get()) return@connect
             if (connectResult !is KnxConnectionManager.ConnectResult.Success) {
                 // No cerramos el gestor central: puede estar siendo reutilizado por

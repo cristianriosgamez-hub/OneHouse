@@ -26,7 +26,7 @@ object KnxConnectionTester {
         onResult: (Result) -> Unit
     ): Closeable {
         val manager = KnxConnectionManager(timeoutMillis)
-        val operation = manager.connect(endpoint) { result ->
+        val operation = manager.connect(endpoint, source = "CONNECTION_TEST") { result ->
             when (result) {
                 is KnxConnectionManager.ConnectResult.Success -> {
                     manager.disconnect()

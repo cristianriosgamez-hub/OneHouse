@@ -16,8 +16,8 @@ android {
         applicationId = "com.onehouse.app"
         minSdk = 29
         targetSdk = 36
-        versionCode = 106
-        versionName = "1.12.1.3 Tunel unico durante navegacion"
+        versionCode = 107
+        versionName = "1.12.1.4 Diagnostico origen aperturas tunel"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }

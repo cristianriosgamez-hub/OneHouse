@@ -112,6 +112,7 @@ class KnxConnectionManager(
 
     fun connect(
         endpoint: KnxEndpoint,
+        source: String = "OTRO",
         onResult: (ConnectResult) -> Unit
     ): Closeable {
         require(endpoint.port in 1..65535) { "Puerto KNX/IP fuera de rango" }
@@ -138,7 +139,7 @@ class KnxConnectionManager(
 
         when (decision) {
             is ConnectDecision.Reuse -> {
-                KnxPerformanceMetrics.recordTunnelReuse()
+                KnxPerformanceMetrics.recordTunnelReuse(source)
                 mainHandler.post {
                     onResult(ConnectResult.Success(endpoint.host, decision.channelId))
                 }
@@ -148,7 +149,7 @@ class KnxConnectionManager(
             ConnectDecision.JoinPending -> {
                 // Contabilizamos también como reutilización: la solicitud aprovecha
                 // el intento de apertura que ya está en curso en vez de crear otro.
-                KnxPerformanceMetrics.recordTunnelReuse()
+                KnxPerformanceMetrics.recordTunnelReuse(source)
                 return Closeable {
                     synchronized(lock) { pendingConnectCallbacks.remove(onResult) }
                 }
@@ -157,7 +158,7 @@ class KnxConnectionManager(
             ConnectDecision.OpenNew -> Unit
         }
 
-        KnxPerformanceMetrics.recordTunnelOpenAttempt()
+        KnxPerformanceMetrics.recordTunnelOpenAttempt(source)
         disconnectInternal(sendRequest = true)
         cancelled = AtomicBoolean(false)
         state = State.CONNECTING
@@ -165,7 +166,7 @@ class KnxConnectionManager(
 
         val currentCancellation = cancelled
         val thread = Thread {
-            val result = openTunnel(endpoint, currentCancellation)
+            val result = openTunnel(endpoint, currentCancellation, source)
 
             if (!currentCancellation.get()) {
                 mainHandler.post {
@@ -464,7 +465,8 @@ class KnxConnectionManager(
 
     private fun openTunnel(
         target: KnxEndpoint,
-        cancellation: AtomicBoolean
+        cancellation: AtomicBoolean,
+        source: String
     ): ConnectResult {
         return try {
             val targetAddress = InetAddress.getByName(target.host)
@@ -508,7 +510,7 @@ class KnxConnectionManager(
                             channelId = parsed.channelId
                             sequenceCounter.set(0)
                             state = State.CONNECTED
-                            KnxPerformanceMetrics.recordTunnelConnectSuccess()
+                            KnxPerformanceMetrics.recordTunnelConnectSuccess(source)
                             ConnectResult.Success(
                                 deviceAddress = response.address.hostAddress ?: target.host,
                                 channelId = parsed.channelId
@@ -517,7 +519,7 @@ class KnxConnectionManager(
                     }
 
                     is KnxProtocol.ConnectResponse.Rejected -> {
-                        KnxPerformanceMetrics.recordTunnelRejected(parsed.status)
+                        KnxPerformanceMetrics.recordTunnelRejected(parsed.status, source)
                         udpSocket.close()
                         clearSession()
                         ConnectResult.Rejected(parsed.status)
