@@ -271,6 +271,8 @@ class KnxHomeStateRepository(context: Context) {
         val climatePowered = booleanFromDevices(powerDevices)
             ?: boolAt(KnxAddressBook.Climate.POWER_STATE)
 
+        val resolvedClimate = KnxClimateStateResolver.resolve(states)
+
         return KnxHomeSnapshot(
             devices = devices,
             states = states,
@@ -279,13 +281,11 @@ class KnxHomeStateRepository(context: Context) {
             blindsOpen = blindOpen,
             blindsTotal = blinds.size,
             climate = KnxClimateSnapshot(
-                powered = climatePowered,
-                // La portada debe mostrar la sonda del comedor, no una lectura interna
-                // del equipo de climatización. Se conserva como respaldo la sonda Daikin.
-                currentTemperature = diningTemperature ?: climateTemperature,
-                targetTemperature = targetTemperature,
-                mode = mode,
-                fanSpeed = fan
+                powered = resolvedClimate.powered,
+                currentTemperature = resolvedClimate.currentTemperature,
+                targetTemperature = resolvedClimate.targetTemperature,
+                mode = resolvedClimate.mode,
+                fanSpeed = resolvedClimate.fanSpeed
             )
         )
     }

@@ -71,9 +71,10 @@ fun ClimateScreen(onBack: () -> Unit) {
     val confirmedMode = climate.mode.toClimateMode()
     val confirmedFanSpeed = climate.fanSpeed.toFanSpeed()
 
-    // Estado local optimista: permite manejar la climatización aunque KNX no esté
-    // disponible. Los valores confirmados por el bus sustituyen al estado temporal
-    // cuando coinciden con la petición enviada.
+    // v1.12.4: el estado confirmado procede de las GAs KNX de estado centralizadas
+    // (5/3/2, 5/3/4, 5/3/5 y 5/2/6 por defecto).
+    // Conservamos el estado local optimista para que la pantalla siga siendo
+    // editable cuando KNX no esté disponible; la confirmación real del bus lo sustituye.
     var requestedPower by remember { mutableStateOf<Boolean?>(null) }
     var requestedTemperature by remember { mutableStateOf<Float?>(null) }
     var requestedMode by remember { mutableStateOf<ClimateMode?>(null) }

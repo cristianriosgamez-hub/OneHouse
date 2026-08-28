@@ -16,8 +16,8 @@ android {
         applicationId = "com.onehouse.app"
         minSdk = 29
         targetSdk = 36
-        versionCode = 112
-        versionName = "1.12.3 Persianas estado KNX central"
+        versionCode = 113
+        versionName = "1.12.4 Climatizacion estado KNX central"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
