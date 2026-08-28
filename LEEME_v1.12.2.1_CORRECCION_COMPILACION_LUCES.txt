@@ -1,0 +1,28 @@
+OneHouse v1.12.2.1 - Corrección de compilación de Luces
+
+PROBLEMA
+- KnxLightStateResolver.kt reutiliza la validación StateFreshness para aceptar
+  únicamente estados KNX de la sesión actual.
+- StateFreshness estaba declarado como private dentro de
+  KnxHomeStateRepository.kt, por lo que no era accesible desde el nuevo archivo.
+- Android Studio mostraba:
+  Cannot access 'object StateFreshness: Any': it is private in file.
+
+CORRECCIÓN
+- StateFreshness pasa de private a internal.
+- No se modifica su lógica ni el criterio de frescura.
+- No se modifica ninguna dirección KNX, DPT ni comportamiento de luces.
+- El cambio únicamente permite que KnxLightStateResolver reutilice la misma
+  validación central de estado.
+
+NO MODIFICADO
+- Túnel KNX v1.12.1.5.
+- Motor paralelo.
+- Persianas.
+- Climatización.
+- Sensores.
+- Consumos.
+
+VERSIÓN
+versionCode = 110
+versionName = 1.12.2.1 Correccion compilacion luces

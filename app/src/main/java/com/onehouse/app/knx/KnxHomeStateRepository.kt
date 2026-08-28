@@ -319,7 +319,7 @@ private object KnxProcessSession {
     }
 }
 
-private object StateFreshness {
+internal object StateFreshness {
     fun isTrusted(state: KnxStateRepository.State): Boolean =
         state.timestampMillis >= KnxProcessSession.startedAtMillis
 }

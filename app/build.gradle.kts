@@ -16,8 +16,8 @@ android {
         applicationId = "com.onehouse.app"
         minSdk = 29
         targetSdk = 36
-        versionCode = 109
-        versionName = "1.12.2 Luces estado KNX central"
+        versionCode = 110
+        versionName = "1.12.2.1 Correccion compilacion luces"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
