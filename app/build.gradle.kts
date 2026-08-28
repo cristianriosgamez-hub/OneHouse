@@ -16,8 +16,8 @@ android {
         applicationId = "com.onehouse.app"
         minSdk = 29
         targetSdk = 36
-        versionCode = 110
-        versionName = "1.12.2.1 Correccion compilacion luces"
+        versionCode = 111
+        versionName = "1.12.2.2 Luces eventos fisicos en tiempo real"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }

@@ -1,0 +1,53 @@
+OneHouse v1.12.2.2 - Luces: eventos físicos en tiempo real
+
+OBJETIVO
+Corregir el caso detectado en v1.12.2.1 donde una luz accionada desde un
+pulsador físico KNX podía tardar en pintarse o no reflejarse en OneHouse.
+
+CAUSA LOCALIZADA
+- El túnel KNX solo procesaba telegramas entrantes mientras OneHouse estaba
+  ejecutando una lectura o un comando propio.
+- Si el usuario accionaba un pulsador físico durante un periodo sin operaciones
+  de OneHouse, el GroupValueWrite podía llegar al túnel pero no existía un
+  receptor pasivo dedicado para incorporarlo inmediatamente a la caché central.
+- Además, el resolver de luces priorizaba exclusivamente la GA de lectura cuando
+  existía, ignorando un GroupValueWrite físico más reciente sobre la GA de mando.
+
+CAMBIOS
+1. KnxConnectionManager
+   - Añade un receptor pasivo del túnel mientras no hay una operación activa.
+   - Los telegramas espontáneos del bus se ACKean, se publican en el EventBus y
+     se registran en KnxStateRepository.
+   - El receptor comparte el mismo bloqueo que lecturas/comandos para que nunca
+     consuma ACK/respuestas correspondientes a una operación activa.
+   - Timeout pasivo de 40 ms para no introducir latencia apreciable en comandos.
+   - El túnel permanece reutilizable 90 s. Como el refresco periódico se ejecuta
+     cada 60 s, durante el uso normal la conexión puede mantenerse disponible
+     para recibir pulsadores físicos sin abrir túneles adicionales.
+
+2. KnxLightStateResolver
+   - Considera tanto direcciones de lectura como de escritura.
+   - Selecciona el telegrama KNX confirmado más reciente del dispositivo.
+   - Un GroupValueWrite físico puede actualizar inmediatamente la luz.
+   - Si después llega la GA de estado del actuador, por ser más reciente sustituye
+     correctamente al mando recibido.
+
+PRUEBA RECOMENDADA
+- Limpiar métricas.
+- Abrir una estancia con luces.
+- Encender/apagar varias veces exclusivamente desde pulsadores físicos.
+- No salir de la pantalla para forzar refresco.
+- Verificar que OneHouse cambia automáticamente el estado visual.
+- Repetir desde otra estancia y volver para comprobar consistencia.
+- Revisar que Código 36 continúa en 0 y que el EventBus recibe los telegramas.
+
+NO MODIFICADO
+- Direcciones KNX ni DPT.
+- Lógica de persianas.
+- Climatización.
+- Sensores y consumos.
+- Solución CONNECTION_TEST de v1.12.1.5.
+
+VERSIÓN
+versionCode = 111
+versionName = 1.12.2.2 Luces eventos fisicos en tiempo real

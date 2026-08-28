@@ -5,25 +5,32 @@ import com.onehouse.app.device.ImportedKnxDevice
 /**
  * Resolución central del estado real de luces KNX (v1.12.2).
  *
- * Las pantallas no deben deducir el estado a partir del último mando enviado.
- * Si existe una GA de lectura se usa exclusivamente esa respuesta confirmada;
- * la GA de escritura solo se usa como estado cuando el proyecto no dispone de
- * una dirección de lectura independiente.
+ * Las pantallas no deducen el estado a partir de una variable local. Se utiliza
+ * el telegrama KNX confirmado más reciente asociado al dispositivo. Esto permite
+ * reflejar tanto la GA de estado del actuador como los GroupValueWrite emitidos
+ * por pulsadores físicos sobre la GA de mando.
  */
 internal object KnxLightStateResolver {
 
-    fun stateAddresses(device: ImportedKnxDevice): List<String> {
-        val read = device.readAddresses.map { it.toString() }.distinct()
-        if (read.isNotEmpty()) return read
-        return device.writeAddresses.map { it.toString() }.distinct()
-    }
+    fun stateAddresses(device: ImportedKnxDevice): List<String> =
+        (device.readAddresses + device.writeAddresses)
+            .map { it.toString() }
+            .distinct()
 
     fun confirmedBoolean(
         device: ImportedKnxDevice,
         states: Map<String, KnxStateRepository.State>
-    ): Boolean? = stateAddresses(device)
-        .asSequence()
-        .mapNotNull { address -> states[address]?.takeIf(StateFreshness::isTrusted) }
-        .mapNotNull { state -> state.booleanValue }
-        .firstOrNull()
+    ): Boolean? {
+        // Un pulsador físico suele publicar un GroupValueWrite sobre la GA de mando.
+        // Algunos actuadores no emiten después una GA de estado independiente, por
+        // lo que ignorar siempre la escritura dejaba la UI congelada. Tomamos el
+        // telegrama confirmado más reciente entre lectura y mando; si posteriormente
+        // llega la GA de estado del actuador, al ser más nueva pasa a ser autoritativa.
+        return stateAddresses(device)
+            .asSequence()
+            .mapNotNull { address -> states[address]?.takeIf(StateFreshness::isTrusted) }
+            .filter { state -> state.booleanValue != null }
+            .maxByOrNull { state -> state.timestampMillis }
+            ?.booleanValue
+    }
 }

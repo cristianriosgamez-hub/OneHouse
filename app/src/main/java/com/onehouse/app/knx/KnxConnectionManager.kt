@@ -11,6 +11,8 @@ import java.net.InetSocketAddress
 import java.net.SocketTimeoutException
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicInteger
+import java.util.concurrent.locks.ReentrantLock
+import kotlin.concurrent.withLock
 
 /**
  * Motor reutilizable de conexión KNXnet/IP Tunnelling.
@@ -95,7 +97,9 @@ class KnxConnectionManager(
     private var endpoint: KnxEndpoint? = null
     private var cancelled = AtomicBoolean(false)
     private val sequenceCounter = AtomicInteger(0)
-    private val operationLock = Any()
+    private val operationLock = ReentrantLock()
+    private var passiveReceiverThread: Thread? = null
+    private var passiveReceiverCancellation = AtomicBoolean(true)
     private var scheduledDisconnect: Runnable? = null
     // v1.12.1.3: cuando varias pantallas solicitan conexión mientras el mismo
     // túnel todavía está en CONNECTING, no abrimos/cancelamos sesiones nuevas.
@@ -259,7 +263,7 @@ class KnxConnectionManager(
     ) {
         cancelScheduledDisconnect()
         val thread = Thread {
-            val result = synchronized(operationLock) { sendTelegramBlocking(telegram) }
+            val result = operationLock.withLock { sendTelegramBlocking(telegram) }
             mainHandler.post { onResult(result) }
         }.apply {
             name = "KnxTelegramSender"
@@ -458,6 +462,95 @@ class KnxConnectionManager(
         }
     }
 
+    /**
+     * Escucha telegramas espontáneos del bus mientras no hay una operación propia
+     * usando el socket. Esto es imprescindible para reflejar inmediatamente los
+     * pulsadores físicos: sus GroupValueWrite pueden llegar cuando OneHouse está
+     * simplemente mostrando una estancia y no está enviando ninguna lectura.
+     *
+     * El mismo [operationLock] serializa este receptor y las operaciones activas,
+     * evitando que un ACK o una respuesta de lectura sea consumido por el hilo
+     * equivocado. El timeout corto limita a unas decenas de milisegundos la espera
+     * máxima antes de que un comando de la app pueda tomar el socket.
+     */
+    private fun startPassiveReceiver(udpSocket: DatagramSocket, expectedChannelId: Int) {
+        stopPassiveReceiver()
+        val cancellation = AtomicBoolean(false)
+        synchronized(lock) { passiveReceiverCancellation = cancellation }
+
+        val thread = Thread {
+            while (!cancellation.get() && !udpSocket.isClosed) {
+                if (!operationLock.tryLock()) {
+                    try {
+                        Thread.sleep(PASSIVE_RECEIVER_RETRY_MILLIS)
+                    } catch (_: InterruptedException) {
+                        break
+                    }
+                    continue
+                }
+
+                try {
+                    if (
+                        cancellation.get() ||
+                        udpSocket.isClosed ||
+                        state != State.CONNECTED ||
+                        channelId != expectedChannelId
+                    ) {
+                        break
+                    }
+
+                    udpSocket.soTimeout = PASSIVE_RECEIVE_TIMEOUT_MILLIS
+                    val buffer = ByteArray(KnxProtocol.MAX_PACKET_SIZE)
+                    val packet = DatagramPacket(buffer, buffer.size)
+
+                    try {
+                        udpSocket.receive(packet)
+                    } catch (_: SocketTimeoutException) {
+                        continue
+                    }
+
+                    if (KnxProtocol.serviceType(packet.data, packet.length) != KnxProtocol.TUNNELLING_REQUEST_SERVICE) {
+                        continue
+                    }
+
+                    val parsed = KnxProtocol.parseIncomingGroupTelegram(packet.data, packet.length) ?: continue
+                    val ackPacket = KnxProtocol.buildTunnellingAck(
+                        channelId = parsed.channelId,
+                        sequence = parsed.sequence
+                    )
+                    udpSocket.send(DatagramPacket(ackPacket, ackPacket.size))
+
+                    if (parsed.channelId == expectedChannelId) {
+                        KnxParallelEventBus.publish(parsed.telegram)
+                        stateRepository?.record(parsed.telegram)
+                    }
+                } catch (_: SocketTimeoutException) {
+                    // El timeout corto solo permite ceder el socket a comandos.
+                } catch (_: Exception) {
+                    if (cancellation.get() || udpSocket.isClosed) break
+                } finally {
+                    if (operationLock.isHeldByCurrentThread) {
+                        operationLock.unlock()
+                    }
+                }
+            }
+        }.apply {
+            name = "KnxPassiveReceiver"
+            isDaemon = true
+            start()
+        }
+
+        synchronized(lock) { passiveReceiverThread = thread }
+    }
+
+    private fun stopPassiveReceiver() {
+        val thread = synchronized(lock) {
+            passiveReceiverCancellation.set(true)
+            passiveReceiverThread.also { passiveReceiverThread = null }
+        }
+        thread?.interrupt()
+    }
+
     override fun close() {
         cancelScheduledDisconnect()
         disconnectInternal(sendRequest = true)
@@ -510,6 +603,7 @@ class KnxConnectionManager(
                             channelId = parsed.channelId
                             sequenceCounter.set(0)
                             state = State.CONNECTED
+                            startPassiveReceiver(udpSocket, parsed.channelId)
                             KnxPerformanceMetrics.recordTunnelConnectSuccess(source)
                             ConnectResult.Success(
                                 deviceAddress = response.address.hostAddress ?: target.host,
@@ -554,6 +648,7 @@ class KnxConnectionManager(
         val currentChannel: Int?
         val ownAddress: Inet4Address?
 
+        stopPassiveReceiver()
         synchronized(lock) {
             cancelled.set(true)
             worker?.interrupt()
@@ -608,7 +703,9 @@ class KnxConnectionManager(
 /**
  * Parámetros comunes del transporte KNXnet/IP.
  */
-private const val DEFAULT_IDLE_DISCONNECT_MILLIS = 30_000L
+private const val DEFAULT_IDLE_DISCONNECT_MILLIS = 90_000L
+private const val PASSIVE_RECEIVE_TIMEOUT_MILLIS = 40
+private const val PASSIVE_RECEIVER_RETRY_MILLIS = 4L
 
 internal object KnxProtocol {
     const val DEFAULT_TIMEOUT_MILLIS = 4_000
