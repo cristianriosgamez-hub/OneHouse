@@ -173,6 +173,7 @@ class KnxStateRepository(context: Context) {
         }
 
         KnxPerformanceMetrics.recordCacheUpdate(System.nanoTime() - measurementStartNanos)
+        KnxPerformanceMetrics.recordStateEvent(acceptedState)
         sharedUpdates.tryEmit(Update.StateChanged(acceptedState))
         val observerStartNanos = System.nanoTime()
         notifyObservers(updatedStates)

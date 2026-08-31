@@ -2,6 +2,7 @@ package com.onehouse.app.knx
 
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicLong
+import java.util.concurrent.ConcurrentLinkedDeque
 
 /**
  * Métricas ligeras de la ruta de recepción KNX.
@@ -10,6 +11,14 @@ import java.util.concurrent.atomic.AtomicLong
  * caché, prioridades ni flujos de estado.
  */
 object KnxPerformanceMetrics {
+
+    data class RecentStateEvent(
+        val groupAddress: String,
+        val kind: String,
+        val value: String,
+        val sourceAddress: String,
+        val timestampMillis: Long
+    )
 
     data class Snapshot(
         val acceptedStateUpdates: Long,
@@ -31,7 +40,8 @@ object KnxPerformanceMetrics {
         val tunnelDisconnects: Long,
         val tunnelOpenAttemptsBySource: Map<String, Long>,
         val tunnelReusesBySource: Map<String, Long>,
-        val tunnelRejected36BySource: Map<String, Long>
+        val tunnelRejected36BySource: Map<String, Long>,
+        val recentStateEvents: List<RecentStateEvent>
     )
 
     private val accepted = AtomicLong(0)
@@ -61,6 +71,23 @@ object KnxPerformanceMetrics {
     private val tunnelOpenAttemptsBySource = ConcurrentHashMap<String, AtomicLong>()
     private val tunnelReusesBySource = ConcurrentHashMap<String, AtomicLong>()
     private val tunnelRejected36BySource = ConcurrentHashMap<String, AtomicLong>()
+    private val recentStateEvents = ConcurrentLinkedDeque<RecentStateEvent>()
+
+
+    fun recordStateEvent(state: KnxStateRepository.State) {
+        recentStateEvents.addFirst(
+            RecentStateEvent(
+                groupAddress = state.groupAddress,
+                kind = state.telegramKind.name,
+                value = state.booleanValue?.let { if (it) "ON" else "OFF" } ?: (state.rawValue ?: "—"),
+                sourceAddress = state.sourceAddress,
+                timestampMillis = state.timestampMillis
+            )
+        )
+        while (recentStateEvents.size > MAX_RECENT_STATE_EVENTS) {
+            recentStateEvents.pollLast()
+        }
+    }
 
     fun recordDuplicate() {
         duplicates.incrementAndGet()
@@ -137,7 +164,8 @@ object KnxPerformanceMetrics {
             tunnelDisconnects = tunnelDisconnectsCounter.get(),
             tunnelOpenAttemptsBySource = snapshotSources(tunnelOpenAttemptsBySource),
             tunnelReusesBySource = snapshotSources(tunnelReusesBySource),
-            tunnelRejected36BySource = snapshotSources(tunnelRejected36BySource)
+            tunnelRejected36BySource = snapshotSources(tunnelRejected36BySource),
+            recentStateEvents = recentStateEvents.toList()
         )
     }
 
@@ -165,6 +193,7 @@ object KnxPerformanceMetrics {
         tunnelOpenAttemptsBySource.clear()
         tunnelReusesBySource.clear()
         tunnelRejected36BySource.clear()
+        recentStateEvents.clear()
     }
 
     private fun incrementSource(target: ConcurrentHashMap<String, AtomicLong>, source: String) {
@@ -178,6 +207,8 @@ object KnxPerformanceMetrics {
             .toList()
             .sortedByDescending { it.second }
             .toMap()
+
+    private const val MAX_RECENT_STATE_EVENTS = 16
 
     private fun updateMax(target: AtomicLong, value: Long) {
         val safeValue = value.coerceAtLeast(0)
