@@ -38,18 +38,24 @@ data class KnxHomeSnapshot(
      * respaldo la dirección de mando: un GroupValueWrite antiguo podría hacer
      * aparecer una luz encendida aunque el actuador esté realmente apagado.
      */
-    fun booleanValue(device: ImportedKnxDevice): Boolean? =
-        KnxLightStateResolver.confirmedBoolean(device, states)
+    fun booleanValue(device: ImportedKnxDevice): Boolean? = when (device.controlKind) {
+        ControlKind.BOOLEAN_SWITCH -> KnxLightStateResolver.confirmedBoolean(device, states)
+        ControlKind.ALARM,
+        ControlKind.SENSOR,
+        ControlKind.READ_ONLY,
+        ControlKind.METER,
+        ControlKind.TEMPERATURE -> KnxSensorStateResolver.confirmedBoolean(device, states)
+        else -> KnxSensorStateResolver.confirmedBoolean(device, states)
+    }
 
-    fun numericValue(device: ImportedKnxDevice): Float? {
-        if (device.controlKind == ControlKind.BLIND) {
-            return KnxBlindStateResolver.confirmedPositionPercent(device, states)
-        }
-        val state = stateAddresses(device)
-            .asSequence()
-            .mapNotNull { address -> states[address.toString()]?.takeIf(StateFreshness::isTrusted) }
-            .firstOrNull() ?: return null
-        return KnxValueDecoder.decodeFlexible(state.rawValue, device.resolvedDpt)
+    fun numericValue(device: ImportedKnxDevice): Float? = when (device.controlKind) {
+        ControlKind.BLIND -> KnxBlindStateResolver.confirmedPositionPercent(device, states)
+        ControlKind.TEMPERATURE,
+        ControlKind.SENSOR,
+        ControlKind.METER,
+        ControlKind.ALARM,
+        ControlKind.READ_ONLY -> KnxSensorStateResolver.confirmedNumeric(device, states)
+        else -> KnxSensorStateResolver.confirmedNumeric(device, states)
     }
 
     fun booleanAt(address: String): Boolean? =
@@ -405,9 +411,13 @@ private object PeriodicKnxStateRefresh {
                 device.name.contains("daikin", ignoreCase = true) -> 0
                 device.name.contains("termostato", ignoreCase = true) -> 0
                 device.controlKind == ControlKind.TEMPERATURE -> 1
-                device.controlKind == ControlKind.BOOLEAN_SWITCH -> 2
-                device.controlKind == ControlKind.BLIND -> 3
-                else -> 4
+                device.controlKind == ControlKind.SENSOR -> 2
+                device.controlKind == ControlKind.ALARM -> 2
+                device.controlKind == ControlKind.METER -> 2
+                device.controlKind == ControlKind.READ_ONLY -> 2
+                device.controlKind == ControlKind.BOOLEAN_SWITCH -> 3
+                device.controlKind == ControlKind.BLIND -> 4
+                else -> 5
             }
         }
 

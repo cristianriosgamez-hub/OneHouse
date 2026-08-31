@@ -16,8 +16,8 @@ android {
         applicationId = "com.onehouse.app"
         minSdk = 29
         targetSdk = 36
-        versionCode = 113
-        versionName = "1.12.4 Climatizacion estado KNX central"
+        versionCode = 114
+        versionName = "1.12.5 Sensores estados KNX centrales"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }

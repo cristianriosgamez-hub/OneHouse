@@ -1,0 +1,46 @@
+OneHouse v1.12.5 - Sensores / estados KNX centrales
+===================================================
+
+BASE
+----
+Preparado exclusivamente sobre el proyecto completo v1.12.4 entregado por el usuario.
+
+OBJETIVO
+--------
+Llevar sensores, alarmas, temperaturas, mediciones y objetos de solo lectura al mismo
+modelo central/event-driven que ya utilizan luces, persianas y climatización.
+
+CAMBIOS
+-------
+1. Nuevo KnxSensorStateResolver.kt
+   - Centraliza la resolución de estados de sensores y alarmas.
+   - Usa únicamente estados KNX de la sesión actual.
+   - Prioriza las direcciones de lectura del objeto.
+   - Si no existe una lectura válida, permite la GA de escritura como respaldo.
+   - Para valores numéricos usa el telegrama válido más reciente y el DPT real.
+
+2. KnxHomeStateRepository.kt
+   - booleanValue() ya no trata alarmas/sensores como si fueran luces.
+   - numericValue() usa el nuevo resolver para temperatura, sensor, meter, alarma y read-only.
+   - Se adelantan sensores/alarma/mediciones en el orden de lectura inicial para que
+     sus estados aparezcan antes al abrir OneHouse.
+   - Se mantienen sin cambios los resolvers ya validados de luces, persianas y clima.
+
+3. Versionado
+   - versionCode: 114
+   - versionName: 1.12.5 Sensores estados KNX centrales
+
+PRUEBAS RECOMENDADAS
+--------------------
+- Comedor: temperatura, CO2 y humedad.
+- Suite: temperatura.
+- Cocina/Baño: sensor de inundación.
+- Pasillo: sensor de incendio.
+- Entrada: bloqueo PIR.
+- Terraza: luminosidad, viento y lluvia.
+- Confirmar que los cambios físicos se reflejan sin necesidad de mandar órdenes desde la app.
+- Revisar Diagnóstico KNX tras varios minutos y confirmar Código 36 = 0 y cierres = 0.
+
+IMPORTANTE
+----------
+No se modifica la lógica de mando de luces, persianas o climatización ni la gestión del túnel KNX/IP.
