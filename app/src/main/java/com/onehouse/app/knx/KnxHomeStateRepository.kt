@@ -341,6 +341,12 @@ private object PeriodicKnxStateRefresh {
             ).distinct()
 
         val trackInitialLoad = !initialLoadTracked
+        if (trackInitialLoad) {
+            // v1.13.0.5: la carga inicial ya no depende de que OneHouse permanezca
+            // en primer plano. El servicio foreground mantiene vivo el proceso si
+            // el usuario abre otra aplicación mientras todavía quedan GAs/reintentos.
+            KnxInitialLoadForegroundService.start(context)
+        }
         reader.read(
             devices = prioritized,
             extraReadAddresses = startupPriorityAddresses,
@@ -348,6 +354,9 @@ private object PeriodicKnxStateRefresh {
             onProgress = { },
             onComplete = { result ->
                 reader.close()
+                if (trackInitialLoad) {
+                    KnxInitialLoadForegroundService.stop(context)
+                }
                 synchronized(lock) {
                     // Si no llegó a ejecutarse la ronda (p. ej. sin conexión),
                     // NO damos por consumida la carga inicial. Así una conexión

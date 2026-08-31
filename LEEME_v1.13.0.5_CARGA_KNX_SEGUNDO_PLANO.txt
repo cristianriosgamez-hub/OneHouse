@@ -1,0 +1,51 @@
+OneHouse v1.13.0.5 - Carga KNX independiente en segundo plano
+==============================================================
+
+OBJETIVO
+--------
+Corregir el caso en el que la carga inicial KNX se detenía al salir temporalmente
+OneHouse a segundo plano (por ejemplo, abrir WhatsApp, Cámara o Navegador) y no
+continuaba hasta volver a la aplicación.
+
+CAMBIOS
+-------
+1. Se añade KnxInitialLoadForegroundService.
+   - Se activa ÚNICAMENTE mientras la primera carga KNX está en curso.
+   - Mantiene vivo el proceso aunque OneHouse deje de estar en primer plano.
+   - Al terminar la carga se detiene automáticamente.
+   - No crea otro lector KNX ni duplica las 36 llamadas.
+
+2. PeriodicKnxStateRefresh arranca el servicio antes de iniciar la carga inicial y
+   lo detiene desde el callback final del mismo lector.
+
+3. Se conservan exactamente la lógica y tiempos de reintento existentes:
+   - lectura inicial: timeout 350 ms
+   - primer reintento selectivo: +1,5 s / timeout 900 ms
+   - segundo reintento selectivo: +5 s / timeout 1,5 s
+   Solo se reintentan direcciones todavía pendientes.
+
+4. No se modifica la depuración de GAs de v1.13.0.3/v1.13.0.4:
+   - siguen siendo únicamente las llamadas que utiliza OneHouse
+   - lluvia de Terraza conserva su resolución inteligente como "sin lluvia"
+   - no se añade ninguna GA nueva
+
+5. AndroidManifest incorpora los permisos FOREGROUND_SERVICE y
+   FOREGROUND_SERVICE_DATA_SYNC y registra el servicio como dataSync.
+
+6. Versión Android actualizada a 1.13.0.5 (versionCode 125).
+
+PRUEBA RECOMENDADA
+------------------
+1. Abrir OneHouse y dejar comenzar la carga KNX.
+2. Con un porcentaje intermedio (por ejemplo 10-30 %), abrir otra aplicación.
+3. Esperar varios segundos sin cerrar OneHouse.
+4. Volver a OneHouse.
+5. El porcentaje debe haber continuado avanzando y puede estar ya al 100 %.
+6. No debe reiniciarse la carga desde 0 % al regresar.
+
+NOTA
+----
+Durante esos pocos segundos Android puede mostrar una notificación silenciosa de
+"Cargando estados KNX…". Desaparece automáticamente al finalizar la carga. Es la
+forma correcta de permitir que Android/HyperOS mantenga activa esta operación de
+red cuando OneHouse pasa temporalmente a segundo plano.

@@ -16,8 +16,8 @@ android {
         applicationId = "com.onehouse.app"
         minSdk = 29
         targetSdk = 36
-        versionCode = 121
-        versionName = "1.13.0.1 Indicador carga KNX real"
+        versionCode = 125
+        versionName = "1.13.0.5 Carga KNX segundo plano"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
