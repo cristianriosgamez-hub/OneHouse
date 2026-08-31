@@ -16,8 +16,8 @@ android {
         applicationId = "com.onehouse.app"
         minSdk = 29
         targetSdk = 36
-        versionCode = 119
-        versionName = "1.12.8 Cierre fase motor KNX"
+        versionCode = 120
+        versionName = "1.13.0 Indicador carga KNX"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }

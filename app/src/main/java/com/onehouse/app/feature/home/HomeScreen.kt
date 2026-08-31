@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
@@ -26,6 +27,7 @@ import androidx.compose.material.icons.rounded.Thermostat
 import androidx.compose.material.icons.rounded.WaterDrop
 import androidx.compose.material.icons.rounded.WbSunny
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Button
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -89,6 +91,9 @@ import com.onehouse.app.knx.KnxHomeSnapshot
 import com.onehouse.app.knx.NetworkConnectionDetector
 import com.onehouse.app.knx.KnxCentralEngine
 import com.onehouse.app.knx.KnxHomeStateRepository
+import com.onehouse.app.knx.KnxLoadKind
+import com.onehouse.app.knx.KnxLoadProgressRepository
+import com.onehouse.app.knx.KnxLoadProgressSnapshot
 import java.text.DateFormat
 import java.util.Date
 import java.util.Calendar
@@ -105,6 +110,8 @@ fun HomeScreen(
     val homeRepository = remember { KnxHomeStateRepository(context) }
     val homeState by homeRepository.stateFlow.collectAsStateWithLifecycle(initialValue = homeRepository.snapshot())
     val dashboardState = remember(homeState) { HomeStateMapper.dashboard(homeState) }
+    val knxLoadProgress by KnxLoadProgressRepository.progress.collectAsStateWithLifecycle()
+    var showKnxLoadDetails by remember { mutableStateOf(false) }
     val settingsDataStore = remember(context) { SettingsDataStore(context.applicationContext) }
     val connectionViewModel = remember(context) {
         SettingsViewModel(
@@ -182,17 +189,31 @@ fun HomeScreen(
                 .verticalScroll(rememberScrollState())
                 .padding(start = 18.dp, end = 18.dp, top = 24.dp, bottom = 34.dp)
         ) {
-            Column(modifier = Modifier.fillMaxWidth()) {
-                Text(
-                    text = "OneHouse",
-                    color = TextoPrincipal,
-                    style = MaterialTheme.typography.headlineLarge
-                )
-                Spacer(modifier = Modifier.height(6.dp))
-                Text(
-                    text = "${homeGreeting()} · Tu hogar está listo",
-                    color = TextoSecundario,
-                    style = MaterialTheme.typography.bodyMedium
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = "OneHouse",
+                        color = TextoPrincipal,
+                        style = MaterialTheme.typography.headlineLarge
+                    )
+                    Spacer(modifier = Modifier.height(6.dp))
+                    Text(
+                        text = if (knxLoadProgress.finished) {
+                            "${homeGreeting()} · Tu hogar está listo"
+                        } else {
+                            "${homeGreeting()} · Cargando datos KNX"
+                        },
+                        color = TextoSecundario,
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+                }
+                KnxLoadProgressButton(
+                    progress = knxLoadProgress,
+                    onClick = { showKnxLoadDetails = true }
                 )
             }
 
@@ -268,6 +289,13 @@ fun HomeScreen(
         }
     }
 
+    if (showKnxLoadDetails) {
+        KnxLoadProgressDialog(
+            progress = knxLoadProgress,
+            onDismiss = { showKnxLoadDetails = false }
+        )
+    }
+
     pendingScene?.let { scene ->
         AlertDialog(
             onDismissRequest = { pendingScene = null },
@@ -287,6 +315,194 @@ fun HomeScreen(
                 }) { Text("Ejecutar") }
             },
             dismissButton = { TextButton(onClick = { pendingScene = null }) { Text("Cancelar") } }
+        )
+    }
+}
+
+@Composable
+private fun KnxLoadProgressButton(
+    progress: KnxLoadProgressSnapshot,
+    onClick: () -> Unit
+) {
+    val percentage = progress.percent
+    val statusColor = when {
+        progress.finished && progress.noResponse == 0 -> VerdeEstado
+        progress.finished -> AmarilloEstado
+        else -> AzulClaro
+    }
+
+    Surface(
+        onClick = onClick,
+        color = FondoChip.copy(alpha = 0.78f),
+        shape = CircleShape,
+        modifier = Modifier.size(72.dp)
+    ) {
+        Box(contentAlignment = Alignment.Center) {
+            CircularProgressIndicator(
+                progress = { percentage / 100f },
+                modifier = Modifier.size(58.dp),
+                color = statusColor,
+                trackColor = BordeTarjeta.copy(alpha = 0.55f),
+                strokeWidth = 4.dp
+            )
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Text(
+                    text = "$percentage%",
+                    color = TextoPrincipal,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 14.sp
+                )
+                Text(
+                    text = "KNX",
+                    color = statusColor,
+                    style = MaterialTheme.typography.labelSmall
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun KnxLoadProgressDialog(
+    progress: KnxLoadProgressSnapshot,
+    onDismiss: () -> Unit
+) {
+    val kindRows = remember(progress) {
+        KnxLoadKind.entries.mapNotNull { kind ->
+            val addresses = progress.targets.values
+                .filter { kind in it.kinds }
+                .map { it.address }
+                .toSet()
+            if (addresses.isEmpty()) null else {
+                val received = addresses.count { it in progress.receivedAddresses }
+                val noResponse = addresses.count { it in progress.noResponseAddresses }
+                Triple(kind.label, received, Pair(addresses.size, noResponse))
+            }
+        }
+    }
+    val roomRows = remember(progress) {
+        progress.targets.values
+            .flatMap { target -> target.rooms.map { room -> room to target.address } }
+            .groupBy({ it.first }, { it.second })
+            .mapValues { (_, addresses) -> addresses.toSet() }
+            .toList()
+            .sortedBy { it.first.lowercase(Locale.ROOT) }
+    }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Carga KNX") },
+        text = {
+            Column(
+                modifier = Modifier
+                    .heightIn(max = 520.dp)
+                    .verticalScroll(rememberScrollState())
+            ) {
+                val statusText = when {
+                    progress.finished && progress.noResponse == 0 -> "Carga completada"
+                    progress.finished -> "Carga completada con elementos sin respuesta"
+                    else -> "Cargando estados KNX…"
+                }
+                Text(statusText, color = TextoPrincipal, fontWeight = FontWeight.SemiBold)
+                Spacer(modifier = Modifier.height(6.dp))
+                Text(
+                    text = "${progress.received}/${progress.total} estados recibidos · ${progress.noResponse} sin respuesta",
+                    color = TextoSecundario,
+                    style = MaterialTheme.typography.bodyMedium
+                )
+                if (!progress.finished && progress.pending > 0) {
+                    Text(
+                        text = "${progress.pending} pendientes o en recuperación",
+                        color = AzulClaro,
+                        style = MaterialTheme.typography.bodySmall
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(16.dp))
+                Text("Por tipo", color = AzulClaro, fontWeight = FontWeight.SemiBold)
+                Spacer(modifier = Modifier.height(8.dp))
+                kindRows.forEach { (label, received, totals) ->
+                    KnxLoadSummaryRow(
+                        label = label,
+                        received = received,
+                        total = totals.first,
+                        noResponse = totals.second
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(14.dp))
+                HorizontalDivider(color = BordeTarjeta.copy(alpha = 0.7f))
+                Spacer(modifier = Modifier.height(14.dp))
+                Text("Por estancia", color = AzulClaro, fontWeight = FontWeight.SemiBold)
+                Spacer(modifier = Modifier.height(8.dp))
+                roomRows.forEach { (room, addresses) ->
+                    KnxLoadSummaryRow(
+                        label = room,
+                        received = addresses.count { it in progress.receivedAddresses },
+                        total = addresses.size,
+                        noResponse = addresses.count { it in progress.noResponseAddresses }
+                    )
+                }
+
+                if (progress.finished && progress.noResponseAddresses.isNotEmpty()) {
+                    Spacer(modifier = Modifier.height(14.dp))
+                    HorizontalDivider(color = BordeTarjeta.copy(alpha = 0.7f))
+                    Spacer(modifier = Modifier.height(14.dp))
+                    Text("Sin respuesta", color = AmarilloEstado, fontWeight = FontWeight.SemiBold)
+                    Spacer(modifier = Modifier.height(8.dp))
+                    progress.noResponseAddresses.sorted().forEach { address ->
+                        val target = progress.targets[address]
+                        val description = target?.let {
+                            val rooms = it.rooms.joinToString(" / ")
+                            val names = it.names.joinToString(" / ")
+                            "$rooms · $names"
+                        } ?: address
+                        Text(
+                            text = "$address · $description",
+                            color = TextoSecundario,
+                            style = MaterialTheme.typography.bodySmall
+                        )
+                        Spacer(modifier = Modifier.height(4.dp))
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onDismiss) { Text("Cerrar") }
+        }
+    )
+}
+
+@Composable
+private fun KnxLoadSummaryRow(
+    label: String,
+    received: Int,
+    total: Int,
+    noResponse: Int
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 3.dp),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(
+            text = label,
+            color = TextoSecundario,
+            style = MaterialTheme.typography.bodySmall,
+            modifier = Modifier.weight(1f)
+        )
+        Text(
+            text = buildString {
+                append(received)
+                append("/")
+                append(total)
+                if (noResponse > 0) append(" · $noResponse sin respuesta")
+            },
+            color = if (noResponse > 0) AmarilloEstado else TextoPrincipal,
+            style = MaterialTheme.typography.bodySmall,
+            fontWeight = FontWeight.Medium
         )
     }
 }

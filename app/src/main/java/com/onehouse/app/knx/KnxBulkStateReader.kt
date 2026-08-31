@@ -49,6 +49,7 @@ class KnxBulkStateReader(context: Context) : Closeable {
     fun read(
         devices: List<ImportedKnxDevice>,
         extraReadAddresses: List<String> = emptyList(),
+        trackInitialLoadProgress: Boolean = false,
         onProgress: (Progress) -> Unit,
         onComplete: (Progress) -> Unit
     ) {
@@ -75,7 +76,17 @@ class KnxBulkStateReader(context: Context) : Closeable {
             .filter(String::isNotBlank)
             .distinct()
 
+        if (trackInitialLoadProgress) {
+            KnxLoadProgressRepository.begin(
+                KnxLoadProgressRepository.buildTargets(devices, addresses)
+            )
+            KnxLoadProgressRepository.syncReceived(stateRepository.snapshot())
+        }
+
         if (addresses.isEmpty()) {
+            if (trackInitialLoadProgress) {
+                KnxLoadProgressRepository.finish(emptyList(), stateRepository.snapshot())
+            }
             val result = Progress(0, 0, 0, null)
             onProgress(result)
             onComplete(result)
@@ -83,6 +94,9 @@ class KnxBulkStateReader(context: Context) : Closeable {
         }
 
         val endpoint = resolveEndpoint().getOrElse {
+            if (trackInitialLoadProgress) {
+                KnxLoadProgressRepository.finish(addresses, stateRepository.snapshot())
+            }
             val result = Progress(0, addresses.size, addresses.size, null)
             onProgress(result)
             onComplete(result)
@@ -98,6 +112,9 @@ class KnxBulkStateReader(context: Context) : Closeable {
                 // No cerramos el gestor central: puede estar siendo reutilizado por
                 // otra pantalla. Si no hay sesión activa, esta llamada es inocua.
                 manager.scheduleDisconnect()
+                if (trackInitialLoadProgress) {
+                    KnxLoadProgressRepository.finish(addresses, stateRepository.snapshot())
+                }
                 val result = Progress(0, addresses.size, addresses.size, null)
                 onProgress(result)
                 onComplete(result)
@@ -116,6 +133,10 @@ class KnxBulkStateReader(context: Context) : Closeable {
             }
 
             fun finish(finalPending: List<String>) {
+                if (trackInitialLoadProgress) {
+                    KnxLoadProgressRepository.syncReceived(stateRepository.snapshot())
+                    KnxLoadProgressRepository.finish(finalPending, stateRepository.snapshot())
+                }
                 manager.scheduleDisconnect()
                 val result = Progress(
                     completed = addresses.size,
@@ -177,6 +198,10 @@ class KnxBulkStateReader(context: Context) : Closeable {
 
                     val address = pendingAtStart[index]
                     val completedBefore = addresses.size - pendingAtStart.size + index
+                    if (trackInitialLoadProgress) {
+                        KnxLoadProgressRepository.setCurrent(address)
+                        KnxLoadProgressRepository.syncReceived(stateRepository.snapshot())
+                    }
                     onProgress(
                         Progress(
                             completed = completedBefore.coerceIn(0, addresses.size),
@@ -218,6 +243,9 @@ class KnxBulkStateReader(context: Context) : Closeable {
                             failedThisRound += address
                         }
 
+                        if (trackInitialLoadProgress) {
+                            KnxLoadProgressRepository.syncReceived(stateRepository.snapshot())
+                        }
                         readAt(index + 1)
                     }
                 }

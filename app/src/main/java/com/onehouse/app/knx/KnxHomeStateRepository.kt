@@ -226,6 +226,7 @@ private object PeriodicKnxStateRefresh {
     private var activeSignature: String? = null
     private var scheduledSignature: String? = null
     private var scheduledRunnable: Runnable? = null
+    private var initialLoadTracked = false
 
     fun explicitStateAddresses(): List<String> = listOf(
         KnxAddressBook.Climate.POWER_STATE,
@@ -307,13 +308,16 @@ private object PeriodicKnxStateRefresh {
                     .flatMap { device -> device.readAddresses.map { it.toString() } }
             ).distinct()
 
+        val trackInitialLoad = !initialLoadTracked
         reader.read(
             devices = prioritized,
             extraReadAddresses = startupPriorityAddresses,
+            trackInitialLoadProgress = trackInitialLoad,
             onProgress = { },
             onComplete = {
                 reader.close()
                 synchronized(lock) {
+                    if (trackInitialLoad) initialLoadTracked = true
                     if (activeReader !== reader) return@synchronized
                     activeReader = null
                     activeSignature = null

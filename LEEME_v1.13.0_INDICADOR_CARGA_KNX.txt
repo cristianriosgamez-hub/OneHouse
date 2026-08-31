@@ -1,0 +1,56 @@
+OneHouse v1.13.0 - Indicador de carga KNX
+=========================================
+
+Objetivo
+--------
+Mostrar en Inicio cuándo ha terminado realmente la carga inicial KNX y permitir
+ver qué partes de la vivienda ya han recibido estado y cuáles no han respondido.
+
+Cambios
+-------
+1. Nuevo indicador circular KNX en la esquina superior derecha de Inicio.
+   - Muestra el porcentaje real de direcciones KNX ya resueltas.
+   - Durante la carga muestra "Cargando datos KNX".
+   - Al finalizar vuelve a "Tu hogar está listo".
+
+2. El 100 % significa que OneHouse ha terminado todo el proceso de carga:
+   - primera lectura rápida de 350 ms,
+   - recuperación selectiva de 900 ms,
+   - último intento de 1500 ms.
+   Una dirección que agote todos los intentos se considera resuelta "sin respuesta",
+   por lo que no deja el indicador bloqueado eternamente por debajo del 100 %.
+
+3. Al tocar el indicador se abre el detalle de carga:
+   - X/Y estados recibidos,
+   - número de elementos sin respuesta,
+   - pendientes mientras continúa la recuperación,
+   - resumen por tipo: Luces, Persianas, Climatización, Temperaturas, Sensores,
+     Mediciones y Otros,
+   - resumen por estancia,
+   - listado concreto de las direcciones sin respuesta cuando la carga termina.
+
+4. El seguimiento se aplica únicamente a la PRIMERA carga del proceso actual.
+   Los refrescos periódicos de 60 segundos continúan funcionando como antes y no
+   reinician el porcentaje de la portada.
+
+5. No se modifica la arquitectura KNX ya validada:
+   - un único túnel compartido,
+   - receptor pasivo,
+   - recuperación selectiva,
+   - timeouts 350/900/1500 ms,
+   - luces, persianas, clima y sensores,
+   - protección frente al Código 36.
+
+Versión
+-------
+versionCode: 120
+versionName: 1.13.0 Indicador carga KNX
+
+Prueba recomendada
+------------------
+1. Cerrar OneHouse completamente.
+2. Abrirla y observar el porcentaje de Inicio.
+3. Tocar el indicador durante la carga para ver cómo evolucionan tipos/estancias.
+4. Esperar al 100 % y revisar si existe algún elemento "sin respuesta".
+5. Comprobar una luz física, una persiana y climatización.
+6. Revisar Diagnóstico KNX y confirmar Código 36 = 0 y cierres = 0.
