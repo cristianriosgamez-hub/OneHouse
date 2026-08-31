@@ -116,9 +116,9 @@ fun RoomDetailScreen(roomType: RoomType, onBack: () -> Unit) {
 
                 val expectedLights = expectedLightControls(roomType)
                 val matchedDeviceIds = mutableSetOf<String>()
-                val visibleLights = roomState.lights.filterNot { light ->
-                    shouldHideLegacyLight(roomType, light.device.name)
-                }
+                // roomState ya contiene exclusivamente controles pertenecientes
+                // a OneHouse; la depuración se realiza antes de crear dispositivos.
+                val visibleLights = roomState.lights
 
                 expectedLights.forEachIndexed { index, spec ->
                     if (index > 0) Spacer(Modifier.height(12.dp))
@@ -297,15 +297,6 @@ private fun expectedLightControls(roomType: RoomType): List<ExpectedLightControl
         ExpectedLightControl("Mesita 1", listOf("mesita 1", "mesita izquierda", "cabecero 1"), "♧"),
         ExpectedLightControl("Mesita 2", listOf("mesita 2", "mesita derecha", "cabecero 2"), "♧")
     )
-}
-
-private fun shouldHideLegacyLight(roomType: RoomType, deviceName: String): Boolean {
-    val normalized = normalizeControlName(deviceName)
-    return when (roomType) {
-        RoomType.KITCHEN -> normalized.contains("vitro") || normalized.contains("encimera")
-        RoomType.BEDROOM_1 -> normalized.contains("lampara")
-        else -> false
-    }
 }
 
 private fun roomHasBlind(roomType: RoomType): Boolean = roomType in setOf(

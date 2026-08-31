@@ -59,17 +59,17 @@ class KnxBulkStateReader(context: Context) : Closeable {
         cancelled.set(false)
 
         val importedAddresses = devices.flatMap { device ->
-            buildList {
-                addAll(device.readAddresses.map { it.toString() })
-                // Algunos proyectos InsideControl no exportan una GA de estado
-                // separada, o el actuador responde también en la GA de mando.
-                // La lectura de la GA de mando es segura y permite recuperar el
-                // estado real de todas las luces, no solo de unas pocas.
-                if (device.controlKind == ControlKind.BOOLEAN_SWITCH ||
-                    device.controlKind == ControlKind.CLIMATE
-                ) {
-                    addAll(device.writeAddresses.map { it.toString() })
-                }
+            // Si existe una GA de estado, esa es la única que se consulta. Leer
+            // además la GA de mando duplicaba prácticamente todas las llamadas de
+            // luces (1/1/x + 1/2/x) sin aportar información adicional. Solo usamos
+            // la GA de mando como último recurso cuando el proyecto no define estado.
+            val stateAddresses = device.readAddresses.map { it.toString() }
+            if (stateAddresses.isNotEmpty()) {
+                stateAddresses
+            } else if (device.controlKind == ControlKind.BOOLEAN_SWITCH) {
+                device.writeAddresses.take(1).map { it.toString() }
+            } else {
+                emptyList()
             }
         }
 

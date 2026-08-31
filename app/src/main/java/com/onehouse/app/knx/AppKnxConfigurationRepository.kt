@@ -16,12 +16,26 @@ class AppKnxConfigurationRepository(context: Context) {
 
     fun loadProject(): ImportedKnxProject? {
         val stored = preferences.getString(KEY_PROJECT, null)
-        if (stored != null) return decodeProject(stored)
+        if (stored != null) {
+            val decoded = decodeProject(stored) ?: return null
+            val pruned = OneHouseKnxUsagePolicy.prune(decoded)
+            // Migración silenciosa: elimina del almacenamiento local los objetos
+            // históricos que ya no pertenecen a OneHouse. No generamos un backup
+            // previo con esos objetos porque precisamente queremos que dejen de
+            // formar parte de la configuración y de futuras copias de seguridad.
+            val encodedPruned = encodeProject(pruned)
+            if (encodedPruned != stored) {
+                preferences.edit().putString(KEY_PROJECT, encodedPruned).apply()
+            }
+            return pruned
+        }
 
         val imported = InsideControlProjectRepository(appContext).load() ?: return null
-        val copied = imported.copy(
-            projectName = "OneHouse",
-            rooms = imported.rooms.map { room -> room.copy(devices = room.devices.map { it.copy() }) }
+        val copied = OneHouseKnxUsagePolicy.prune(
+            imported.copy(
+                projectName = "OneHouse",
+                rooms = imported.rooms.map { room -> room.copy(devices = room.devices.map { it.copy() }) }
+            )
         )
         saveProject(copied)
         return copied
@@ -29,7 +43,8 @@ class AppKnxConfigurationRepository(context: Context) {
 
     fun saveProject(project: ImportedKnxProject) {
         createAutomaticBackup()
-        preferences.edit().putString(KEY_PROJECT, encodeProject(project)).apply()
+        val pruned = OneHouseKnxUsagePolicy.prune(project)
+        preferences.edit().putString(KEY_PROJECT, encodeProject(pruned)).apply()
     }
 
     fun globalAddress(key: String, defaultAddress: String): String =
@@ -77,7 +92,12 @@ class AppKnxConfigurationRepository(context: Context) {
         val root = JSONObject()
         root.put("format", "onehouse-knx")
         root.put("version", 1)
-        root.put("project", preferences.getString(KEY_PROJECT, null))
+        val storedProject = preferences.getString(KEY_PROJECT, null)
+        val backupProject = storedProject
+            ?.let(::decodeProject)
+            ?.let(OneHouseKnxUsagePolicy::prune)
+            ?.let(::encodeProject)
+        root.put("project", backupProject)
         val globals = JSONObject()
         KnxAddressBook.entries.forEach { entry ->
             globals.put(entry.key, globalAddress(entry.key, entry.defaultAddress))
@@ -120,8 +140,8 @@ class AppKnxConfigurationRepository(context: Context) {
             }
 
             preferences.edit().apply {
-                if (encodedProject != null) {
-                    putString(KEY_PROJECT, encodedProject)
+                if (decodedProject != null) {
+                    putString(KEY_PROJECT, encodeProject(OneHouseKnxUsagePolicy.prune(decodedProject)))
                 }
                 importedGlobals.forEach { (key, value) ->
                     putString("$KEY_GLOBAL_PREFIX$key", value)
