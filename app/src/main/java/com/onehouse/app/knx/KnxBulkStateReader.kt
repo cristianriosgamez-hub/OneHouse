@@ -27,6 +27,11 @@ class KnxBulkStateReader(context: Context) : Closeable {
         private const val FINAL_RETRY_TIMEOUT_MILLIS = 1_500
         private const val SELECTIVE_RETRY_DELAY_MILLIS = 1_500L
         private const val FINAL_RETRY_DELAY_MILLIS = 5_000L
+        // v1.13.0.5 REV2: tras el ultimo timeout dejamos una ventana muy corta
+        // para consolidar telegramas que el receptor pasivo haya recibido unas
+        // decimas despues de expirar sendTelegram(). Solo se aplica si aun quedan
+        // GAs pendientes, por lo que no penaliza las cargas que terminan limpias.
+        private const val FINAL_CONSOLIDATION_DELAY_MILLIS = 800L
         private const val MAX_ROUNDS = 3
     }
     data class Progress(
@@ -187,8 +192,35 @@ class KnxBulkStateReader(context: Context) : Closeable {
                             stateRepository.get(address)?.let(StateFreshness::isTrusted) != true
                         }
 
-                        if (stillPending.isEmpty() || round + 1 >= MAX_ROUNDS) {
-                            finish(stillPending)
+                        if (stillPending.isEmpty()) {
+                            finish(emptyList())
+                            return
+                        }
+
+                        if (round + 1 >= MAX_ROUNDS) {
+                            // REV2: no cerramos la fotografia de la carga exactamente
+                            // al vencer el ultimo timeout. En KNX/IP puede ocurrir que
+                            // sendTelegram() expire y el telegrama real sea aceptado por
+                            // el receptor pasivo unas decimas despues. Esperamos una
+                            // ventana corta y recalculamos SOLO las GAs que seguian
+                            // pendientes antes de declararlas definitivamente sin respuesta.
+                            handler.postDelayed(
+                                {
+                                    if (!cancelled.get()) {
+                                        if (trackInitialLoadProgress) {
+                                            KnxLoadProgressRepository.syncReceived(
+                                                stateRepository.snapshot()
+                                            )
+                                        }
+                                        val consolidatedPending = stillPending.filter { address ->
+                                            stateRepository.get(address)
+                                                ?.let(StateFreshness::isTrusted) != true
+                                        }
+                                        finish(consolidatedPending)
+                                    }
+                                },
+                                FINAL_CONSOLIDATION_DELAY_MILLIS
+                            )
                             return
                         }
 
