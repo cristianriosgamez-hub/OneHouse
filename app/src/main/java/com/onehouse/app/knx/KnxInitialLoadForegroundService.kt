@@ -10,7 +10,6 @@ import android.content.Intent
 import android.content.pm.ServiceInfo
 import android.os.Build
 import android.os.IBinder
-import androidx.core.app.ContextCompat
 import androidx.core.app.NotificationCompat
 import com.onehouse.app.MainActivity
 import com.onehouse.app.R
@@ -33,10 +32,12 @@ class KnxInitialLoadForegroundService : Service() {
         fun start(context: Context) {
             val appContext = context.applicationContext
             runCatching {
-                ContextCompat.startForegroundService(
-                    appContext,
-                    Intent(appContext, KnxInitialLoadForegroundService::class.java)
-                )
+                val serviceIntent = Intent(appContext, KnxInitialLoadForegroundService::class.java)
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                    appContext.startForegroundService(serviceIntent)
+                } else {
+                    appContext.startService(serviceIntent)
+                }
             }
         }
 

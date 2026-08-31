@@ -1,0 +1,15 @@
+OneHouse v1.13.0.5 REV1 - Corrección de compilación ContextCompat
+
+CORRECCIÓN
+- Eliminado el uso de androidx.core.app.ContextCompat.startForegroundService que provocaba
+  "Unresolved reference: ContextCompat" en KnxInitialLoadForegroundService.kt.
+- El servicio foreground se inicia ahora con las APIs nativas de Android:
+  - Android 8.0+ -> Context.startForegroundService(...)
+  - Versiones anteriores -> Context.startService(...)
+- No cambia la lógica KNX, las 36 GAs, la lluvia inteligente ni la política de reintentos.
+- No cambia el objetivo de v1.13.0.5: mantener la carga inicial KNX activa al cambiar a otra app.
+
+ARCHIVOS A SUSTITUIR
+app/src/main/java/com/onehouse/app/knx/KnxInitialLoadForegroundService.kt
+
+Esta REV1 se aplica encima de v1.13.0.5.
