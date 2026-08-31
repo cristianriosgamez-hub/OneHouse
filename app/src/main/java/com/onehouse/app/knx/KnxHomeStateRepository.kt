@@ -8,7 +8,6 @@ import com.onehouse.app.device.ImportedKnxDevice
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import java.util.Locale
-import kotlin.math.abs
 import kotlin.math.pow
 
 /** Estado KNX agregado que comparten la portada y todas las estancias. */
@@ -79,8 +78,6 @@ data class KnxHomeSnapshot(
     fun hasTrustedState(address: String): Boolean =
         states[address]?.let(StateFreshness::isTrusted) == true
 
-    private fun stateAddresses(device: ImportedKnxDevice) =
-        (device.readAddresses + device.writeAddresses).distinct()
 
     companion object {
         private fun normalize(value: String): String = value
@@ -151,13 +148,6 @@ class KnxHomeStateRepository(context: Context) {
         devices: List<ImportedKnxDevice>,
         states: Map<String, KnxStateRepository.State>
     ): KnxHomeSnapshot {
-        fun stateFor(device: ImportedKnxDevice): KnxStateRepository.State? =
-            (device.readAddresses + device.writeAddresses)
-                .distinct()
-                .asSequence()
-                .mapNotNull { states[it.toString()]?.takeIf(StateFreshness::isTrusted) }
-                .firstOrNull()
-
         val lights = devices.filter { it.controlKind == ControlKind.BOOLEAN_SWITCH }
         val blinds = devices.filter { it.controlKind == ControlKind.BLIND }
         // v1.12.2: el contador de luces usa la misma resolución de estado
@@ -172,111 +162,11 @@ class KnxHomeStateRepository(context: Context) {
             value != null && value < 95f
         }
 
-        fun findByAddress(address: String): KnxStateRepository.State? =
-            states[address]?.takeIf(StateFreshness::isTrusted)
-        fun boolAt(address: String) = findByAddress(address)?.booleanValue
-        fun numericAt(address: String, dpt: String) =
-            KnxValueDecoder.decode(findByAddress(address)?.rawValue, dpt)
-
-        fun normalized(value: String): String = value
-            .lowercase(Locale.ROOT)
-            .replace("á", "a").replace("é", "e").replace("í", "i")
-            .replace("ó", "o").replace("ú", "u").replace("ñ", "n")
-
-        fun semanticDevices(vararg terms: String): List<ImportedKnxDevice> = devices.filter { device ->
-            val text = normalized("${device.roomName} ${device.name} ${device.unit.orEmpty()}")
-            terms.all { term -> text.contains(normalized(term)) }
-        }
-
-        fun numericFromDevices(candidates: List<ImportedKnxDevice>, range: ClosedFloatingPointRange<Float>? = null): Float? =
-            candidates.asSequence().mapNotNull { device ->
-                val state = (device.readAddresses + device.writeAddresses).distinct()
-                    .asSequence()
-                    .mapNotNull { address -> states[address.toString()]?.takeIf(StateFreshness::isTrusted) }
-                    .firstOrNull() ?: return@mapNotNull null
-                KnxValueDecoder.decodeFlexible(state.rawValue, device.resolvedDpt)
-                    ?.takeIf { it.isFinite() && (range == null || it in range) }
-            }.firstOrNull()
-
-        fun booleanFromDevices(candidates: List<ImportedKnxDevice>): Boolean? =
-            candidates.asSequence().mapNotNull { device ->
-                (device.readAddresses + device.writeAddresses).distinct()
-                    .asSequence()
-                    .mapNotNull { address -> states[address.toString()]?.takeIf(StateFreshness::isTrusted)?.booleanValue }
-                    .firstOrNull()
-            }.firstOrNull()
-
-        val climateDevices = devices.filter { device ->
-            device.controlKind == ControlKind.CLIMATE ||
-                normalized(device.name).contains("daikin") ||
-                normalized(device.name).contains("clima") ||
-                normalized(device.name).contains("termostato")
-        }
-        val modeDevices = climateDevices.filter { device ->
-            val name = normalized(device.name)
-            name.contains("modo") || name.contains("mode")
-        }
-        val fanDevices = climateDevices.filter { device ->
-            val name = normalized(device.name)
-            name.contains("ventil") || name.contains("fan") || name.contains("velocidad")
-        }
-        val setpointDevices = climateDevices.filter { device ->
-            val name = normalized(device.name)
-            name.contains("consigna") || name.contains("setpoint") || name.contains("objetivo")
-        }
-        val powerDevices = climateDevices.filter { device ->
-            val name = normalized(device.name)
-            name.contains("on/off") || name.contains("encendido") || name.contains("marcha") ||
-                KnxDptResolver.mainNumber(device.resolvedDpt) == 1
-        }
-
-        // El objeto de ESTADO es la fuente autoritativa. Solo usamos el objeto
-        // semántico importado como respaldo si todavía no existe lectura real.
-        val modeCode = numericAt(KnxAddressBook.Climate.MODE_STATE, "20.105")?.toInt()
-            ?: numericFromDevices(modeDevices)?.toInt()
-        val fanPercent = numericAt(KnxAddressBook.Climate.FAN_SPEED_STATE, "5.001")
-            ?: numericFromDevices(fanDevices)
-
-        // Los códigos son los mismos que utiliza OneHouse al escribir sobre
-        // 5/2/4. Antes 9 y 14 se interpretaban como modos distintos al enviado.
-        val mode = when (modeCode) {
-            0 -> "Auto"
-            1 -> "Calor"
-            3 -> "Frío"
-            9 -> "Ventilador"
-            14 -> "Dry"
-            else -> null
-        }
-
-        // Schneider configura 25 / 37 / 100 %. No utilizamos umbrales
-        // genéricos: elegimos el valor configurado más próximo a la lectura.
-        val fan = fanPercent?.let { value ->
-            listOf(
-                "Baja" to KnxAddressBook.Climate.FAN_SPEED_LOW_VALUE.toFloat(),
-                "Media" to KnxAddressBook.Climate.FAN_SPEED_MEDIUM_VALUE.toFloat(),
-                "Alta" to KnxAddressBook.Climate.FAN_SPEED_HIGH_VALUE.toFloat()
-            ).minByOrNull { (_, configured) -> abs(value - configured) }?.first
-        }
-
-        val diningTemperature = numericFromDevices(
-            devices.filter { device ->
-                val text = normalized("${device.roomName} ${device.name}")
-                (text.contains("comedor") || text.contains("salon")) && text.contains("temperatura")
-            }, -20f..60f
-        ) ?: strictDpt9At(states, KnxAddressBook.Indoor.TEMPERATURE_DINING, -20f..60f)
-
-        val climateTemperature = numericFromDevices(
-            climateDevices.filter { normalized(it.name).contains("temperatura") &&
-                !normalized(it.name).contains("consigna") }, -20f..60f
-        ) ?: strictDpt9At(states, KnxAddressBook.Climate.CURRENT_TEMPERATURE, -20f..60f)
-
-        val targetTemperature = numericFromDevices(setpointDevices, 16f..34f)
-            ?: strictDpt9At(states, KnxAddressBook.Climate.TARGET_TEMPERATURE_PRIMARY, 16f..34f)
-            ?: strictDpt9At(states, KnxAddressBook.Climate.TARGET_TEMPERATURE_FALLBACK, 16f..34f)
-
-        val climatePowered = booleanFromDevices(powerDevices)
-            ?: boolAt(KnxAddressBook.Climate.POWER_STATE)
-
+        // v1.12.7: la climatización ya tiene una única fuente de verdad.
+        // Se elimina aquí la antigua ruta semántica/fallback que calculaba en
+        // paralelo modo, ventilador, temperaturas y encendido, aunque su resultado
+        // ya no se utilizaba desde v1.12.4. Así evitamos mantener dos motores de
+        // resolución distintos para el mismo estado KNX.
         val resolvedClimate = KnxClimateStateResolver.resolve(states)
 
         return KnxHomeSnapshot(
@@ -294,18 +184,6 @@ class KnxHomeStateRepository(context: Context) {
                 fanSpeed = resolvedClimate.fanSpeed
             )
         )
-    }
-
-    private fun strictDpt9At(
-        states: Map<String, KnxStateRepository.State>,
-        address: String,
-        range: ClosedFloatingPointRange<Float>
-    ): Float? {
-        val raw = states[address]?.takeIf(StateFreshness::isTrusted)?.rawValue ?: return null
-        // DPT 9.001 ocupa exactamente dos bytes. No reinterpretamos automáticamente
-        // datos de otra longitud como temperatura.
-        if (raw.length != 4) return null
-        return KnxValueDecoder.decode(raw, "9.001")?.takeIf { it.isFinite() && it in range }
     }
 
 }
