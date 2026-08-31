@@ -1,0 +1,52 @@
+OneHouse v1.12.6.1 - Recuperación selectiva de estados KNX pendientes
+====================================================================
+
+OBJETIVO
+--------
+Mantener la mejora de velocidad de la v1.12.6 y recuperar en segundo plano
+únicamente las direcciones de grupo (GA) que no respondieron en la pasada rápida.
+
+CAMBIOS
+-------
+1. La primera pasada sigue siendo rápida y secuencial, con timeout de 350 ms por GA.
+2. Las GAs que sí responden NO se vuelven a consultar en la recuperación temprana.
+3. Solo las GAs pendientes se reintentan en dos rondas adicionales:
+   - Reintento selectivo 1: tras 1,5 s, timeout de 900 ms por GA pendiente.
+   - Reintento selectivo 2: tras 5 s, timeout de 1.500 ms por GA que siga pendiente.
+4. Si una GA pendiente envía su estado espontáneamente por el receptor pasivo antes
+   del reintento, se detecta en la caché central y se elimina de la lista pendiente.
+5. Se elimina la antigua segunda pasada COMPLETA a los 8 segundos. Tras terminar
+   la recuperación selectiva, el refresco periódico completo vuelve a ejecutarse
+   cada 60 segundos como hasta ahora.
+6. No se cambia la arquitectura del túnel KNX/IP: un único gestor/túnel compartido,
+   operaciones secuenciales y reutilización de la sesión para proteger Código 36 = 0.
+
+VERSION
+-------
+versionCode: 116
+versionName: 1.12.6.1 Recuperación selectiva KNX
+
+ARCHIVOS MODIFICADOS
+--------------------
+- app/build.gradle.kts
+- app/src/main/java/com/onehouse/app/knx/KnxBulkStateReader.kt
+- app/src/main/java/com/onehouse/app/knx/KnxHomeStateRepository.kt
+
+PRUEBA RECOMENDADA
+------------------
+1. Cerrar OneHouse completamente.
+2. Abrir la aplicación y grabar desde el arranque durante 2-3 minutos.
+3. Observar cuánto tarda en aparecer la mayoría de estados.
+4. Comprobar especialmente el sensor de inundación de Cocina y su reflejo en
+   Mantenimiento.
+5. Al final, abrir Diagnóstico KNX y comprobar:
+   - Código 36 = 0
+   - Cierres = 0 (o sin cierres anómalos)
+   - El túnel se reutiliza y no se abren conexiones repetidamente.
+
+NOTA DE COMPILACIÓN
+-------------------
+No ha sido posible ejecutar la compilación Gradle en el entorno de entrega porque
+el wrapper necesita descargar Gradle 9.5.0 desde services.gradle.org y este entorno
+no dispone de acceso de red. La validación final de compilación debe realizarse en
+Android Studio.

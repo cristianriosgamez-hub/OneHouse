@@ -4,6 +4,8 @@ import android.content.Context
 import com.onehouse.app.data.knx.SettingsDataStore
 import com.onehouse.app.device.ControlKind
 import com.onehouse.app.device.ImportedKnxDevice
+import android.os.Handler
+import android.os.Looper
 import java.io.Closeable
 import java.util.concurrent.atomic.AtomicBoolean
 
@@ -20,6 +22,11 @@ class KnxBulkStateReader(context: Context) : Closeable {
         // la carga inicial no esperamos 4 s por cada GA silenciosa: avanzamos
         // rápido y dejamos que las siguientes rondas recuperen lo pendiente.
         private const val FAST_READ_TIMEOUT_MILLIS = 350
+        private const val SELECTIVE_RETRY_TIMEOUT_MILLIS = 900
+        private const val FINAL_RETRY_TIMEOUT_MILLIS = 1_500
+        private const val SELECTIVE_RETRY_DELAY_MILLIS = 1_500L
+        private const val FINAL_RETRY_DELAY_MILLIS = 5_000L
+        private const val MAX_ROUNDS = 3
     }
     data class Progress(
         val completed: Int,
@@ -30,6 +37,7 @@ class KnxBulkStateReader(context: Context) : Closeable {
 
     private val appContext = context.applicationContext
     private val cancelled = AtomicBoolean(false)
+    private val handler = Handler(Looper.getMainLooper())
     private val centralResources = KnxCentralEngine.get(appContext)
     private val stateRepository = centralResources.stateRepository
     private val deviceStateRepository = KnxDeviceStateRepository(appContext)
@@ -96,54 +104,128 @@ class KnxBulkStateReader(context: Context) : Closeable {
                 return@connect
             }
 
-            fun readAt(index: Int, failures: Int) {
-                if (cancelled.get()) return
-                if (index >= addresses.size) {
-                    // Mantener la sesión unos segundos permite que al volver a Inicio
-                    // o entrar en otra estancia se reutilice el mismo túnel.
-                    manager.scheduleDisconnect()
-                    val result = Progress(addresses.size, addresses.size, failures, null)
-                    onProgress(result)
-                    onComplete(result)
-                    return
-                }
-
-                val address = addresses[index]
-                onProgress(Progress(index, addresses.size, failures, address))
-                val groupAddress = runCatching { KnxGroupAddress.parse(address) }.getOrNull()
-                if (groupAddress == null) {
-                    readAt(index + 1, failures + 1)
-                    return
-                }
-
-                manager.sendTelegram(
-                    telegram = KnxTelegram.GroupValueRead(groupAddress),
-                    timeoutOverrideMillis = FAST_READ_TIMEOUT_MILLIS
-                ) { result ->
-                    if (cancelled.get()) return@sendTelegram
-                    val success = result is KnxConnectionManager.OperationResult.Success &&
-                        result.incoming != null
-                    if (success) {
-                        val incoming = (result as KnxConnectionManager.OperationResult.Success).incoming!!
-                        devices.filter { device ->
-                            incoming.destination in device.readAddresses ||
-                                incoming.destination in device.writeAddresses
-                        }.forEach { device ->
-                            val busValue = incoming.booleanValue?.let {
-                                if (it) "Encendido" else "Apagado"
-                            } ?: incoming.payload.joinToString("") { byte ->
-                                "%02X".format(byte.toInt() and 0xFF)
-                            }
-                            deviceStateRepository.updateFromBus(device.id, busValue)
-                        }
-                    }
-                    val nextFailures = failures + if (success) 0 else 1
-                    onProgress(Progress(index + 1, addresses.size, nextFailures, address))
-                    readAt(index + 1, nextFailures)
-                }
+            fun timeoutForRound(round: Int): Int = when (round) {
+                0 -> FAST_READ_TIMEOUT_MILLIS
+                1 -> SELECTIVE_RETRY_TIMEOUT_MILLIS
+                else -> FINAL_RETRY_TIMEOUT_MILLIS
             }
 
-            readAt(0, 0)
+            fun delayForRound(round: Int): Long = when (round) {
+                1 -> SELECTIVE_RETRY_DELAY_MILLIS
+                else -> FINAL_RETRY_DELAY_MILLIS
+            }
+
+            fun finish(finalPending: List<String>) {
+                manager.scheduleDisconnect()
+                val result = Progress(
+                    completed = addresses.size,
+                    total = addresses.size,
+                    failures = finalPending.size,
+                    currentAddress = null
+                )
+                onProgress(result)
+                onComplete(result)
+            }
+
+            fun runRound(round: Int, roundAddresses: List<String>) {
+                if (cancelled.get()) return
+
+                // Si una GA que falló en la pasada anterior ha llegado de forma
+                // espontánea por el receptor pasivo, ya no hace falta volver a leerla.
+                val pendingAtStart = if (round == 0) {
+                    // La ronda principal siempre refresca todas las GAs. Esto mantiene
+                    // vivo el refresco periódico de 60 s aunque ya exista caché.
+                    roundAddresses
+                } else {
+                    roundAddresses.filter { address ->
+                        stateRepository.get(address)?.let(StateFreshness::isTrusted) != true
+                    }
+                }
+
+                if (pendingAtStart.isEmpty()) {
+                    finish(emptyList())
+                    return
+                }
+
+                val failedThisRound = mutableListOf<String>()
+
+                fun readAt(index: Int) {
+                    if (cancelled.get()) return
+                    if (index >= pendingAtStart.size) {
+                        val stillPending = failedThisRound.filter { address ->
+                            stateRepository.get(address)?.let(StateFreshness::isTrusted) != true
+                        }
+
+                        if (stillPending.isEmpty() || round + 1 >= MAX_ROUNDS) {
+                            finish(stillPending)
+                            return
+                        }
+
+                        // Recuperación selectiva: solo se reintentan las GAs que no
+                        // contestaron. La UI ya dispone del resto de estados y sigue
+                        // siendo utilizable mientras esta recuperación ocurre.
+                        handler.postDelayed(
+                            {
+                                if (!cancelled.get()) {
+                                    runRound(round + 1, stillPending)
+                                }
+                            },
+                            delayForRound(round + 1)
+                        )
+                        return
+                    }
+
+                    val address = pendingAtStart[index]
+                    val completedBefore = addresses.size - pendingAtStart.size + index
+                    onProgress(
+                        Progress(
+                            completed = completedBefore.coerceIn(0, addresses.size),
+                            total = addresses.size,
+                            failures = failedThisRound.size,
+                            currentAddress = address
+                        )
+                    )
+
+                    val groupAddress = runCatching { KnxGroupAddress.parse(address) }.getOrNull()
+                    if (groupAddress == null) {
+                        failedThisRound += address
+                        readAt(index + 1)
+                        return
+                    }
+
+                    manager.sendTelegram(
+                        telegram = KnxTelegram.GroupValueRead(groupAddress),
+                        timeoutOverrideMillis = timeoutForRound(round)
+                    ) { result ->
+                        if (cancelled.get()) return@sendTelegram
+                        val success = result is KnxConnectionManager.OperationResult.Success &&
+                            result.incoming != null
+                        if (success) {
+                            val incoming =
+                                (result as KnxConnectionManager.OperationResult.Success).incoming!!
+                            devices.filter { device ->
+                                incoming.destination in device.readAddresses ||
+                                    incoming.destination in device.writeAddresses
+                            }.forEach { device ->
+                                val busValue = incoming.booleanValue?.let {
+                                    if (it) "Encendido" else "Apagado"
+                                } ?: incoming.payload.joinToString("") { byte ->
+                                    "%02X".format(byte.toInt() and 0xFF)
+                                }
+                                deviceStateRepository.updateFromBus(device.id, busValue)
+                            }
+                        } else if (stateRepository.get(address)?.let(StateFreshness::isTrusted) != true) {
+                            failedThisRound += address
+                        }
+
+                        readAt(index + 1)
+                    }
+                }
+
+                readAt(0)
+            }
+
+            runRound(0, addresses)
         }
     }
 

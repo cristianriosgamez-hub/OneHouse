@@ -16,8 +16,8 @@ android {
         applicationId = "com.onehouse.app"
         minSdk = 29
         targetSdk = 36
-        versionCode = 115
-        versionName = "1.12.6 Carga inicial KNX rápida"
+        versionCode = 116
+        versionName = "1.12.6.1 Recuperación selectiva KNX"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }

@@ -342,14 +342,12 @@ internal object StateFreshness {
  */
 private object PeriodicKnxStateRefresh {
     private const val REFRESH_INTERVAL_MILLIS = 60_000L
-    private const val STARTUP_RETRY_DELAY_MILLIS = 8_000L
     private val lock = Any()
     private val handler = Handler(Looper.getMainLooper())
     private var activeReader: KnxBulkStateReader? = null
     private var activeSignature: String? = null
     private var scheduledSignature: String? = null
     private var scheduledRunnable: Runnable? = null
-    private var fastRetrySignature: String? = null
 
     fun explicitStateAddresses(): List<String> = listOf(
         KnxAddressBook.Climate.POWER_STATE,
@@ -452,16 +450,10 @@ private object PeriodicKnxStateRefresh {
                     }
                     scheduledRunnable = next
                     scheduledSignature = signature
-                    // Primera recuperación rápida: algunos actuadores/sensores KNX
-                    // responden solo después de que el túnel ya ha quedado activo.
-                    // Se repite pronto una sola vez; después se vuelve al minuto.
-                    val delay = if (fastRetrySignature != signature) {
-                        fastRetrySignature = signature
-                        STARTUP_RETRY_DELAY_MILLIS
-                    } else {
-                        REFRESH_INTERVAL_MILLIS
-                    }
-                    handler.postDelayed(next, delay)
+                    // v1.12.6.1: la recuperación temprana ya se realiza dentro
+                    // de KnxBulkStateReader únicamente sobre las GAs pendientes.
+                    // Evitamos repetir aquí una pasada completa a los 8 segundos.
+                    handler.postDelayed(next, REFRESH_INTERVAL_MILLIS)
                 }
             }
         )
