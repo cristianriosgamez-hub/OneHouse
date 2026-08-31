@@ -9,6 +9,7 @@ import com.onehouse.app.data.knx.KnxSettingsValidation
 import com.onehouse.app.knx.KnxConnectionManager
 import com.onehouse.app.knx.KnxConnectionTester
 import com.onehouse.app.knx.KnxEndpoint
+import com.onehouse.app.knx.KnxHomeStateRepository
 import com.onehouse.app.knx.NetworkConnectionDetector
 import java.io.Closeable
 
@@ -149,6 +150,9 @@ class SettingsViewModel(
                 is KnxConnectionTester.Result.Success -> {
                     finalStatus = KnxConnectionStatus.CONNECTED
                     finalMessage = "Túnel KNX/IP correcto por ${routeLabel(testedRoute).lowercase()} (${result.deviceAddress})"
+                    // Si la app arrancó sin KNX, el test manual de conexión debe
+                    // relanzar al instante la carga inicial real de estados.
+                    KnxHomeStateRepository.notifyConnectionAvailable()
                 }
                 KnxConnectionTester.Result.Timeout -> {
                     finalStatus = KnxConnectionStatus.FAILED

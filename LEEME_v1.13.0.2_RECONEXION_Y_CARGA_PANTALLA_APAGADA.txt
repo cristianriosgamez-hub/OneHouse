@@ -1,0 +1,31 @@
+OneHouse v1.13.0.2 - Reconexión y carga KNX con pantalla apagada
+
+CAMBIOS INCLUIDOS
+
+1. Carga KNX después de conectar manualmente
+- Si OneHouse arranca sin conexión KNX, la primera carga ya no se considera consumida al fallar la apertura del túnel.
+- Cuando el usuario realiza una conexión KNX correcta desde Configuración/Conectar, se notifica al motor central.
+- Si la carga inicial estaba pendiente por falta de conexión, se relanza inmediatamente sin esperar al refresco periódico de 60 segundos.
+- El porcentaje vuelve a partir de los estados KNX realmente recibidos; las GAs sin respuesta no suman porcentaje.
+
+2. Carga KNX al apagarse/bloquearse la pantalla
+- Durante la lectura masiva se mantiene temporalmente activa la CPU mediante un PARTIAL_WAKE_LOCK.
+- El bloqueo/apagado de pantalla no debe congelar la carga KNX mientras el proceso está en curso.
+- El WakeLock se libera siempre al finalizar, fallar o cancelar la lectura y dispone además de un límite de seguridad de 2 minutos.
+
+3. Permiso Android
+- Añadido android.permission.WAKE_LOCK al AndroidManifest.xml.
+
+FICHEROS A SUSTITUIR
+- app/src/main/AndroidManifest.xml
+- app/src/main/java/com/onehouse/app/feature/settings/SettingsViewModel.kt
+- app/src/main/java/com/onehouse/app/knx/KnxBulkStateReader.kt
+- app/src/main/java/com/onehouse/app/knx/KnxHomeStateRepository.kt
+
+PRUEBAS RECOMENDADAS
+A) Arrancar sin KNX -> comprobar 0 % -> pulsar Conectar -> al confirmar conexión, verificar que la carga comienza automáticamente.
+B) Arrancar conectado -> esperar a que avance el porcentaje -> bloquear/apagar pantalla durante varios segundos -> desbloquear y verificar que el porcentaje ha continuado avanzando o que la carga ya ha terminado.
+C) Confirmar que ninguna GA sin respuesta hace avanzar artificialmente el porcentaje.
+
+NOTA DE COMPILACIÓN EN EL ENTORNO DE ENTREGA
+Se intentó ejecutar :app:compileDebugKotlin, pero el Gradle Wrapper necesita descargar Gradle 9.5.0 y este entorno no dispone de acceso de red a services.gradle.org. Por ello no ha sido posible completar aquí la compilación automática. Los cambios se han limitado a los cuatro ficheros indicados.

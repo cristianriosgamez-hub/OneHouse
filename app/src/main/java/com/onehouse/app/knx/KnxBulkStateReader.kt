@@ -6,6 +6,7 @@ import com.onehouse.app.device.ControlKind
 import com.onehouse.app.device.ImportedKnxDevice
 import android.os.Handler
 import android.os.Looper
+import android.os.PowerManager
 import java.io.Closeable
 import java.util.concurrent.atomic.AtomicBoolean
 
@@ -38,6 +39,7 @@ class KnxBulkStateReader(context: Context) : Closeable {
     private val appContext = context.applicationContext
     private val cancelled = AtomicBoolean(false)
     private val handler = Handler(Looper.getMainLooper())
+    private var wakeLock: PowerManager.WakeLock? = null
     private val centralResources = KnxCentralEngine.get(appContext)
     private val stateRepository = centralResources.stateRepository
     private val deviceStateRepository = KnxDeviceStateRepository(appContext)
@@ -93,6 +95,11 @@ class KnxBulkStateReader(context: Context) : Closeable {
             return
         }
 
+        // La carga inicial debe terminar aunque la pantalla se apague. Un WakeLock
+        // parcial mantiene la CPU activa solo durante esta operación corta; se libera
+        // siempre al completar, fallar o cancelar.
+        acquireWakeLock()
+
         val endpoint = resolveEndpoint().getOrElse {
             if (trackInitialLoadProgress) {
                 KnxLoadProgressRepository.finish(addresses, stateRepository.snapshot())
@@ -100,6 +107,7 @@ class KnxBulkStateReader(context: Context) : Closeable {
             val result = Progress(0, addresses.size, addresses.size, null)
             onProgress(result)
             onComplete(result)
+            releaseWakeLock()
             return
         }
 
@@ -118,6 +126,7 @@ class KnxBulkStateReader(context: Context) : Closeable {
                 val result = Progress(0, addresses.size, addresses.size, null)
                 onProgress(result)
                 onComplete(result)
+                releaseWakeLock()
                 return@connect
             }
 
@@ -146,6 +155,7 @@ class KnxBulkStateReader(context: Context) : Closeable {
                 )
                 onProgress(result)
                 onComplete(result)
+                releaseWakeLock()
             }
 
             fun runRound(round: Int, roundAddresses: List<String>) {
@@ -257,6 +267,26 @@ class KnxBulkStateReader(context: Context) : Closeable {
         }
     }
 
+    private fun acquireWakeLock() {
+        if (wakeLock?.isHeld == true) return
+        val powerManager = appContext.getSystemService(Context.POWER_SERVICE) as? PowerManager ?: return
+        wakeLock = powerManager.newWakeLock(
+            PowerManager.PARTIAL_WAKE_LOCK,
+            "OneHouse:KnxInitialLoad"
+        ).apply {
+            setReferenceCounted(false)
+            // Límite de seguridad: la carga normal termina mucho antes.
+            acquire(2 * 60_000L)
+        }
+    }
+
+    private fun releaseWakeLock() {
+        wakeLock?.let { lock ->
+            if (lock.isHeld) runCatching { lock.release() }
+        }
+        wakeLock = null
+    }
+
     private fun resolveEndpoint(): Result<KnxEndpoint> = runCatching {
         val settings = SettingsDataStore(appContext).read()
         val detector = NetworkConnectionDetector(appContext)
@@ -276,6 +306,7 @@ class KnxBulkStateReader(context: Context) : Closeable {
 
     fun cancel() {
         cancelled.set(true)
+        releaseWakeLock()
         // Antes, salir/cambiar de pantalla cerraba inmediatamente el túnel de la
         // carga masiva y la pantalla siguiente abría otro. Eso favorecía el código 36.
         // Ahora solo dejamos un cierre diferido del gestor compartido. Una nueva

@@ -113,6 +113,16 @@ data class KnxClimateSnapshot(
 )
 
 class KnxHomeStateRepository(context: Context) {
+    companion object {
+        /**
+         * Aviso desde la pantalla de conexión: si la primera carga falló por no
+         * existir túnel, la relanza inmediatamente al quedar KNX disponible.
+         */
+        fun notifyConnectionAvailable() {
+            PeriodicKnxStateRefresh.onConnectionAvailable()
+        }
+    }
+
     private val appContext = context.applicationContext
     private val centralResources = KnxCentralEngine.get(appContext)
     private val stateRepository = centralResources.stateRepository
@@ -227,6 +237,9 @@ private object PeriodicKnxStateRefresh {
     private var scheduledSignature: String? = null
     private var scheduledRunnable: Runnable? = null
     private var initialLoadTracked = false
+    private var lastContext: Context? = null
+    private var lastReadable: List<ImportedKnxDevice> = emptyList()
+    private var lastSignature: String? = null
 
     fun explicitStateAddresses(): List<String> = listOf(
         KnxAddressBook.Climate.POWER_STATE,
@@ -263,8 +276,27 @@ private object PeriodicKnxStateRefresh {
             .joinToString("|")
 
         synchronized(lock) {
+            lastContext = context.applicationContext
+            lastReadable = readable
+            lastSignature = signature
             if (signature == activeSignature || signature == scheduledSignature) return
             startCycleLocked(context.applicationContext, readable, signature)
+        }
+    }
+
+    fun onConnectionAvailable() {
+        synchronized(lock) {
+            if (initialLoadTracked || activeReader != null) return
+            val context = lastContext ?: return
+            val signature = lastSignature ?: return
+            if (lastReadable.isEmpty() && explicitStateAddresses().isEmpty()) return
+
+            // Cancela la espera periódica de 60 s: una conexión confirmada debe
+            // disparar la carga inicial en ese mismo momento.
+            scheduledRunnable?.let(handler::removeCallbacks)
+            scheduledRunnable = null
+            scheduledSignature = null
+            startCycleLocked(context, lastReadable, signature)
         }
     }
 
@@ -314,10 +346,15 @@ private object PeriodicKnxStateRefresh {
             extraReadAddresses = startupPriorityAddresses,
             trackInitialLoadProgress = trackInitialLoad,
             onProgress = { },
-            onComplete = {
+            onComplete = { result ->
                 reader.close()
                 synchronized(lock) {
-                    if (trackInitialLoad) initialLoadTracked = true
+                    // Si no llegó a ejecutarse la ronda (p. ej. sin conexión),
+                    // NO damos por consumida la carga inicial. Así una conexión
+                    // manual posterior puede relanzarla y el 0 % deja de quedarse fijo.
+                    if (trackInitialLoad && result.total > 0 && result.completed >= result.total) {
+                        initialLoadTracked = true
+                    }
                     if (activeReader !== reader) return@synchronized
                     activeReader = null
                     activeSignature = null
