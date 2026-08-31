@@ -1,0 +1,42 @@
+OneHouse v1.12.8 – Cierre de fase / limpieza del motor KNX
+============================================================
+
+Objetivo
+--------
+Cerrar la fase de estabilización del motor KNX después de validar en instalación real:
+- túnel único y reutilizado;
+- Código 36 = 0;
+- recepción pasiva de telegramas físicos;
+- estados centrales para luces, persianas, clima y sensores;
+- carga inicial rápida y recuperación selectiva de estados pendientes.
+
+Cambios de esta versión
+-----------------------
+1. Se retira la traza temporal "Últimos estados KNX (v1.12.7.1)" utilizada únicamente para diagnosticar los cambios desde pulsadores físicos.
+2. Se elimina también su almacenamiento interno (cola de eventos recientes) y la llamada de registro asociada en KnxStateRepository.
+3. Se mantienen intactas todas las métricas útiles de rendimiento y estabilidad:
+   - estados aceptados/duplicados;
+   - tiempos de caché, observers y EventBus;
+   - aperturas/reutilizaciones/conexiones del túnel;
+   - Código 36, cierres y origen de aperturas/reutilizaciones.
+4. El título visible pasa de "Métricas v1.12.0" a "Métricas motor KNX", evitando dejar un número de versión antiguo en una herramienta permanente.
+5. Versión actualizada a versionCode 119 / versionName "1.12.8 Cierre fase motor KNX".
+
+No se modifica
+--------------
+- KnxConnectionManager ni el receptor pasivo.
+- La lógica del túnel único/reutilización.
+- Los timeouts de carga rápida y recuperación selectiva (350/900/1500 ms).
+- El refresco periódico.
+- Las direcciones de grupo ni DPT.
+- La lógica de luces, persianas, climatización o sensores.
+
+Prueba recomendada
+------------------
+1. Abrir OneHouse y comprobar que la carga inicial sigue siendo rápida y termina recuperando los estados pendientes.
+2. Probar una luz desde app y desde pulsador físico.
+3. Probar persiana y climatización.
+4. Revisar Diagnóstico KNX y confirmar:
+   - Código 36 = 0
+   - cierres = 0
+   - un único túnel conectado y reutilizaciones crecientes.

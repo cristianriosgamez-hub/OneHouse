@@ -197,7 +197,7 @@ fun KnxDiagnosticsScreen(onBack: () -> Unit) {
                     modifier = Modifier.padding(16.dp),
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    Text("Métricas v1.12.0", color = TextoPrincipal, fontWeight = FontWeight.Bold)
+                    Text("Métricas motor KNX", color = TextoPrincipal, fontWeight = FontWeight.Bold)
                     Text(
                         "Medición interna de la ruta actual de estados KNX.",
                         color = TextoSecundario,
@@ -258,25 +258,6 @@ fun KnxDiagnosticsScreen(onBack: () -> Unit) {
                         color = if (performanceMetrics.tunnelRejected36 == 0L) TextoSecundario else MaterialTheme.colorScheme.error,
                         fontSize = 12.sp
                     )
-                    if (performanceMetrics.recentStateEvents.isNotEmpty()) {
-                        Text(
-                            "Últimos estados KNX (v1.12.7.1)",
-                            color = AzulClaro,
-                            fontWeight = FontWeight.SemiBold
-                        )
-                        performanceMetrics.recentStateEvents.take(12).forEach { event ->
-                            val seconds = (event.timestampMillis / 1000L) % 60L
-                            val minutes = (event.timestampMillis / 60000L) % 60L
-                            val hours = (event.timestampMillis / 3600000L) % 24L
-                            Text(
-                                "%02d:%02d:%02d · %s · %s=%s · src %s".format(
-                                    hours, minutes, seconds, event.kind, event.groupAddress, event.value, event.sourceAddress
-                                ),
-                                color = TextoSecundario,
-                                fontSize = 11.sp
-                            )
-                        }
-                    }
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.spacedBy(8.dp)

@@ -16,8 +16,8 @@ android {
         applicationId = "com.onehouse.app"
         minSdk = 29
         targetSdk = 36
-        versionCode = 118
-        versionName = "1.12.7.1 Diagnóstico estados físicos KNX"
+        versionCode = 119
+        versionName = "1.12.8 Cierre fase motor KNX"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
