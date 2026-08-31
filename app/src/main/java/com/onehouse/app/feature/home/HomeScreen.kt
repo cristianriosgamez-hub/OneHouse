@@ -367,6 +367,28 @@ private fun KnxLoadProgressDialog(
     progress: KnxLoadProgressSnapshot,
     onDismiss: () -> Unit
 ) {
+    data class ElementKey(
+        val room: String,
+        val kind: KnxLoadKind,
+        val name: String
+    )
+
+    data class ElementStatus(
+        val key: ElementKey,
+        val addresses: Set<String>
+    ) {
+        val receivedCount: Int
+            get() = addresses.count { it in progress.receivedAddresses }
+        val noResponseCount: Int
+            get() = addresses.count { it in progress.noResponseAddresses }
+        val pendingCount: Int
+            get() = (addresses.size - receivedCount - noResponseCount).coerceAtLeast(0)
+        val fullyReceived: Boolean
+            get() = addresses.isNotEmpty() && receivedCount == addresses.size
+        val hasAnyReceived: Boolean
+            get() = receivedCount > 0
+    }
+
     val kindRows = remember(progress) {
         KnxLoadKind.entries.mapNotNull { kind ->
             val addresses = progress.targets.values
@@ -380,11 +402,25 @@ private fun KnxLoadProgressDialog(
             }
         }
     }
-    val roomRows = remember(progress) {
-        progress.targets.values
-            .flatMap { target -> target.rooms.map { room -> room to target.address } }
-            .groupBy({ it.first }, { it.second })
-            .mapValues { (_, addresses) -> addresses.toSet() }
+
+    val elementsByRoom = remember(progress) {
+        val grouped = linkedMapOf<ElementKey, MutableSet<String>>()
+        progress.targets.values.forEach { target ->
+            val rooms = target.rooms.ifEmpty { setOf("Vivienda") }
+            val kinds = target.kinds.ifEmpty { setOf(KnxLoadKind.OTHER) }
+            val names = target.names.ifEmpty { setOf(target.address) }
+            rooms.forEach { room ->
+                kinds.forEach { kind ->
+                    names.forEach { name ->
+                        grouped.getOrPut(ElementKey(room, kind, name)) { linkedSetOf() }
+                            .add(target.address)
+                    }
+                }
+            }
+        }
+        grouped
+            .map { (key, addresses) -> ElementStatus(key, addresses.toSet()) }
+            .groupBy { it.key.room }
             .toList()
             .sortedBy { it.first.lowercase(Locale.ROOT) }
     }
@@ -395,18 +431,23 @@ private fun KnxLoadProgressDialog(
         text = {
             Column(
                 modifier = Modifier
-                    .heightIn(max = 520.dp)
+                    .heightIn(max = 560.dp)
                     .verticalScroll(rememberScrollState())
             ) {
                 val statusText = when {
-                    progress.finished && progress.noResponse == 0 -> "Carga completada"
-                    progress.finished -> "Carga completada con elementos sin respuesta"
+                    progress.finished && progress.total > 0 && progress.received == progress.total ->
+                        "Carga completada · todos los estados recibidos"
+                    progress.finished && progress.received == 0 && progress.total > 0 ->
+                        "Carga finalizada sin respuestas KNX"
+                    progress.finished && progress.noResponse > 0 ->
+                        "Carga finalizada con elementos sin respuesta"
+                    progress.finished -> "Carga finalizada"
                     else -> "Cargando estados KNX…"
                 }
                 Text(statusText, color = TextoPrincipal, fontWeight = FontWeight.SemiBold)
                 Spacer(modifier = Modifier.height(6.dp))
                 Text(
-                    text = "${progress.received}/${progress.total} estados recibidos · ${progress.noResponse} sin respuesta",
+                    text = "${progress.received}/${progress.total} estados realmente recibidos · ${progress.noResponse} sin respuesta",
                     color = TextoSecundario,
                     style = MaterialTheme.typography.bodyMedium
                 )
@@ -416,10 +457,16 @@ private fun KnxLoadProgressDialog(
                         color = AzulClaro,
                         style = MaterialTheme.typography.bodySmall
                     )
+                } else if (progress.finished && progress.received < progress.total) {
+                    Text(
+                        text = "El ${progress.percent}% corresponde solo a datos KNX recibidos; las GAs sin respuesta no cuentan como cargadas.",
+                        color = AmarilloEstado,
+                        style = MaterialTheme.typography.bodySmall
+                    )
                 }
 
                 Spacer(modifier = Modifier.height(16.dp))
-                Text("Por tipo", color = AzulClaro, fontWeight = FontWeight.SemiBold)
+                Text("Por tipo · direcciones KNX", color = AzulClaro, fontWeight = FontWeight.SemiBold)
                 Spacer(modifier = Modifier.height(8.dp))
                 kindRows.forEach { (label, received, totals) ->
                     KnxLoadSummaryRow(
@@ -433,22 +480,81 @@ private fun KnxLoadProgressDialog(
                 Spacer(modifier = Modifier.height(14.dp))
                 HorizontalDivider(color = BordeTarjeta.copy(alpha = 0.7f))
                 Spacer(modifier = Modifier.height(14.dp))
-                Text("Por estancia", color = AzulClaro, fontWeight = FontWeight.SemiBold)
+                Text("Por estancia · elementos", color = AzulClaro, fontWeight = FontWeight.SemiBold)
+                Text(
+                    "Cada elemento agrupa sus GAs de mando/estado para evitar confundir direcciones con dispositivos.",
+                    color = TextoSecundario,
+                    style = MaterialTheme.typography.bodySmall
+                )
                 Spacer(modifier = Modifier.height(8.dp))
-                roomRows.forEach { (room, addresses) ->
-                    KnxLoadSummaryRow(
-                        label = room,
-                        received = addresses.count { it in progress.receivedAddresses },
-                        total = addresses.size,
-                        noResponse = addresses.count { it in progress.noResponseAddresses }
+
+                elementsByRoom.forEach { (room, elements) ->
+                    val completeElements = elements.count { it.fullyReceived }
+                    val withDataElements = elements.count { it.hasAnyReceived }
+                    Text(
+                        text = "$room · $completeElements/${elements.size} completos · $withDataElements con datos",
+                        color = TextoPrincipal,
+                        style = MaterialTheme.typography.bodyMedium,
+                        fontWeight = FontWeight.SemiBold,
+                        modifier = Modifier.padding(top = 5.dp, bottom = 2.dp)
                     )
+                    elements.sortedWith(
+                        compareBy<ElementStatus> { it.key.kind.label }
+                            .thenBy { it.key.name.lowercase(Locale.ROOT) }
+                    ).forEach { element ->
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(start = 10.dp, top = 2.dp, bottom = 2.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.Top
+                        ) {
+                            Column(modifier = Modifier.weight(1f)) {
+                                val kindLabel = when (element.key.kind) {
+                                    KnxLoadKind.LIGHT -> "Luz"
+                                    KnxLoadKind.BLIND -> "Persiana"
+                                    KnxLoadKind.CLIMATE -> "Climatización"
+                                    KnxLoadKind.TEMPERATURE -> "Temperatura"
+                                    KnxLoadKind.SENSOR -> "Sensor"
+                                    KnxLoadKind.METER -> "Medición"
+                                    KnxLoadKind.OTHER -> "Otro"
+                                }
+                                Text(
+                                    text = "$kindLabel · ${element.key.name}",
+                                    color = TextoSecundario,
+                                    style = MaterialTheme.typography.bodySmall
+                                )
+                                Text(
+                                    text = element.addresses.sorted().joinToString(" · "),
+                                    color = TextoDesactivado,
+                                    style = MaterialTheme.typography.labelSmall
+                                )
+                            }
+                            val elementStatus = when {
+                                element.fullyReceived -> "✓ ${element.receivedCount}/${element.addresses.size}"
+                                element.pendingCount > 0 -> "… ${element.receivedCount}/${element.addresses.size}"
+                                element.noResponseCount > 0 -> "${element.receivedCount}/${element.addresses.size}"
+                                else -> "${element.receivedCount}/${element.addresses.size}"
+                            }
+                            Text(
+                                text = elementStatus,
+                                color = when {
+                                    element.fullyReceived -> VerdeEstado
+                                    element.noResponseCount > 0 -> AmarilloEstado
+                                    else -> AzulClaro
+                                },
+                                style = MaterialTheme.typography.bodySmall,
+                                fontWeight = FontWeight.Medium
+                            )
+                        }
+                    }
                 }
 
                 if (progress.finished && progress.noResponseAddresses.isNotEmpty()) {
                     Spacer(modifier = Modifier.height(14.dp))
                     HorizontalDivider(color = BordeTarjeta.copy(alpha = 0.7f))
                     Spacer(modifier = Modifier.height(14.dp))
-                    Text("Sin respuesta", color = AmarilloEstado, fontWeight = FontWeight.SemiBold)
+                    Text("GAs sin respuesta", color = AmarilloEstado, fontWeight = FontWeight.SemiBold)
                     Spacer(modifier = Modifier.height(8.dp))
                     progress.noResponseAddresses.sorted().forEach { address ->
                         val target = progress.targets[address]
@@ -472,6 +578,7 @@ private fun KnxLoadProgressDialog(
         }
     )
 }
+
 
 @Composable
 private fun KnxLoadSummaryRow(

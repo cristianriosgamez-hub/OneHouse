@@ -35,19 +35,26 @@ data class KnxLoadProgressSnapshot(
     val noResponse: Int get() = noResponseAddresses.size
     val resolved: Int get() = (receivedAddresses + noResponseAddresses).size
     val pending: Int get() = (total - resolved).coerceAtLeast(0)
+    /**
+     * Porcentaje REAL de estados recibidos.
+     *
+     * Una GA que agotó sus reintentos no cuenta como cargada. De este modo 100 %
+     * significa siempre que todas las direcciones esperadas tienen un estado KNX
+     * válido en la sesión actual.
+     */
     val percent: Int
         get() = when {
-            total == 0 -> if (finished) 100 else 0
-            else -> ((resolved * 100f) / total).toInt().coerceIn(0, 100)
+            total <= 0 -> 0
+            else -> ((received * 100f) / total).toInt().coerceIn(0, 100)
         }
 }
 
 /**
  * Progreso visible de la primera carga KNX del proceso actual.
  *
- * El porcentaje representa direcciones ya resueltas: con respuesta o agotados
- * sus reintentos. Por eso puede llegar al 100 % aunque alguna GA haya terminado
- * "sin respuesta"; el detalle separa ambas situaciones.
+ * El porcentaje representa únicamente direcciones con un estado KNX realmente
+ * recibido y válido. Las GAs que agotan sus reintentos quedan separadas como
+ * "sin respuesta" y nunca hacen avanzar artificialmente el porcentaje.
  */
 object KnxLoadProgressRepository {
     private val mutableProgress = MutableStateFlow(KnxLoadProgressSnapshot())
