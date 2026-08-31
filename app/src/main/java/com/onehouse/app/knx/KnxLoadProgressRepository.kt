@@ -27,25 +27,29 @@ data class KnxLoadProgressSnapshot(
     val targets: Map<String, KnxLoadTarget> = emptyMap(),
     val receivedAddresses: Set<String> = emptySet(),
     val noResponseAddresses: Set<String> = emptySet(),
+    /** GAs resueltas por una regla explícita de OneHouse sin telegrama de respuesta. */
+    val assumedAddresses: Set<String> = emptySet(),
     val currentAddress: String? = null,
     val finished: Boolean = false
 ) {
     val total: Int get() = targets.size
     val received: Int get() = receivedAddresses.size
     val noResponse: Int get() = noResponseAddresses.size
-    val resolved: Int get() = (receivedAddresses + noResponseAddresses).size
+    val assumed: Int get() = assumedAddresses.size
+    val completed: Int get() = (receivedAddresses + assumedAddresses).size
+    val resolved: Int get() = (receivedAddresses + assumedAddresses + noResponseAddresses).size
     val pending: Int get() = (total - resolved).coerceAtLeast(0)
     /**
      * Porcentaje REAL de estados recibidos.
      *
-     * Una GA que agotó sus reintentos no cuenta como cargada. De este modo 100 %
-     * significa siempre que todas las direcciones esperadas tienen un estado KNX
-     * válido en la sesión actual.
+     * Una GA sin respuesta no cuenta como cargada salvo que exista una regla
+     * explícita y documentada para resolverla. Actualmente solo Lluvia de Terraza
+     * puede resolverse como "sin lluvia" tras agotar sus reintentos.
      */
     val percent: Int
         get() = when {
             total <= 0 -> 0
-            else -> ((received * 100f) / total).toInt().coerceIn(0, 100)
+            else -> ((completed * 100f) / total).toInt().coerceIn(0, 100)
         }
 }
 
@@ -94,9 +98,20 @@ object KnxLoadProgressRepository {
             .filter { it in current.targets }
             .filterNot { it in received }
             .toSet()
+
+        // En esta instalación el objeto de lluvia no responde cuando está seco.
+        // Es una excepción deliberada: tras agotar todos los reintentos, ausencia
+        // de telegrama en ESTA GA se interpreta como "sin lluvia". No se aplica
+        // esta regla a ningún otro sensor.
+        val assumedDry = unresolved.filterTo(mutableSetOf()) { address ->
+            address == KnxAddressBook.Terrace.RAINING
+        }
+        val realNoResponse = unresolved - assumedDry
+
         mutableProgress.value = current.copy(
             receivedAddresses = received,
-            noResponseAddresses = unresolved,
+            assumedAddresses = assumedDry,
+            noResponseAddresses = realNoResponse,
             currentAddress = null,
             finished = true
         )
@@ -124,11 +139,15 @@ object KnxLoadProgressRepository {
                 }
             }.distinct()
 
-            related.filter { it in normalizedAddresses }.forEach { address ->
-                descriptor(address).apply {
-                    rooms += room
-                    kinds += kind
-                    names += device.name.trim().ifBlank { kind.label }
+            // La climatización se describe dirección a dirección más abajo.
+            // Evitamos agrupar sus cinco estados bajo un único elemento genérico.
+            if (device.controlKind != ControlKind.CLIMATE) {
+                related.filter { it in normalizedAddresses }.forEach { address ->
+                    descriptor(address).apply {
+                        rooms += room
+                        kinds += kind
+                        names += device.name.trim().ifBlank { kind.label }
+                    }
                 }
             }
         }
@@ -168,13 +187,17 @@ object KnxLoadProgressRepository {
     }
 
     private fun explicitDescriptor(address: String): Triple<String, KnxLoadKind, String> = when (address) {
-        KnxAddressBook.Climate.POWER_STATE,
-        KnxAddressBook.Climate.CURRENT_TEMPERATURE,
-        KnxAddressBook.Climate.MODE_STATE,
-        KnxAddressBook.Climate.FAN_SPEED_STATE,
+        KnxAddressBook.Climate.POWER_STATE ->
+            Triple("Climatización", KnxLoadKind.CLIMATE, "Encendido / apagado")
+        KnxAddressBook.Climate.CURRENT_TEMPERATURE ->
+            Triple("Climatización", KnxLoadKind.CLIMATE, "Temperatura actual")
+        KnxAddressBook.Climate.MODE_STATE ->
+            Triple("Climatización", KnxLoadKind.CLIMATE, "Modo")
+        KnxAddressBook.Climate.FAN_SPEED_STATE ->
+            Triple("Climatización", KnxLoadKind.CLIMATE, "Ventilador")
         KnxAddressBook.Climate.TARGET_TEMPERATURE_PRIMARY,
         KnxAddressBook.Climate.TARGET_TEMPERATURE_FALLBACK ->
-            Triple("Vivienda", KnxLoadKind.CLIMATE, "Climatización")
+            Triple("Climatización", KnxLoadKind.CLIMATE, "Consigna")
 
         KnxAddressBook.Indoor.CO2_DINING -> Triple("Comedor", KnxLoadKind.SENSOR, "CO₂")
         KnxAddressBook.Indoor.HUMIDITY_DINING -> Triple("Comedor", KnxLoadKind.SENSOR, "Humedad")

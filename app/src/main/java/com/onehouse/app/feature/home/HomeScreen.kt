@@ -239,6 +239,8 @@ fun HomeScreen(
                 Spacer(modifier = Modifier.height(12.dp))
                 FavoriteRooms(
                     favoriteRooms = favoriteRooms,
+                    raining = homeState.booleanAt(com.onehouse.app.knx.KnxAddressBook.Terrace.RAINING),
+                    rainAssumedDry = com.onehouse.app.knx.KnxAddressBook.Terrace.RAINING in knxLoadProgress.assumedAddresses,
                     onFavoriteSelected = onFavoriteSelected
                 )
             }
@@ -379,14 +381,18 @@ private fun KnxLoadProgressDialog(
     ) {
         val receivedCount: Int
             get() = addresses.count { it in progress.receivedAddresses }
+        val assumedCount: Int
+            get() = addresses.count { it in progress.assumedAddresses }
         val noResponseCount: Int
             get() = addresses.count { it in progress.noResponseAddresses }
+        val completedCount: Int
+            get() = receivedCount + assumedCount
         val pendingCount: Int
-            get() = (addresses.size - receivedCount - noResponseCount).coerceAtLeast(0)
+            get() = (addresses.size - completedCount - noResponseCount).coerceAtLeast(0)
         val fullyReceived: Boolean
-            get() = addresses.isNotEmpty() && receivedCount == addresses.size
+            get() = addresses.isNotEmpty() && completedCount == addresses.size
         val hasAnyReceived: Boolean
-            get() = receivedCount > 0
+            get() = completedCount > 0
     }
 
     val kindRows = remember(progress) {
@@ -396,7 +402,9 @@ private fun KnxLoadProgressDialog(
                 .map { it.address }
                 .toSet()
             if (addresses.isEmpty()) null else {
-                val received = addresses.count { it in progress.receivedAddresses }
+                val received = addresses.count {
+                    it in progress.receivedAddresses || it in progress.assumedAddresses
+                }
                 val noResponse = addresses.count { it in progress.noResponseAddresses }
                 Triple(kind.label, received, Pair(addresses.size, noResponse))
             }
@@ -435,8 +443,8 @@ private fun KnxLoadProgressDialog(
                     .verticalScroll(rememberScrollState())
             ) {
                 val statusText = when {
-                    progress.finished && progress.total > 0 && progress.received == progress.total ->
-                        "Carga completada · todos los estados recibidos"
+                    progress.finished && progress.total > 0 && progress.completed == progress.total ->
+                        "Carga completada · todos los estados resueltos"
                     progress.finished && progress.received == 0 && progress.total > 0 ->
                         "Carga finalizada sin respuestas KNX"
                     progress.finished && progress.noResponse > 0 ->
@@ -447,7 +455,11 @@ private fun KnxLoadProgressDialog(
                 Text(statusText, color = TextoPrincipal, fontWeight = FontWeight.SemiBold)
                 Spacer(modifier = Modifier.height(6.dp))
                 Text(
-                    text = "${progress.received}/${progress.total} estados realmente recibidos · ${progress.noResponse} sin respuesta",
+                    text = buildString {
+                        append("${progress.received}/${progress.total} estados realmente recibidos")
+                        if (progress.assumed > 0) append(" · ${progress.assumed} resuelto como sin lluvia")
+                        append(" · ${progress.noResponse} sin respuesta")
+                    },
                     color = TextoSecundario,
                     style = MaterialTheme.typography.bodyMedium
                 )
@@ -457,9 +469,9 @@ private fun KnxLoadProgressDialog(
                         color = AzulClaro,
                         style = MaterialTheme.typography.bodySmall
                     )
-                } else if (progress.finished && progress.received < progress.total) {
+                } else if (progress.finished && progress.noResponse > 0) {
                     Text(
-                        text = "El ${progress.percent}% corresponde solo a datos KNX recibidos; las GAs sin respuesta no cuentan como cargadas.",
+                        text = "El ${progress.percent}% incluye solo estados KNX válidos y reglas explícitas; las GAs sin respuesta no cuentan como cargadas.",
                         color = AmarilloEstado,
                         style = MaterialTheme.typography.bodySmall
                     )
@@ -531,6 +543,7 @@ private fun KnxLoadProgressDialog(
                                 )
                             }
                             val elementStatus = when {
+                                element.fullyReceived && element.assumedCount > 0 -> "☀ ${element.completedCount}/${element.addresses.size}"
                                 element.fullyReceived -> "✓ ${element.receivedCount}/${element.addresses.size}"
                                 element.pendingCount > 0 -> "… ${element.receivedCount}/${element.addresses.size}"
                                 element.noResponseCount > 0 -> "${element.receivedCount}/${element.addresses.size}"
@@ -869,6 +882,8 @@ private fun HomeStatusCard(
 @Composable
 private fun FavoriteRooms(
     favoriteRooms: List<RoomItem>,
+    raining: Boolean?,
+    rainAssumedDry: Boolean,
     onFavoriteSelected: (String) -> Unit
 ) {
     if (favoriteRooms.isEmpty()) {
@@ -898,7 +913,9 @@ private fun FavoriteRooms(
             rowItems.forEach { room ->
                 OneHouseSceneCard(
                     name = room.name,
-                    symbol = room.symbol,
+                    symbol = if (room.name == "Terraza") {
+                        if (raining == true) "🌧" else if (raining == false || rainAssumedDry) "☀" else "☀"
+                    } else room.symbol,
                     modifier = Modifier.weight(1f),
                     onClick = { onFavoriteSelected(room.name) }
                 )

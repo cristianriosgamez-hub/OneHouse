@@ -1,0 +1,40 @@
+OneHouse v1.13.0.4 – Climatización detallada + Lluvia inteligente
+
+CAMBIOS DE ESTA ENTREGA
+
+1. Diagnóstico de carga KNX – Climatización detallada
+- La climatización deja de aparecer agrupada como un único elemento 5/5.
+- Se muestran por separado sus estados reales utilizados por OneHouse:
+  · Encendido / apagado
+  · Temperatura actual
+  · Modo
+  · Ventilador
+  · Consigna
+- Cada parámetro conserva su GA y su estado individual 1/1 en el diagnóstico.
+- No se añaden nuevas lecturas KNX: se mantienen las mismas GAs depuradas de v1.13.0.3.
+
+2. Terraza – tratamiento especial del sensor de lluvia
+- La única excepción de carga por ausencia de respuesta es la GA configurada como Lluvia de Terraza.
+- Si KNX responde lluvia = sí, se mantiene el estado de lluvia y se muestra icono de lluvia.
+- Si KNX responde lluvia = no, se muestra Sol / Sin lluvia.
+- Si la GA de lluvia agota todos sus reintentos sin responder, se resuelve explícitamente como Sin lluvia.
+- Esta inferencia NO se aplica a ningún otro sensor o GA.
+- La GA inferida deja de figurar como “sin respuesta” y permite completar la carga al 100%.
+- El diagnóstico conserva la diferencia entre estados realmente recibidos y estados resueltos por la regla de lluvia.
+
+3. Indicador de carga
+- El porcentaje considera como completados los telegramas KNX realmente recibidos más la única resolución explícita de lluvia.
+- Si 35 GAs responden y lluvia se resuelve como seco, el resultado será 100%, mostrando también que 1 estado fue resuelto como sin lluvia.
+
+4. Terraza e Inicio
+- En la tarjeta de sensores de Terraza, lluvia sin respuesta se representa con Sol / Sin lluvia en vez de “?”.
+- Cuando llueve se muestra el icono de lluvia.
+- La tarjeta favorita de Terraza en Inicio usa también icono Sol o Lluvia según el estado.
+
+ARCHIVOS A SUSTITUIR
+- app/src/main/java/com/onehouse/app/knx/KnxLoadProgressRepository.kt
+- app/src/main/java/com/onehouse/app/feature/home/HomeScreen.kt
+- app/src/main/java/com/onehouse/app/feature/terrace/TerraceScreen.kt
+
+NOTA
+La compilación no ha podido ejecutarse en el entorno de entrega porque Gradle Wrapper requiere descargar Gradle 9.5.0 desde services.gradle.org y este entorno no dispone de acceso de red. No se ha modificado ninguna dependencia ni configuración Gradle.

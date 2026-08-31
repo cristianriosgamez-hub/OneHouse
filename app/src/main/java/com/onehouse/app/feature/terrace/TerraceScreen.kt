@@ -54,6 +54,7 @@ import com.onehouse.app.feature.weather.rememberWeatherState
 import com.onehouse.app.knx.KnxCommandExecutor
 import com.onehouse.app.knx.KnxCommandType
 import com.onehouse.app.knx.KnxHomeStateRepository
+import com.onehouse.app.knx.KnxLoadProgressRepository
 
 private val TerraceBlue = Color(0xFF168EFF)
 private val TerraceRed = Color(0xFFFF4D45)
@@ -69,6 +70,7 @@ fun TerraceScreen(onBack: () -> Unit) {
         KnxCommandExecutor(context.applicationContext)
     }
     val snapshot by repository.stateFlow.collectAsStateWithLifecycle(initialValue = repository.snapshot())
+    val loadProgress by KnxLoadProgressRepository.progress.collectAsStateWithLifecycle()
     val weather = rememberWeatherState()
 
     val terraceDevices = remember(snapshot.devices) { snapshot.devicesForRoom("Terraza") }
@@ -115,6 +117,7 @@ fun TerraceScreen(onBack: () -> Unit) {
                 windSpeed = snapshot.numericAt(KnxAddressBook.Terrace.WIND_SPEED, "9.005"),
                 excessiveWind = snapshot.booleanAt(KnxAddressBook.Terrace.EXCESSIVE_WIND),
                 raining = snapshot.booleanAt(KnxAddressBook.Terrace.RAINING)
+                    ?: if (KnxAddressBook.Terrace.RAINING in loadProgress.assumedAddresses) false else null
             )
 
             Spacer(Modifier.height(16.dp))
@@ -196,13 +199,13 @@ private fun KnxExteriorSensorsCard(
                 symbol = when (raining) {
                     true -> "☂"
                     false -> "☀"
-                    null -> "?"
+                    null -> "☀"
                 },
                 label = "Lluvia",
                 value = when (raining) {
                     true -> "Lluvia"
                     false -> "Sin lluvia"
-                    null -> "--"
+                    null -> "Sin lluvia"
                 },
                 alarm = raining == true
             )
