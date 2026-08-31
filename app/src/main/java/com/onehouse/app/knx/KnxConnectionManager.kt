@@ -260,10 +260,26 @@ class KnxConnectionManager(
     fun sendTelegram(
         telegram: KnxTelegram,
         onResult: (OperationResult) -> Unit
+    ) = sendTelegram(telegram, timeoutOverrideMillis = null, onResult = onResult)
+
+    /**
+     * Variante con timeout por operación. Permite que las lecturas masivas iniciales
+     * sean ágiles sin reducir el timeout general usado por comandos y conexión.
+     */
+    fun sendTelegram(
+        telegram: KnxTelegram,
+        timeoutOverrideMillis: Int?,
+        onResult: (OperationResult) -> Unit
     ) {
         cancelScheduledDisconnect()
         val thread = Thread {
-            val result = operationLock.withLock { sendTelegramBlocking(telegram) }
+            val operationTimeoutMillis = timeoutOverrideMillis
+                ?.coerceAtLeast(1)
+                ?.coerceAtMost(timeoutMillis)
+                ?: timeoutMillis
+            val result = operationLock.withLock {
+                sendTelegramBlocking(telegram, operationTimeoutMillis)
+            }
             mainHandler.post { onResult(result) }
         }.apply {
             name = "KnxTelegramSender"
@@ -298,7 +314,10 @@ class KnxConnectionManager(
         sendTelegram(KnxTelegram.GroupValueRead(address), onResult)
     }
 
-    private fun sendTelegramBlocking(telegram: KnxTelegram): OperationResult {
+    private fun sendTelegramBlocking(
+        telegram: KnxTelegram,
+        operationTimeoutMillis: Int = timeoutMillis
+    ): OperationResult {
         val udpSocket: DatagramSocket
         val currentChannel: Int
         synchronized(lock) {
@@ -316,7 +335,7 @@ class KnxConnectionManager(
             KnxProtocol.validateTunnellingRequest(request, currentChannel, sequence, cemi.size)
                 ?.let { return OperationResult.Failure("Telegrama KNX/IP inválido: $it") }
 
-            udpSocket.soTimeout = timeoutMillis
+            udpSocket.soTimeout = operationTimeoutMillis
             var sentAtNanos = System.nanoTime()
             var transmissionAttempts = 1
             udpSocket.send(DatagramPacket(request, request.size))
@@ -333,7 +352,7 @@ class KnxConnectionManager(
             var invalidPacketCount = 0
             var duplicateIncomingCount = 0
             var lastIncomingSequence: Int? = null
-            val deadline = System.currentTimeMillis() + timeoutMillis
+            val deadline = System.currentTimeMillis() + operationTimeoutMillis
             var writeObservationDeadline: Long? = null
 
             while (System.currentTimeMillis() < deadline) {
@@ -376,7 +395,7 @@ class KnxConnectionManager(
                                         (System.nanoTime() - sentAtNanos) / 1_000_000L
                                     if (telegram !is KnxTelegram.GroupValueRead) {
                                         writeObservationDeadline = System.currentTimeMillis() +
-                                            KnxProtocol.WRITE_RESPONSE_WINDOW_MILLIS.coerceAtMost(timeoutMillis.toLong())
+                                            KnxProtocol.WRITE_RESPONSE_WINDOW_MILLIS.coerceAtMost(operationTimeoutMillis.toLong())
                                     }
                                 } else {
                                     ignoredAckCount += 1

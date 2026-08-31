@@ -15,6 +15,12 @@ import java.util.concurrent.atomic.AtomicBoolean
  * consulta todas las direcciones secuencialmente y cierra al terminar.
  */
 class KnxBulkStateReader(context: Context) : Closeable {
+    companion object {
+        // Una respuesta KNX/IP local normalmente llega en decenas de ms. Durante
+        // la carga inicial no esperamos 4 s por cada GA silenciosa: avanzamos
+        // rápido y dejamos que las siguientes rondas recuperen lo pendiente.
+        private const val FAST_READ_TIMEOUT_MILLIS = 350
+    }
     data class Progress(
         val completed: Int,
         val total: Int,
@@ -110,7 +116,10 @@ class KnxBulkStateReader(context: Context) : Closeable {
                     return
                 }
 
-                manager.sendTelegram(KnxTelegram.GroupValueRead(groupAddress)) { result ->
+                manager.sendTelegram(
+                    telegram = KnxTelegram.GroupValueRead(groupAddress),
+                    timeoutOverrideMillis = FAST_READ_TIMEOUT_MILLIS
+                ) { result ->
                     if (cancelled.get()) return@sendTelegram
                     val success = result is KnxConnectionManager.OperationResult.Success &&
                         result.incoming != null

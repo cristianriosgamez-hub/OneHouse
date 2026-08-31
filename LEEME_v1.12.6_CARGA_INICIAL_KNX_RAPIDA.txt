@@ -1,0 +1,54 @@
+OneHouse v1.12.6 - Carga inicial KNX rapida
+==========================================
+
+Objetivo
+--------
+Reducir el tiempo que tarda OneHouse en completar los estados KNX al abrir la app,
+sin volver a abrir tuneles en paralelo ni comprometer la estabilidad conseguida
+(Codigo 36 = 0).
+
+Cambios
+-------
+1. KnxConnectionManager
+   - Se anade un timeout opcional por operacion.
+   - El timeout general KNX sigue siendo 4000 ms para conexiones y operaciones normales.
+   - Solo la lectura masiva inicial puede solicitar un timeout mas corto.
+   - Se mantiene un unico tunel compartido y el mismo operationLock.
+
+2. KnxBulkStateReader
+   - Las GroupValueRead de la carga masiva usan un timeout de 350 ms por direccion.
+   - Una GA que no responde deja de bloquear hasta 4 segundos a todas las siguientes.
+   - Las direcciones siguen leyendose secuencialmente; no se crean lecturas paralelas.
+   - Las direcciones sin respuesta se recuperaran en las rondas periodicas posteriores.
+
+3. Version
+   - versionCode: 115
+   - versionName: 1.12.6 Carga inicial KNX rapida
+
+Que NO se modifica
+------------------
+- Motor paralelo/EventBus.
+- Receptor pasivo de telegramas fisicos.
+- Luces v1.12.2.
+- Persianas v1.12.3.
+- Climatizacion v1.12.4.
+- Sensores/estados centrales v1.12.5.
+- Logica de apertura/reutilizacion del tunel KNX.
+
+Prueba recomendada
+------------------
+1. Cerrar completamente OneHouse y volver a abrirla.
+2. Grabar, si es posible, un video desde que aparece Inicio hasta que se rellenan
+   temperaturas, luces, persianas, clima y sensores.
+3. Dejarla abierta 1-2 minutos y entrar en Diagnostico KNX.
+4. Comprobar especialmente:
+   - Codigo 36 = 0.
+   - Cierres = 0 durante el uso normal.
+   - Un unico tunel conectado y reutilizaciones creciendo.
+   - Cuantos estados aparecen en los primeros 5, 10 y 20 segundos.
+
+Nota
+----
+El valor 350 ms se aplica solo a la carga masiva. Si algun dispositivo concreto
+responde de forma anormalmente lenta, no bloquea el arranque: podra entrar por el
+receptor pasivo o ser recuperado en una ronda posterior.

@@ -16,8 +16,8 @@ android {
         applicationId = "com.onehouse.app"
         minSdk = 29
         targetSdk = 36
-        versionCode = 114
-        versionName = "1.12.5 Sensores estados KNX centrales"
+        versionCode = 115
+        versionName = "1.12.6 Carga inicial KNX rápida"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
