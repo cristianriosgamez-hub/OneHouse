@@ -400,7 +400,7 @@ private object PeriodicKnxStateRefresh {
 object KnxValueDecoder {
     /**
      * Decodifica respetando el DPT indicado y corrige exportaciones de
-     * InsideControl donde una magnitud de 4 bytes llega etiquetada como DPT 9.
+     * configuraciones donde una magnitud de 4 bytes llega etiquetada como DPT 9.
      */
     fun decodeFlexible(rawHex: String?, dpt: String): Float? {
         val primary = decode(rawHex, dpt)

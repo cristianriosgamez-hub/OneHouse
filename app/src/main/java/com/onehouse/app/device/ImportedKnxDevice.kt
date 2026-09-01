@@ -1,17 +1,17 @@
 package com.onehouse.app.device
 
-import com.onehouse.app.importer.ImportedKnxCategory
-import com.onehouse.app.importer.ImportedKnxObject
+import com.onehouse.app.knx.AppKnxCategory
+import com.onehouse.app.knx.AppKnxObject
 import com.onehouse.app.knx.KnxCommand
 import com.onehouse.app.knx.KnxCommandType
 import com.onehouse.app.knx.KnxGroupAddress
 
-/** Representación normalizada de un objeto procedente de InsideControl. */
+/** Representación normalizada de un objeto KNX utilizado por OneHouse. */
 data class ImportedKnxDevice(
     val id: String,
     val roomName: String,
     val name: String,
-    val category: ImportedKnxCategory,
+    val category: AppKnxCategory,
     val controlKind: ControlKind,
     val writeAddresses: List<KnxGroupAddress>,
     val readAddresses: List<KnxGroupAddress>,
@@ -20,7 +20,7 @@ data class ImportedKnxDevice(
     val unit: String?,
     val isFavourite: Boolean,
     val commands: List<KnxCommand>,
-    val source: ImportedKnxObject
+    val source: AppKnxObject
 ) {
     val primaryWriteAddress: KnxGroupAddress?
         get() = writeAddresses.firstOrNull()
@@ -46,7 +46,7 @@ data class ImportedKnxDevice(
 
     val iconGlyph: String
         get() = when (controlKind) {
-            ControlKind.BOOLEAN_SWITCH -> if (category == ImportedKnxCategory.LIGHT) "💡" else "🔌"
+            ControlKind.BOOLEAN_SWITCH -> if (category == AppKnxCategory.LIGHT) "💡" else "🔌"
             ControlKind.BLIND -> "🪟"
             ControlKind.TEMPERATURE -> "🌡"
             ControlKind.CLIMATE -> "❄"

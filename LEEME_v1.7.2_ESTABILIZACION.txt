@@ -1,9 +1,0 @@
-OneHouse v1.7.2 - Estabilización de configuración KNX
-
-Cambios incluidos:
-- Corregido el error de compilación de importConfiguration: la función usa cuerpo de bloque y permite retornos seguros.
-- La importación valida completamente el formato, el proyecto y todas las direcciones antes de modificar la configuración.
-- Un JSON inválido ya no crea una copia ni aplica cambios parciales.
-- Se mantiene la separación total entre la configuración KNX de OneHouse e InsideControl.
-- Sin cambios funcionales en el motor KNX ni en las direcciones configuradas.
-- versionCode 51 / versionName 1.7.2.

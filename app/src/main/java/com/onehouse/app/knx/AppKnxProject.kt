@@ -1,13 +1,13 @@
-package com.onehouse.app.importer
+package com.onehouse.app.knx
 
-data class ImportedKnxProject(
+data class AppKnxProject(
     val projectName: String,
     val builderVersion: String,
     val minimumAppVersion: String,
     val interfaceMacAddress: String,
-    val rooms: List<ImportedKnxRoom>
+    val rooms: List<AppKnxRoom>
 ) {
-    val devices: List<ImportedKnxObject>
+    val devices: List<AppKnxObject>
         get() = rooms.flatMap { it.devices }
 
     val uniqueGroupAddresses: List<String>
@@ -17,17 +17,17 @@ data class ImportedKnxProject(
             .sortedWith(KnxAddressComparator)
 }
 
-data class ImportedKnxRoom(
+data class AppKnxRoom(
     val name: String,
     val iconName: String,
-    val devices: List<ImportedKnxObject>
+    val devices: List<AppKnxObject>
 )
 
-data class ImportedKnxObject(
+data class AppKnxObject(
     val roomName: String,
     val name: String,
-    val insideControlType: Int,
-    val category: ImportedKnxCategory,
+    val sourceType: Int,
+    val category: AppKnxCategory,
     val isFavourite: Boolean,
     val readAddresses: List<String>,
     val writeAddresses: List<String>,
@@ -40,7 +40,7 @@ data class ImportedKnxObject(
         get() = (readAddresses + writeAddresses).distinct()
 }
 
-enum class ImportedKnxCategory(val displayName: String) {
+enum class AppKnxCategory(val displayName: String) {
     LIGHT("Iluminación"),
     BLIND("Persiana"),
     CLIMATE("Climatización"),

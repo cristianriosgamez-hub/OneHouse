@@ -2,19 +2,19 @@ package com.onehouse.app.knx
 
 import com.onehouse.app.device.ControlKind
 import com.onehouse.app.device.ImportedKnxDevice
-import com.onehouse.app.importer.ImportedKnxCategory
-import com.onehouse.app.importer.ImportedKnxObject
-import com.onehouse.app.importer.ImportedKnxProject
+import com.onehouse.app.knx.AppKnxCategory
+import com.onehouse.app.knx.AppKnxObject
+import com.onehouse.app.knx.AppKnxProject
 
 /** Convierte objetos importados en descriptores KNX listos para construir comandos. */
 object KnxDeviceFactory {
-    fun create(project: ImportedKnxProject): List<ImportedKnxDevice> =
+    fun create(project: AppKnxProject): List<ImportedKnxDevice> =
         project.devices.mapIndexed { index, source -> create(index, source) }
 
-    fun create(index: Int, source: ImportedKnxObject): ImportedKnxDevice {
+    fun create(index: Int, source: AppKnxObject): ImportedKnxDevice {
         val readAddresses = source.readAddresses.mapNotNull(::parseAddress)
         val importedWriteAddresses = source.writeAddresses.mapNotNull(::parseAddress)
-        val writeAddresses = if (source.category == ImportedKnxCategory.BLIND) {
+        val writeAddresses = if (source.category == AppKnxCategory.BLIND) {
             resolveBlindWriteAddresses(
                 importedWriteAddresses = importedWriteAddresses,
                 readAddresses = readAddresses
@@ -29,7 +29,7 @@ object KnxDeviceFactory {
         val stableAddress = (source.writeAddresses + source.readAddresses).firstOrNull().orEmpty()
 
         val provisional = ImportedKnxDevice(
-            id = listOf(source.roomName, source.name, source.insideControlType, stableAddress, index)
+            id = listOf(source.roomName, source.name, source.sourceType, stableAddress, index)
                 .joinToString("|"),
             roomName = source.roomName,
             name = source.name,
@@ -51,7 +51,7 @@ object KnxDeviceFactory {
         runCatching { KnxGroupAddress.parse(raw) }.getOrNull()
 
     /**
-     * Reconstruye las direcciones de mando que InsideControl puede omitir.
+     * Reconstruye direcciones de mando cuando el proyecto almacenado solo contiene estado.
      *
      * Patrones comprobados en proyectos ETS reales:
      *
@@ -66,7 +66,7 @@ object KnxDeviceFactory {
      * Normaliza los tres objetos de comunicación de una persiana:
      * movimiento, parada y posición.
      *
-     * Algunos proyectos InsideControl importan solo una parte de las direcciones
+     * Algunas configuraciones pueden contener solo una parte de las direcciones
      * de escritura. En ese caso no debemos interpretar la dirección de posición
      * como si fuera la de parada. Cuando existe el estado de altura 2/2/n se
      * reconstruye de forma segura el patrón confirmado 2/1/(n-2), 2/1/(n-1),
@@ -86,20 +86,20 @@ object KnxDeviceFactory {
     }
 
     private fun inferWriteAddresses(
-        source: ImportedKnxObject,
+        source: AppKnxObject,
         readAddresses: List<KnxGroupAddress>
     ): List<KnxGroupAddress> = when (source.category) {
-        ImportedKnxCategory.LIGHT,
-        ImportedKnxCategory.SWITCH -> inferParallelMiddleGroup(
+        AppKnxCategory.LIGHT,
+        AppKnxCategory.SWITCH -> inferParallelMiddleGroup(
             readAddresses = readAddresses,
             expectedMain = 1,
             readMiddle = 2,
             writeMiddle = 1
         )
 
-        ImportedKnxCategory.BLIND -> inferBlindWriteAddresses(readAddresses)
+        AppKnxCategory.BLIND -> inferBlindWriteAddresses(readAddresses)
 
-        ImportedKnxCategory.CLIMATE -> inferParallelMiddleGroup(
+        AppKnxCategory.CLIMATE -> inferParallelMiddleGroup(
             readAddresses = readAddresses,
             expectedMain = 5,
             readMiddle = 3,
@@ -147,26 +147,26 @@ object KnxDeviceFactory {
         )
     }
 
-    private fun controlKindFor(source: ImportedKnxObject, hasWriteAddress: Boolean): ControlKind {
+    private fun controlKindFor(source: AppKnxObject, hasWriteAddress: Boolean): ControlKind {
         if (!hasWriteAddress && source.readAddresses.isNotEmpty()) return when (source.category) {
-            ImportedKnxCategory.TEMPERATURE -> ControlKind.TEMPERATURE
-            ImportedKnxCategory.METER -> ControlKind.METER
-            ImportedKnxCategory.ALARM -> ControlKind.ALARM
-            ImportedKnxCategory.SENSOR -> ControlKind.SENSOR
+            AppKnxCategory.TEMPERATURE -> ControlKind.TEMPERATURE
+            AppKnxCategory.METER -> ControlKind.METER
+            AppKnxCategory.ALARM -> ControlKind.ALARM
+            AppKnxCategory.SENSOR -> ControlKind.SENSOR
             else -> ControlKind.READ_ONLY
         }
 
         return when (source.category) {
-            ImportedKnxCategory.LIGHT,
-            ImportedKnxCategory.SWITCH -> ControlKind.BOOLEAN_SWITCH
-            ImportedKnxCategory.BLIND -> ControlKind.BLIND
-            ImportedKnxCategory.CLIMATE -> ControlKind.CLIMATE
-            ImportedKnxCategory.TEMPERATURE -> ControlKind.TEMPERATURE
-            ImportedKnxCategory.SCENE -> ControlKind.SCENE
-            ImportedKnxCategory.ALARM -> ControlKind.ALARM
-            ImportedKnxCategory.SENSOR -> ControlKind.SENSOR
-            ImportedKnxCategory.METER -> ControlKind.METER
-            ImportedKnxCategory.UNKNOWN -> ControlKind.UNKNOWN
+            AppKnxCategory.LIGHT,
+            AppKnxCategory.SWITCH -> ControlKind.BOOLEAN_SWITCH
+            AppKnxCategory.BLIND -> ControlKind.BLIND
+            AppKnxCategory.CLIMATE -> ControlKind.CLIMATE
+            AppKnxCategory.TEMPERATURE -> ControlKind.TEMPERATURE
+            AppKnxCategory.SCENE -> ControlKind.SCENE
+            AppKnxCategory.ALARM -> ControlKind.ALARM
+            AppKnxCategory.SENSOR -> ControlKind.SENSOR
+            AppKnxCategory.METER -> ControlKind.METER
+            AppKnxCategory.UNKNOWN -> ControlKind.UNKNOWN
         }
     }
 }

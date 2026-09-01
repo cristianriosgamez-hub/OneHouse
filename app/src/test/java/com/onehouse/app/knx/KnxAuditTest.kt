@@ -1,7 +1,7 @@
 package com.onehouse.app.knx
 
-import com.onehouse.app.importer.ImportedKnxCategory
-import com.onehouse.app.importer.ImportedKnxObject
+import com.onehouse.app.knx.AppKnxCategory
+import com.onehouse.app.knx.AppKnxObject
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -72,11 +72,11 @@ class KnxAuditTest {
         )
 
         cases.forEachIndexed { index, (room, stateAddress, expectedWrites) ->
-            val source = ImportedKnxObject(
+            val source = AppKnxObject(
                 roomName = room,
                 name = "Persiana",
-                insideControlType = 0,
-                category = ImportedKnxCategory.BLIND,
+                sourceType = 0,
+                category = AppKnxCategory.BLIND,
                 isFavourite = false,
                 readAddresses = listOf(stateAddress),
                 writeAddresses = emptyList(),

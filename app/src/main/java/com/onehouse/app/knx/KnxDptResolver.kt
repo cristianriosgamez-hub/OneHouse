@@ -1,14 +1,14 @@
 package com.onehouse.app.knx
 
 import com.onehouse.app.device.ControlKind
-import com.onehouse.app.importer.ImportedKnxCategory
-import com.onehouse.app.importer.ImportedKnxObject
+import com.onehouse.app.knx.AppKnxCategory
+import com.onehouse.app.knx.AppKnxObject
 import java.util.Locale
 
 /**
  * Resuelve y normaliza tipos de punto de datos KNX.
  *
- * InsideControl no siempre guarda el DPT de forma consistente: puede faltar,
+ * El proyecto KNX puede guardar el DPT de forma no consistente: puede faltar,
  * aparecer como "DPT 1.001", usar coma decimal o contener texto adicional.
  * Este objeto concentra la normalización para que el resto de la aplicación
  * trabaje siempre con identificadores canónicos.
@@ -41,7 +41,7 @@ object KnxDptResolver {
     /**
      * Devuelve el DPT explícito del objeto o uno deducido por su control.
      */
-    fun resolve(source: ImportedKnxObject, controlKind: ControlKind): String {
+    fun resolve(source: AppKnxObject, controlKind: ControlKind): String {
         normalize(source.dataPointType)?.let { return it }
 
         return when (controlKind) {
@@ -49,7 +49,7 @@ object KnxDptResolver {
             ControlKind.BLIND -> "1.008"
             ControlKind.TEMPERATURE -> "9.001"
             ControlKind.CLIMATE -> when (source.category) {
-                ImportedKnxCategory.TEMPERATURE -> "9.001"
+                AppKnxCategory.TEMPERATURE -> "9.001"
                 else -> "20.102"
             }
             ControlKind.SCENE -> "17.001"

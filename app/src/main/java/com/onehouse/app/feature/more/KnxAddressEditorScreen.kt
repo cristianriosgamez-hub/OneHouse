@@ -20,7 +20,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.onehouse.app.design.*
-import com.onehouse.app.importer.ImportedKnxProject
+import com.onehouse.app.knx.AppKnxProject
 import com.onehouse.app.knx.AppKnxConfigurationRepository
 import com.onehouse.app.knx.KnxAddressBook
 
@@ -248,7 +248,7 @@ fun KnxAddressEditorScreen(onBack: () -> Unit) {
                     }
                 }, modifier = Modifier.weight(1f)) { Text("Guardar") }
             }
-            Text("Los cambios solo afectan a OneHouse. InsideControl permanece intacto.", color = TextoSecundario, fontSize = 12.sp)
+            Text("Los cambios se guardan en la configuración KNX de OneHouse.", color = TextoSecundario, fontSize = 12.sp)
             Spacer(Modifier.height(20.dp))
         }
     }
@@ -330,7 +330,7 @@ private fun FanPercentageField(label: String, value: String, onChange: (String) 
     )
 }
 
-private fun ImportedKnxProject.replaceAddresses(roomIndex: Int, deviceIndex: Int, read: String? = null, write: String? = null): ImportedKnxProject =
+private fun AppKnxProject.replaceAddresses(roomIndex: Int, deviceIndex: Int, read: String? = null, write: String? = null): AppKnxProject =
     copy(rooms = rooms.mapIndexed { r, room ->
         if (r != roomIndex) room else room.copy(devices = room.devices.mapIndexed { d, device ->
             if (d != deviceIndex) device else device.copy(

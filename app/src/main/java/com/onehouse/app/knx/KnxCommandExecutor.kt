@@ -389,7 +389,7 @@ class KnxCommandExecutor(context: Context) : Closeable {
         KnxCommandType.DOWN -> KnxTelegram.GroupValueWriteBoolean(command.destination, true)
         // DPT 1.007 Step/Stop: un telegrama sobre el objeto de parada detiene
         // el movimiento actual. Se usa TRUE, compatible con el objeto PARADA
-        // configurado en Schneider InsideControl.
+        // configurado en la instalación Schneider KNX.
         KnxCommandType.STOP -> KnxTelegram.GroupValueWriteBoolean(command.destination, true)
         KnxCommandType.POSITION -> command.valueHint?.toDoubleOrNull()?.let {
             KnxTelegram.GroupValueWritePercent(command.destination, it)

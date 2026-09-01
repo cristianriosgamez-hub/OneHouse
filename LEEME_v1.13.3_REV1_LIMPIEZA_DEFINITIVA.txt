@@ -1,0 +1,56 @@
+OneHouse v1.13.3 REV1 - LIMPIEZA DEFINITIVA
+================================================
+
+Objetivo
+--------
+Cerrar la limpieza funcional de v1.13.3 eliminando compatibilidad y restos de módulos retirados.
+
+Cambios
+-------
+- Eliminado RetiredFeatureCleanup y su ejecución al iniciar OneHouse.
+- Eliminados los tres componentes restantes del antiguo importador InsideControl:
+  InsideControlParser, InsideControlImporter e InsideControlProjectRepository.
+- Sustituido el antiguo modelo ImportedKnxProject/Room/Object/Category por el modelo nativo
+  AppKnxProject/AppKnxRoom/AppKnxObject/AppKnxCategory dentro del paquete KNX de OneHouse.
+- AppKnxConfigurationRepository deja de leer cualquier preferencia del importador antiguo.
+- Eliminadas las listas retiredFiles y las claves históricas de Home Assistant, Seguridad,
+  horarios semanales, solar, escenas y automatizaciones.
+- Backup/Restauración acepta exclusivamente bloques y claves de la versión actual.
+  No se mantiene compatibilidad con copias antiguas.
+- Eliminado el texto histórico de InsideControl del editor de Direcciones KNX.
+- Comentarios internos actualizados para hablar únicamente de OneHouse/KNX.
+- versionCode 129.
+- versionName: 1.13.3 REV1 Limpieza definitiva.
+
+Archivos que deben eliminarse
+-----------------------------
+Ejecutar APLICAR_ELIMINACIONES_v1.13.3_REV1.bat desde la raíz OneHouse después de copiar
+los archivos, o borrar manualmente los indicados en ELIMINAR_ARCHIVOS_v1.13.3_REV1.txt.
+
+Importante
+----------
+Esta REV1 parte de una instalación v1.13.3 que ya contiene su configuración KNX nativa
+(app_project_copy). No borres los datos de la app antes de comprobarla y generar el primer
+backup nuevo que consideremos base definitiva.
+
+No se modifica
+--------------
+- Motor de carga inicial KNX.
+- Lista activa de 36 estados.
+- Reconciliación de telegramas.
+- Reutilización del túnel.
+- Lógica especial de lluvia.
+- Programación específica de climatización (se abordará después).
+
+Verificación recomendada
+------------------------
+1. Sustituir archivos.
+2. Ejecutar el BAT de eliminaciones.
+3. Sync/compilar.
+4. Probar Inicio, Estancias, Direcciones KNX, Herramientas y Backup/Restauración.
+5. Confirmar carga KNX completa y mismo comportamiento de luces/persianas/clima.
+
+Nota de compilación
+-------------------
+No se ha podido ejecutar Gradle en el entorno de entrega porque el wrapper intenta descargar
+Gradle 9.5.0 desde services.gradle.org y este entorno no dispone de acceso de red.

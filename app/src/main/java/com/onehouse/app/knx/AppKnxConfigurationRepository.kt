@@ -2,11 +2,10 @@ package com.onehouse.app.knx
 
 import android.content.Context
 import android.util.Base64
-import com.onehouse.app.importer.ImportedKnxCategory
-import com.onehouse.app.importer.ImportedKnxObject
-import com.onehouse.app.importer.ImportedKnxProject
-import com.onehouse.app.importer.ImportedKnxRoom
-import com.onehouse.app.importer.InsideControlProjectRepository
+import com.onehouse.app.knx.AppKnxCategory
+import com.onehouse.app.knx.AppKnxObject
+import com.onehouse.app.knx.AppKnxProject
+import com.onehouse.app.knx.AppKnxRoom
 import org.json.JSONObject
 
 /** Configuración KNX independiente y exclusiva de OneHouse. */
@@ -14,7 +13,7 @@ class AppKnxConfigurationRepository(context: Context) {
     private val appContext = context.applicationContext
     private val preferences = appContext.getSharedPreferences(PREFERENCES_NAME, Context.MODE_PRIVATE)
 
-    fun loadProject(): ImportedKnxProject? {
+    fun loadProject(): AppKnxProject? {
         val stored = preferences.getString(KEY_PROJECT, null)
         if (stored != null) {
             val decoded = decodeProject(stored) ?: return null
@@ -30,18 +29,10 @@ class AppKnxConfigurationRepository(context: Context) {
             return pruned
         }
 
-        val imported = InsideControlProjectRepository(appContext).load() ?: return null
-        val copied = OneHouseKnxUsagePolicy.prune(
-            imported.copy(
-                projectName = "OneHouse",
-                rooms = imported.rooms.map { room -> room.copy(devices = room.devices.map { it.copy() }) }
-            )
-        )
-        saveProject(copied)
-        return copied
+        return null
     }
 
-    fun saveProject(project: ImportedKnxProject) {
+    fun saveProject(project: AppKnxProject) {
         createAutomaticBackup()
         val pruned = OneHouseKnxUsagePolicy.prune(project)
         preferences.edit().putString(KEY_PROJECT, encodeProject(pruned)).apply()
@@ -169,13 +160,13 @@ class AppKnxConfigurationRepository(context: Context) {
         preferences.edit().putString(KEY_BACKUP, current).apply()
     }
 
-    private fun encodeProject(project: ImportedKnxProject): String = buildList {
+    private fun encodeProject(project: AppKnxProject): String = buildList {
         add(listOf("PROJECT", project.projectName, project.builderVersion, project.minimumAppVersion, project.interfaceMacAddress).encode())
         project.rooms.forEach { room ->
             add(listOf("ROOM", room.name, room.iconName).encode())
             room.devices.forEach { device ->
                 add(listOf(
-                    "DEVICE", room.name, device.name, device.insideControlType.toString(),
+                    "DEVICE", room.name, device.name, device.sourceType.toString(),
                     device.category.name, device.isFavourite.toString(),
                     device.readAddresses.joinToString(","), device.writeAddresses.joinToString(","),
                     device.dataPointType.orEmpty(), device.unit.orEmpty(),
@@ -185,20 +176,20 @@ class AppKnxConfigurationRepository(context: Context) {
         }
     }.joinToString("\n")
 
-    private fun decodeProject(stored: String): ImportedKnxProject? {
+    private fun decodeProject(stored: String): AppKnxProject? {
         val lines = stored.lineSequence().mapNotNull(::decode).toList()
         val projectLine = lines.firstOrNull { it.firstOrNull() == "PROJECT" } ?: return null
         val roomLines = lines.filter { it.firstOrNull() == "ROOM" }
         val deviceLines = lines.filter { it.firstOrNull() == "DEVICE" }
         val rooms = roomLines.mapNotNull { room ->
             val name = room.getOrNull(1) ?: return@mapNotNull null
-            ImportedKnxRoom(
+            AppKnxRoom(
                 name = name,
                 iconName = room.getOrNull(2).orEmpty(),
                 devices = deviceLines.filter { it.getOrNull(1) == name }.mapNotNull(::decodeDevice)
             )
         }
-        return ImportedKnxProject(
+        return AppKnxProject(
             projectName = projectLine.getOrNull(1).orEmpty(),
             builderVersion = projectLine.getOrNull(2).orEmpty(),
             minimumAppVersion = projectLine.getOrNull(3).orEmpty(),
@@ -207,15 +198,15 @@ class AppKnxConfigurationRepository(context: Context) {
         )
     }
 
-    private fun decodeDevice(values: List<String>): ImportedKnxObject? {
+    private fun decodeDevice(values: List<String>): AppKnxObject? {
         val roomName = values.getOrNull(1) ?: return null
         val name = values.getOrNull(2) ?: return null
-        return ImportedKnxObject(
+        return AppKnxObject(
             roomName = roomName,
             name = name,
-            insideControlType = values.getOrNull(3)?.toIntOrNull() ?: -1,
-            category = values.getOrNull(4)?.let { runCatching { ImportedKnxCategory.valueOf(it) }.getOrNull() }
-                ?: ImportedKnxCategory.UNKNOWN,
+            sourceType = values.getOrNull(3)?.toIntOrNull() ?: -1,
+            category = values.getOrNull(4)?.let { runCatching { AppKnxCategory.valueOf(it) }.getOrNull() }
+                ?: AppKnxCategory.UNKNOWN,
             isFavourite = values.getOrNull(5).toBoolean(),
             readAddresses = values.getOrNull(6).orEmpty().split(',').filter(String::isNotBlank),
             writeAddresses = values.getOrNull(7).orEmpty().split(',').filter(String::isNotBlank),

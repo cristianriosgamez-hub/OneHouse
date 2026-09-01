@@ -1,14 +1,14 @@
 package com.onehouse.app.knx
 
-import com.onehouse.app.importer.ImportedKnxCategory
-import com.onehouse.app.importer.ImportedKnxObject
-import com.onehouse.app.importer.ImportedKnxProject
+import com.onehouse.app.knx.AppKnxCategory
+import com.onehouse.app.knx.AppKnxObject
+import com.onehouse.app.knx.AppKnxProject
 
 /**
- * Fuente única de verdad de los objetos importados que OneHouse utiliza realmente.
+ * Fuente única de verdad de los objetos KNX que OneHouse utiliza realmente.
  *
- * InsideControl puede contener objetos históricos, sensores duplicados y controles
- * que ya no existen en la interfaz actual. Esos objetos no deben entrar en el
+ * La configuración almacenada puede contener objetos históricos, sensores duplicados
+ * y controles que ya no existen en la interfaz actual. Esos objetos no deben entrar en el
  * modelo de OneHouse, no deben leerse del bus y tampoco deben viajar en el backup.
  *
  * Los estados globales que OneHouse usa directamente (clima, sondas, alarmas y
@@ -17,14 +17,14 @@ import com.onehouse.app.importer.ImportedKnxProject
  */
 object OneHouseKnxUsagePolicy {
 
-    fun prune(project: ImportedKnxProject): ImportedKnxProject = project.copy(
+    fun prune(project: AppKnxProject): AppKnxProject = project.copy(
         rooms = project.rooms.mapNotNull { room ->
-            val devices = room.devices.filter(::isUsedImportedObject)
+            val devices = room.devices.filter(::isUsedAppObject)
             if (devices.isEmpty()) null else room.copy(devices = devices)
         }
     )
 
-    fun isUsedImportedObject(device: ImportedKnxObject): Boolean {
+    fun isUsedAppObject(device: AppKnxObject): Boolean {
         val room = normalize(device.roomName)
         val name = normalize(device.name)
 
@@ -35,27 +35,27 @@ object OneHouseKnxUsagePolicy {
             "bano" -> isLight(device) && matchesAny(name, "luz", "bano")
 
             "cocina" -> when {
-                device.category == ImportedKnxCategory.BLIND -> true
+                device.category == AppKnxCategory.BLIND -> true
                 !isLight(device) -> false
                 matchesAny(name, "vitro", "encimera") -> false
                 else -> matchesAny(name, "luz", "fluorescente", "cocina")
             }
 
             "habitacion 1" -> when {
-                device.category == ImportedKnxCategory.BLIND -> true
+                device.category == AppKnxCategory.BLIND -> true
                 !isLight(device) -> false
                 name.contains("lampara") -> false
                 else -> matchesAny(name, "luz", "mesita", "cabecero", "techo", "habitacion")
             }
 
             "comedor" -> when {
-                device.category == ImportedKnxCategory.BLIND -> true
+                device.category == AppKnxCategory.BLIND -> true
                 !isLight(device) -> false
                 else -> matchesAny(name, "luz", "salon", "comedor", "lampara")
             }
 
             "suite" -> when {
-                device.category == ImportedKnxCategory.BLIND -> true
+                device.category == AppKnxCategory.BLIND -> true
                 !isLight(device) -> false
                 else -> matchesAny(name, "luz", "mesita", "cabecero", "techo", "suite")
             }
@@ -72,8 +72,8 @@ object OneHouseKnxUsagePolicy {
         }
     }
 
-    private fun isLight(device: ImportedKnxObject): Boolean =
-        device.category == ImportedKnxCategory.LIGHT
+    private fun isLight(device: AppKnxObject): Boolean =
+        device.category == AppKnxCategory.LIGHT
 
     private fun matchesAny(value: String, vararg tokens: String): Boolean =
         tokens.any(value::contains)

@@ -17,7 +17,7 @@ import java.time.Instant
  * explicitly supported by the application.
  *
  * Since v1.13.1 the generic backup follows the same KNX whitelist as the live app:
- * legacy InsideControl/importer preferences are not exported and KNX configuration
+ * only active OneHouse preferences are exported and KNX configuration
  * keys are filtered before writing or restoring a backup.
  */
 class BackupManager(context: Context) {
@@ -87,15 +87,12 @@ class BackupManager(context: Context) {
             if (name in BACKUP_PREFERENCES) {
                 val values = decodePreferences(files.getJSONObject(name))
                 decoded[name] = if (name == PreferenceFiles.KNX_CONFIGURATION) {
-                    // Old backups may contain automatic_backup or keys that belonged to
-                    // historical objects. Never allow those values back into OneHouse.
-                    values.filterKeys { AppKnxConfigurationRepository.isSupportedBackupPreferenceKey(it) }
+                    // Solo se restauran las claves KNX admitidas por la versión actual.
+                    values
                 } else {
                     values
                 }
             }
-            // INSIDE_CONTROL_IMPORT / IMPORT_PROJECT_UI from schema 1 backups are
-            // deliberately ignored. They are import sources, not active OneHouse data.
         }
         require(decoded.isNotEmpty()) { "La copia no contiene datos compatibles con OneHouse." }
 
@@ -104,32 +101,17 @@ class BackupManager(context: Context) {
                 .mapNotNull { (key, value) -> value?.let { key to it } }
                 .toMap()
         }
-        val previousLegacy = PreferenceFiles.retiredFiles.associateWith { name ->
-            appContext.getSharedPreferences(name, Context.MODE_PRIVATE).all
-                .mapNotNull { (key, value) -> value?.let { key to it } }
-                .toMap()
-        }
-
         try {
             decoded.forEach { (name, values) -> replacePreferences(name, values) }
 
-            // Once a OneHouse-native KNX configuration has been restored, remove the
-            // historical importer source so it can never repopulate deleted objects.
             if (decoded.containsKey(PreferenceFiles.KNX_CONFIGURATION)) {
-                PreferenceFiles.retiredFiles.forEach { name ->
-                    check(appContext.getSharedPreferences(name, Context.MODE_PRIVATE).edit().clear().commit()) {
-                        "No se pudo limpiar '$name'."
-                    }
-                }
-
                 val repository = AppKnxConfigurationRepository(appContext)
-                repository.loadProject() // applies OneHouseKnxUsagePolicy.prune again
+                repository.loadProject()
                 KnxAddressBook.apply(repository)
             }
         } catch (restoreError: Throwable) {
             val rollbackError = runCatching {
                 previous.forEach { (name, values) -> replacePreferences(name, values) }
-                previousLegacy.forEach { (name, values) -> replacePreferences(name, values) }
             }.exceptionOrNull()
             if (rollbackError != null) restoreError.addSuppressed(rollbackError)
             throw restoreError
@@ -146,8 +128,8 @@ class BackupManager(context: Context) {
     private fun validateBackupContents(root: JSONObject, files: JSONObject): BackupValidation {
         val schema = root.optInt("schemaVersion", -1)
         var compatibleFiles = 0
-        var ignoredFiles = 0
-        var ignoredKnxEntries = 0
+        val ignoredFiles = 0
+        val ignoredKnxEntries = 0
         val warnings = mutableListOf<String>()
 
         files.keys().forEach { name ->
@@ -164,23 +146,13 @@ class BackupManager(context: Context) {
                         val unsupported = decoded.keys.filterNot {
                             AppKnxConfigurationRepository.isSupportedBackupPreferenceKey(it)
                         }
-                        ignoredKnxEntries += unsupported.size
-                        if (unsupported.isNotEmpty()) {
-                            warnings += "Se ignorarán ${unsupported.size} entradas KNX antiguas/no compatibles."
+                        require(unsupported.isEmpty()) {
+                            "La copia contiene entradas KNX no compatibles con esta versión: ${unsupported.joinToString()}"
                         }
-                        validateKnxConfiguration(decoded.filterKeys {
-                            AppKnxConfigurationRepository.isSupportedBackupPreferenceKey(it)
-                        })
+                        validateKnxConfiguration(decoded)
                     }
                 }
-                name in PreferenceFiles.retiredFiles -> {
-                    ignoredFiles++
-                    warnings += "Se ignorará el bloque retirado '$name'."
-                }
-                else -> {
-                    ignoredFiles++
-                    warnings += "Se ignorará el bloque desconocido '$name'."
-                }
+                else -> error("La copia contiene un bloque no compatible con esta versión de OneHouse: '$name'.")
             }
         }
 
@@ -229,7 +201,7 @@ class BackupManager(context: Context) {
     private fun validateRoot(root: JSONObject) {
         require(root.optString("format") == FORMAT) { "El archivo no es una copia válida de OneHouse." }
         val schema = root.optInt("schemaVersion", -1)
-        require(schema in 1..SCHEMA_VERSION) { "Versión de copia no compatible: $schema." }
+        require(schema == SCHEMA_VERSION) { "Versión de copia no compatible: $schema." }
         require(root.has("createdAtMillis") && root.optJSONObject("preferences") != null) {
             "La copia está incompleta o dañada."
         }
