@@ -57,6 +57,7 @@ class BackupManager(context: Context) {
         val root = JSONObject(rawJson)
         validateRoot(root)
         val files = root.getJSONObject("preferences")
+        val validation = validateBackupContents(root, files)
         val summaryJson = root.optJSONObject("summary") ?: buildSummary(files, -1)
 
         return BackupPreview(
@@ -71,6 +72,7 @@ class BackupManager(context: Context) {
                 knxEntries = summaryJson.optInt("knxEntries", countObjectEntries(files, PreferenceFiles.KNX_CONFIGURATION)),
                 knxActiveAddresses = summaryJson.optInt("knxActiveAddresses", -1)
             ),
+            validation = validation,
             rawJson = rawJson
         )
     }
@@ -80,6 +82,9 @@ class BackupManager(context: Context) {
         val root = JSONObject(rawJson)
         validateRoot(root)
         val files = root.getJSONObject("preferences")
+        // Run the same deep validation used by preview immediately before writing.
+        // This protects against a modified/corrupted file between preview and restore.
+        validateBackupContents(root, files)
 
         val decoded = linkedMapOf<String, Map<String, Any>>()
         files.keys().forEach { name ->
@@ -139,6 +144,84 @@ class BackupManager(context: Context) {
         )
     }.getOrElse { error ->
         BackupOperationResult.Error(error.message ?: "No se pudo restaurar la copia de seguridad.")
+    }
+
+
+    private fun validateBackupContents(root: JSONObject, files: JSONObject): BackupValidation {
+        val schema = root.optInt("schemaVersion", -1)
+        var compatibleFiles = 0
+        var ignoredFiles = 0
+        var ignoredKnxEntries = 0
+        val warnings = mutableListOf<String>()
+
+        files.keys().forEach { name ->
+            val fileJson = files.optJSONObject(name)
+                ?: error("El bloque de preferencias '$name' está dañado.")
+
+            when {
+                name in BACKUP_PREFERENCES -> {
+                    compatibleFiles++
+                    // Fully decode every supported block now. Unknown types, missing values
+                    // or malformed numbers make the backup invalid before any write occurs.
+                    val decoded = decodePreferences(fileJson)
+                    if (name == PreferenceFiles.KNX_CONFIGURATION) {
+                        val unsupported = decoded.keys.filterNot {
+                            AppKnxConfigurationRepository.isSupportedBackupPreferenceKey(it)
+                        }
+                        ignoredKnxEntries += unsupported.size
+                        if (unsupported.isNotEmpty()) {
+                            warnings += "Se ignorarán ${unsupported.size} entradas KNX antiguas/no compatibles."
+                        }
+                        validateKnxConfiguration(decoded.filterKeys {
+                            AppKnxConfigurationRepository.isSupportedBackupPreferenceKey(it)
+                        })
+                    }
+                }
+                name in PreferenceFiles.legacyImportFiles -> {
+                    ignoredFiles++
+                    warnings += "Se ignorará el bloque histórico '$name'."
+                }
+                else -> {
+                    ignoredFiles++
+                    warnings += "Se ignorará el bloque desconocido '$name'."
+                }
+            }
+        }
+
+        require(compatibleFiles > 0) { "La copia no contiene datos compatibles con OneHouse." }
+        if (schema == SCHEMA_VERSION && !files.has(PreferenceFiles.KNX_CONFIGURATION)) {
+            warnings += "La copia no contiene configuración KNX; la configuración KNX actual no se modificará."
+        }
+
+        return BackupValidation(
+            schemaVersion = schema,
+            compatiblePreferenceFiles = compatibleFiles,
+            ignoredPreferenceFiles = ignoredFiles,
+            ignoredKnxEntries = ignoredKnxEntries,
+            warnings = warnings.distinct()
+        )
+    }
+
+    private fun validateKnxConfiguration(values: Map<String, Any>) {
+        values.forEach { (key, value) ->
+            when {
+                key == "app_project_copy" -> {
+                    require(value is String && value.isNotBlank()) {
+                        "La copia del proyecto KNX está vacía o dañada."
+                    }
+                }
+                key.startsWith("global_") -> {
+                    require(value is String && AppKnxConfigurationRepository.isValidGroupAddress(value)) {
+                        "Dirección KNX no válida en '$key': '$value'."
+                    }
+                }
+                key.startsWith("parameter_") -> {
+                    require(value is Int && value in 0..100) {
+                        "Parámetro KNX no válido en '$key': '$value'."
+                    }
+                }
+            }
+        }
     }
 
     private fun requireValidSize(rawJson: String) {

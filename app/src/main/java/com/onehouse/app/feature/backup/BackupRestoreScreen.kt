@@ -195,8 +195,18 @@ fun BackupRestoreScreen(onBack: () -> Unit) {
             title = { Text("Confirmar restauración") },
             text = {
                 val date = DateFormat.getDateTimeInstance().format(Date(selected.summary.createdAtMillis))
+                val validation = selected.validation
+                val validationText = if (validation.warnings.isEmpty()) {
+                    "Validación: OK · copia compatible y limpia\n"
+                } else {
+                    "Validación: compatible con avisos\n" +
+                        validation.warnings.joinToString(separator = "\n") { "• $it" } + "\n"
+                }
                 Text(
                     "Fecha: $date\nVersión: ${selected.summary.appVersion}\n" +
+                        "Esquema: ${validation.schemaVersion}\n" +
+                        "Bloques compatibles: ${validation.compatiblePreferenceFiles}\n" +
+                        validationText +
                         "Escenas: ${selected.summary.scenes}\nAutomatizaciones: ${selected.summary.automations}\n" +
                         "Horarios semanales: ${selected.summary.weeklySchedules}\n" +
                         "Eventos solares: ${selected.summary.solarSchedules}\n" +
@@ -205,7 +215,8 @@ fun BackupRestoreScreen(onBack: () -> Unit) {
                         } else {
                             "Entradas KNX (copia antigua): ${selected.summary.knxEntries}\n"
                         }) +
-                        "\nLa configuración actual será sustituida. Las GAs históricas del importador no se restaurarán."
+                        "\nRestauración transaccional: si algo falla, OneHouse recuperará automáticamente la configuración anterior." +
+                        "\nLas GAs históricas del importador no se restaurarán."
                 )
             },
             confirmButton = {

@@ -12,8 +12,19 @@ data class BackupSummary(
     val knxActiveAddresses: Int
 )
 
+data class BackupValidation(
+    val schemaVersion: Int,
+    val compatiblePreferenceFiles: Int,
+    val ignoredPreferenceFiles: Int,
+    val ignoredKnxEntries: Int,
+    val warnings: List<String>
+) {
+    val isClean: Boolean get() = warnings.isEmpty()
+}
+
 data class BackupPreview(
     val summary: BackupSummary,
+    val validation: BackupValidation,
     val rawJson: String
 )
 

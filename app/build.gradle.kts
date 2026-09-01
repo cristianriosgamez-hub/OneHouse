@@ -16,8 +16,8 @@ android {
         applicationId = "com.onehouse.app"
         minSdk = 29
         targetSdk = 36
-        versionCode = 126
-        versionName = "1.13.1 Backup KNX limpio"
+        versionCode = 127
+        versionName = "1.13.2 Restauración segura y validada"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
