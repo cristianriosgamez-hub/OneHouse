@@ -1,6 +1,11 @@
 package com.onehouse.app.feature.climate
 
-import android.app.Application
+import android.app.AlarmManager
+import android.content.Context
+import android.content.Intent
+import android.net.Uri
+import android.os.Build
+import android.provider.Settings
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -71,6 +76,9 @@ fun ClimateScheduleScreen(
     fun persist(newState: ClimateScheduleState) {
         state = newState
         repository.save(newState)
+        if (newState.globallyEnabled) {
+            requestExactAlarmAccessIfNeeded(context)
+        }
         scheduler.reschedule()
     }
 
@@ -560,12 +568,12 @@ private fun AddScheduleDialog(
                     title = "Hora",
                     value = "%02d:%02d".format(hour, minute),
                     onMinus = {
-                        val total = (hour * 60 + minute - 30 + 1440) % 1440
+                        val total = (hour * 60 + minute - 5 + 1440) % 1440
                         hour = total / 60
                         minute = total % 60
                     },
                     onPlus = {
-                        val total = (hour * 60 + minute + 30) % 1440
+                        val total = (hour * 60 + minute + 5) % 1440
                         hour = total / 60
                         minute = total % 60
                     }
@@ -739,3 +747,19 @@ private fun dayLabel(day: DayOfWeek): String =
 
 private fun formatTemperature(value: Float): String =
     String.format(Locale("es", "ES"), "%.1f °C", value)
+
+
+private fun requestExactAlarmAccessIfNeeded(context: Context) {
+    if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S) return
+
+    val alarmManager = context.getSystemService(AlarmManager::class.java)
+    if (alarmManager.canScheduleExactAlarms()) return
+
+    runCatching {
+        val intent = Intent(
+            Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM,
+            Uri.parse("package:${context.packageName}")
+        ).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        context.startActivity(intent)
+    }
+}

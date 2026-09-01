@@ -4,6 +4,7 @@ import android.app.AlarmManager
 import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
+import android.os.Build
 import java.time.ZoneId
 
 /**
@@ -30,11 +31,22 @@ class ClimateBackgroundScheduler(
 
         val pendingIntent = pendingIntent(next.event.id)
 
-        alarmManager.setAndAllowWhileIdle(
-            AlarmManager.RTC_WAKEUP,
-            triggerAtMillis,
-            pendingIntent
-        )
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S || alarmManager.canScheduleExactAlarms()) {
+            alarmManager.setExactAndAllowWhileIdle(
+                AlarmManager.RTC_WAKEUP,
+                triggerAtMillis,
+                pendingIntent
+            )
+        } else {
+            // Fallback seguro mientras el usuario concede el acceso especial.
+            // Puede retrasarse por Doze, por eso la pantalla solicita permiso
+            // al guardar/activar una programación.
+            alarmManager.setAndAllowWhileIdle(
+                AlarmManager.RTC_WAKEUP,
+                triggerAtMillis,
+                pendingIntent
+            )
+        }
     }
 
     fun cancel() {

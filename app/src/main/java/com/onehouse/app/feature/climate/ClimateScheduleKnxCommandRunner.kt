@@ -7,6 +7,7 @@ import com.onehouse.app.knx.KnxCommand
 import com.onehouse.app.knx.KnxCommandExecutor
 import com.onehouse.app.knx.KnxCommandType
 import com.onehouse.app.knx.KnxGroupAddress
+import com.onehouse.app.knx.KnxCentralEngine
 
 /**
  * Traduce un evento de climatización a telegramas KNX reales y los ejecuta de
@@ -37,6 +38,11 @@ class ClimateScheduleKnxCommandRunner(context: Context) {
             finish(repository, onFinished)
             return
         }
+
+        // Un evento que despierta el proceso puede encontrarse con un canal UDP
+        // conservado por Android pero ya caducado en el gateway. Forzamos una
+        // sesión fresca antes de una ejecución programada.
+        KnxCentralEngine.get(appContext).connectionManager.disconnect()
 
         val executor = KnxCommandExecutor(appContext)
         commandExecutor = executor

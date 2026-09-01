@@ -101,6 +101,7 @@ class KnxConnectionManager(
     private var passiveReceiverThread: Thread? = null
     private var passiveReceiverCancellation = AtomicBoolean(true)
     private var scheduledDisconnect: Runnable? = null
+    @Volatile private var lastTunnelActivityMillis: Long = 0L
     // v1.12.1.3: cuando varias pantallas solicitan conexión mientras el mismo
     // túnel todavía está en CONNECTING, no abrimos/cancelamos sesiones nuevas.
     // Las solicitudes se agrupan y reciben el mismo resultado.
@@ -130,7 +131,9 @@ class KnxConnectionManager(
                 state == State.CONNECTED &&
                     socket?.isClosed == false &&
                     this.endpoint == endpoint &&
-                    currentChannel != null -> ConnectDecision.Reuse(currentChannel)
+                    currentChannel != null &&
+                    System.currentTimeMillis() - lastTunnelActivityMillis <= MAX_SAFE_TUNNEL_IDLE_MILLIS ->
+                    ConnectDecision.Reuse(currentChannel)
 
                 state == State.CONNECTING && connectingEndpoint == endpoint -> {
                     pendingConnectCallbacks += onResult
@@ -390,6 +393,7 @@ class KnxConnectionManager(
                             is KnxProtocol.TunnellingAck.Accepted -> {
                                 if (ack.channelId == currentChannel && ack.sequence == sequence) {
                                     acknowledged = true
+                                    lastTunnelActivityMillis = System.currentTimeMillis()
                                     gatewayAckHex = KnxHex.format(response.data.copyOf(response.length))
                                     gatewayRoundTripMillis =
                                         (System.nanoTime() - sentAtNanos) / 1_000_000L
@@ -540,6 +544,7 @@ class KnxConnectionManager(
                     udpSocket.send(DatagramPacket(ackPacket, ackPacket.size))
 
                     if (parsed.channelId == expectedChannelId) {
+                        lastTunnelActivityMillis = System.currentTimeMillis()
                         KnxParallelEventBus.publish(parsed.telegram)
                         stateRepository?.record(parsed.telegram)
                     }
@@ -622,6 +627,7 @@ class KnxConnectionManager(
                             channelId = parsed.channelId
                             sequenceCounter.set(0)
                             state = State.CONNECTED
+                            lastTunnelActivityMillis = System.currentTimeMillis()
                             startPassiveReceiver(udpSocket, parsed.channelId)
                             KnxPerformanceMetrics.recordTunnelConnectSuccess(source)
                             ConnectResult.Success(
@@ -715,6 +721,7 @@ class KnxConnectionManager(
             connectingEndpoint = null
             worker = null
             state = State.DISCONNECTED
+            lastTunnelActivityMillis = 0L
         }
     }
 }
@@ -723,6 +730,9 @@ class KnxConnectionManager(
  * Parámetros comunes del transporte KNXnet/IP.
  */
 private const val DEFAULT_IDLE_DISCONNECT_MILLIS = 90_000L
+// Si Android/HyperOS suspende el Handler de cierre, nunca reutilizamos un canal
+// que lleva demasiado tiempo inactivo: el gateway puede haberlo caducado.
+private const val MAX_SAFE_TUNNEL_IDLE_MILLIS = 60_000L
 private const val PASSIVE_RECEIVE_TIMEOUT_MILLIS = 40
 private const val PASSIVE_RECEIVER_RETRY_MILLIS = 4L
 
