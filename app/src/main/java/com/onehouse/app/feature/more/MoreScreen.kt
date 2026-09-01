@@ -35,7 +35,7 @@ import com.onehouse.app.design.TextoSecundario
 @Composable
 fun MoreScreen(
     onConfigurationSelected: () -> Unit,
-    onAutomationControlSelected: () -> Unit,
+    onKnxAddressesSelected: () -> Unit,
     onToolsSelected: () -> Unit
 ) {
     Box(
@@ -76,9 +76,9 @@ fun MoreScreen(
             )
             MoreOptionCard(
                 symbol = "⌘",
-                title = "Automatización y control",
-                subtitle = "Escenas, automatizaciones, horarios y KNX",
-                onClick = onAutomationControlSelected
+                title = "Direcciones KNX",
+                subtitle = "Editar las direcciones utilizadas por OneHouse",
+                onClick = onKnxAddressesSelected
             )
             MoreOptionCard(
                 symbol = "?",

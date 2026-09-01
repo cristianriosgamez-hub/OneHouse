@@ -16,8 +16,8 @@ android {
         applicationId = "com.onehouse.app"
         minSdk = 29
         targetSdk = 36
-        versionCode = 127
-        versionName = "1.13.2 Restauración segura y validada"
+        versionCode = 128
+        versionName = "1.13.3 Limpieza funcional completa"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }

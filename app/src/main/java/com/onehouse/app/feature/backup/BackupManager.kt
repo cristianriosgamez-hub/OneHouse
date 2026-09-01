@@ -65,10 +65,6 @@ class BackupManager(context: Context) {
                 createdAtMillis = root.getLong("createdAtMillis"),
                 appVersion = root.optString("appVersion", "Desconocida"),
                 preferencesFiles = summaryJson.optInt("preferencesFiles", files.length()),
-                scenes = summaryJson.optInt("scenes", countItems(files, PreferenceFiles.SMART_SCENES, "scene_count", "scene_")),
-                automations = summaryJson.optInt("automations", countSet(files, PreferenceFiles.CONDITIONAL_AUTOMATIONS, "rules")),
-                weeklySchedules = summaryJson.optInt("weeklySchedules", countSet(files, PreferenceFiles.WEEKLY_SCHEDULE, "events")),
-                solarSchedules = summaryJson.optInt("solarSchedules", countSet(files, PreferenceFiles.SOLAR_SCHEDULE, "events")),
                 knxEntries = summaryJson.optInt("knxEntries", countObjectEntries(files, PreferenceFiles.KNX_CONFIGURATION)),
                 knxActiveAddresses = summaryJson.optInt("knxActiveAddresses", -1)
             ),
@@ -108,7 +104,7 @@ class BackupManager(context: Context) {
                 .mapNotNull { (key, value) -> value?.let { key to it } }
                 .toMap()
         }
-        val previousLegacy = PreferenceFiles.legacyImportFiles.associateWith { name ->
+        val previousLegacy = PreferenceFiles.retiredFiles.associateWith { name ->
             appContext.getSharedPreferences(name, Context.MODE_PRIVATE).all
                 .mapNotNull { (key, value) -> value?.let { key to it } }
                 .toMap()
@@ -120,7 +116,7 @@ class BackupManager(context: Context) {
             // Once a OneHouse-native KNX configuration has been restored, remove the
             // historical importer source so it can never repopulate deleted objects.
             if (decoded.containsKey(PreferenceFiles.KNX_CONFIGURATION)) {
-                PreferenceFiles.legacyImportFiles.forEach { name ->
+                PreferenceFiles.retiredFiles.forEach { name ->
                     check(appContext.getSharedPreferences(name, Context.MODE_PRIVATE).edit().clear().commit()) {
                         "No se pudo limpiar '$name'."
                     }
@@ -177,9 +173,9 @@ class BackupManager(context: Context) {
                         })
                     }
                 }
-                name in PreferenceFiles.legacyImportFiles -> {
+                name in PreferenceFiles.retiredFiles -> {
                     ignoredFiles++
-                    warnings += "Se ignorará el bloque histórico '$name'."
+                    warnings += "Se ignorará el bloque retirado '$name'."
                 }
                 else -> {
                     ignoredFiles++
@@ -302,10 +298,6 @@ class BackupManager(context: Context) {
 
     private fun buildSummary(files: JSONObject, activeKnxAddresses: Int): JSONObject = JSONObject()
         .put("preferencesFiles", files.length())
-        .put("scenes", countItems(files, PreferenceFiles.SMART_SCENES, "scene_count", "scene_"))
-        .put("automations", countSet(files, PreferenceFiles.CONDITIONAL_AUTOMATIONS, "rules"))
-        .put("weeklySchedules", countSet(files, PreferenceFiles.WEEKLY_SCHEDULE, "events"))
-        .put("solarSchedules", countSet(files, PreferenceFiles.SOLAR_SCHEDULE, "events"))
         .put("knxEntries", countObjectEntries(files, PreferenceFiles.KNX_CONFIGURATION))
         .put("knxActiveAddresses", activeKnxAddresses)
 
@@ -333,18 +325,6 @@ class BackupManager(context: Context) {
             .distinct()
             .size
     }
-
-    private fun countItems(files: JSONObject, file: String, countKey: String, prefix: String): Int {
-        val prefs = files.optJSONObject(file) ?: return 0
-        val count = prefs.optJSONObject(countKey)?.optInt("value", -1) ?: -1
-        if (count >= 0) return count
-        var total = 0
-        prefs.keys().forEach { if (it.startsWith(prefix)) total++ }
-        return total
-    }
-
-    private fun countSet(files: JSONObject, file: String, key: String): Int =
-        files.optJSONObject(file)?.optJSONObject(key)?.optJSONArray("value")?.length() ?: 0
 
     private fun countObjectEntries(files: JSONObject, file: String): Int =
         files.optJSONObject(file)?.length() ?: 0

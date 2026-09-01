@@ -133,7 +133,7 @@ fun BackupRestoreScreen(onBack: () -> Unit) {
                 ) {
                     Text("Crear copia", color = TextoPrincipal, fontWeight = FontWeight.SemiBold)
                     Text(
-                        "Incluye solo la configuración KNX activa de OneHouse, horarios, automatizaciones, escenas y preferencias compatibles. Los datos históricos del importador quedan fuera.",
+                        "Incluye solo la configuración KNX activa de OneHouse, la programación de climatización y preferencias compatibles. Los datos históricos del importador quedan fuera.",
                         color = TextoSecundario
                     )
                     Button(
@@ -207,9 +207,6 @@ fun BackupRestoreScreen(onBack: () -> Unit) {
                         "Esquema: ${validation.schemaVersion}\n" +
                         "Bloques compatibles: ${validation.compatiblePreferenceFiles}\n" +
                         validationText +
-                        "Escenas: ${selected.summary.scenes}\nAutomatizaciones: ${selected.summary.automations}\n" +
-                        "Horarios semanales: ${selected.summary.weeklySchedules}\n" +
-                        "Eventos solares: ${selected.summary.solarSchedules}\n" +
                         (if (selected.summary.knxActiveAddresses >= 0) {
                             "Estados KNX activos: ${selected.summary.knxActiveAddresses}\n"
                         } else {

@@ -4,10 +4,6 @@ data class BackupSummary(
     val createdAtMillis: Long,
     val appVersion: String,
     val preferencesFiles: Int,
-    val scenes: Int,
-    val automations: Int,
-    val weeklySchedules: Int,
-    val solarSchedules: Int,
     val knxEntries: Int,
     val knxActiveAddresses: Int
 )

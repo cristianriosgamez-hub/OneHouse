@@ -13,25 +13,18 @@ import androidx.compose.ui.Modifier
 import com.onehouse.app.feature.climate.ClimateScreen
 import com.onehouse.app.feature.consumption.ConsumptionScreen
 import com.onehouse.app.feature.home.HomeScreen
-import com.onehouse.app.feature.importproject.ImportProjectScreen
 import com.onehouse.app.feature.maintenance.MaintenanceScreen
 import com.onehouse.app.feature.more.MoreScreen
 import com.onehouse.app.feature.more.ToolsScreen
-import com.onehouse.app.feature.more.AutomationControlScreen
 import com.onehouse.app.feature.more.KnxAddressEditorScreen
 import com.onehouse.app.feature.more.KnxDiagnosticsScreen
 import com.onehouse.app.feature.rooms.RoomsScreen
 import com.onehouse.app.feature.settings.SettingsScreen
-import com.onehouse.app.feature.security.SecurityScreen
 import com.onehouse.app.feature.rooms.detail.RoomDetailScreen
 import com.onehouse.app.feature.rooms.detail.RoomType
 import com.onehouse.app.feature.rooms.roomItemForName
 import com.onehouse.app.feature.terrace.TerraceScreen
 import com.onehouse.app.feature.weather.WeatherScreen
-import com.onehouse.app.feature.programming.WeeklyScheduleScreen
-import com.onehouse.app.feature.programming.SolarScheduleScreen
-import com.onehouse.app.feature.automation.AutomationScreen
-import com.onehouse.app.feature.scenes.ScenesScreen
 import com.onehouse.app.feature.backup.BackupRestoreScreen
 import com.onehouse.app.feature.consumption.transfer.ConsumptionTransferScreen
 import com.onehouse.app.design.FondoSuperior
@@ -51,18 +44,11 @@ private enum class InternalScreen {
     CONSUMPTION,
     MAINTENANCE,
     SETTINGS,
-    IMPORT_PROJECT,
-    SECURITY,
     KNX_ADDRESS_EDITOR,
     KNX_DIAGNOSTICS,
-    WEEKLY_SCHEDULES,
-    SOLAR_SCHEDULES,
-    AUTOMATIONS,
-    SCENES,
     BACKUP_RESTORE,
     CONSUMPTION_TRANSFER,
-    TOOLS,
-    AUTOMATION_CONTROL
+    TOOLS
 }
 
 @Composable
@@ -147,7 +133,6 @@ fun OneHouseNavigation() {
                     internalScreen = InternalScreen.MAIN
                     selectedSection = OneHouseSection.MORE
                 },
-                onImportProjectSelected = { internalScreen = InternalScreen.IMPORT_PROJECT },
                 onKnxDiagnosticsSelected = { internalScreen = InternalScreen.KNX_DIAGNOSTICS },
                 onBackupRestoreSelected = { internalScreen = InternalScreen.BACKUP_RESTORE },
                 onConsumptionTransferSelected = { internalScreen = InternalScreen.CONSUMPTION_TRANSFER }
@@ -155,44 +140,12 @@ fun OneHouseNavigation() {
             return
         }
 
-        InternalScreen.AUTOMATION_CONTROL -> {
-            AutomationControlScreen(
-                onBack = {
-                    internalScreen = InternalScreen.MAIN
-                    selectedSection = OneHouseSection.MORE
-                },
-                onScenesSelected = { internalScreen = InternalScreen.SCENES },
-                onAutomationsSelected = { internalScreen = InternalScreen.AUTOMATIONS },
-                onSolarSchedulesSelected = { internalScreen = InternalScreen.SOLAR_SCHEDULES },
-                onWeeklySchedulesSelected = { internalScreen = InternalScreen.WEEKLY_SCHEDULES },
-                onKnxAddressesSelected = { internalScreen = InternalScreen.KNX_ADDRESS_EDITOR }
-            )
-            return
-        }
-
-        InternalScreen.IMPORT_PROJECT -> {
-            ImportProjectScreen(
-                onBack = {
-                    internalScreen = InternalScreen.TOOLS
-                }
-            )
-            return
-        }
-
-        InternalScreen.SECURITY -> {
-            SecurityScreen(
-                onBack = {
-                    internalScreen = InternalScreen.MAIN
-                    selectedSection = OneHouseSection.HOME
-                }
-            )
-            return
-        }
 
         InternalScreen.KNX_ADDRESS_EDITOR -> {
             KnxAddressEditorScreen(
                 onBack = {
-                    internalScreen = InternalScreen.AUTOMATION_CONTROL
+                    internalScreen = InternalScreen.MAIN
+                    selectedSection = OneHouseSection.MORE
                 }
             )
             return
@@ -207,41 +160,9 @@ fun OneHouseNavigation() {
             return
         }
 
-        InternalScreen.WEEKLY_SCHEDULES -> {
-            WeeklyScheduleScreen(
-                onBack = {
-                    internalScreen = InternalScreen.AUTOMATION_CONTROL
-                }
-            )
-            return
-        }
 
-        InternalScreen.SOLAR_SCHEDULES -> {
-            SolarScheduleScreen(
-                onBack = {
-                    internalScreen = InternalScreen.AUTOMATION_CONTROL
-                }
-            )
-            return
-        }
 
-        InternalScreen.AUTOMATIONS -> {
-            AutomationScreen(
-                onBack = {
-                    internalScreen = InternalScreen.AUTOMATION_CONTROL
-                }
-            )
-            return
-        }
 
-        InternalScreen.SCENES -> {
-            ScenesScreen(
-                onBack = {
-                    internalScreen = InternalScreen.AUTOMATION_CONTROL
-                }
-            )
-            return
-        }
 
         InternalScreen.BACKUP_RESTORE -> {
             BackupRestoreScreen(
@@ -309,8 +230,7 @@ fun OneHouseNavigation() {
             when (selectedSection) {
                 OneHouseSection.HOME -> HomeScreen(
                     favoriteRooms = favoriteRoomNames.mapNotNull(::roomItemForName).take(4),
-                    onFavoriteSelected = openRoomByName,
-                    onSecuritySelected = { internalScreen = InternalScreen.SECURITY }
+                    onFavoriteSelected = openRoomByName
                 )
 
                 OneHouseSection.ROOMS -> RoomsScreen(
@@ -340,7 +260,7 @@ fun OneHouseNavigation() {
                 OneHouseSection.CONSUMPTION -> ConsumptionScreen()
                 OneHouseSection.MORE -> MoreScreen(
                     onConfigurationSelected = { internalScreen = InternalScreen.SETTINGS },
-                    onAutomationControlSelected = { internalScreen = InternalScreen.AUTOMATION_CONTROL },
+                    onKnxAddressesSelected = { internalScreen = InternalScreen.KNX_ADDRESS_EDITOR },
                     onToolsSelected = { internalScreen = InternalScreen.TOOLS }
                 )
             }

@@ -221,7 +221,7 @@ class EnergyViewModel(
             currentMonth <= 0.0 -> "Añade lecturas para generar recomendaciones personalizadas."
             level == SmartEnergyLevel.CRITICAL -> "Reduce climatización en horas punta y revisa consumos en espera."
             level == SmartEnergyLevel.HIGH -> "Ajusta un grado la climatización para recuperar margen este mes."
-            projected < goal * 0.8 -> "Buen ritmo: mantén horarios y automatizaciones actuales."
+            projected < goal * 0.8 -> "Buen ritmo: mantén tus hábitos actuales."
             else -> "El consumo está controlado; concentra cargas fuera de horas punta."
         }
         return SmartEnergyState(

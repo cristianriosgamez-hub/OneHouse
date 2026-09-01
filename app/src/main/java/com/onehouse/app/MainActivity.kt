@@ -6,7 +6,7 @@ import androidx.activity.SystemBarStyle
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.fragment.app.FragmentActivity
-import com.onehouse.app.feature.security.HomeAssistantSecurityBackgroundScheduler
+import com.onehouse.app.core.storage.RetiredFeatureCleanup
 import com.onehouse.app.ui.theme.OneHouseTheme
 
 class MainActivity : FragmentActivity() {
@@ -14,7 +14,7 @@ class MainActivity : FragmentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        HomeAssistantSecurityBackgroundScheduler.sync(this)
+        RetiredFeatureCleanup.run(this)
 
         enableEdgeToEdge(
             statusBarStyle = SystemBarStyle.dark(Color.TRANSPARENT),

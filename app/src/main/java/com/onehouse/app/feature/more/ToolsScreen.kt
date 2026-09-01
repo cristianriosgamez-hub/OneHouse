@@ -35,7 +35,6 @@ import com.onehouse.app.design.TextoSecundario
 @Composable
 fun ToolsScreen(
     onBack: () -> Unit,
-    onImportProjectSelected: () -> Unit,
     onKnxDiagnosticsSelected: () -> Unit,
     onBackupRestoreSelected: () -> Unit,
     onConsumptionTransferSelected: () -> Unit
@@ -79,12 +78,6 @@ fun ToolsScreen(
                 }
             }
 
-            ToolOptionCard(
-                symbol = "⇩",
-                title = "Importar InsideControl",
-                subtitle = "Leer habitaciones y direcciones de un proyecto .knx",
-                onClick = onImportProjectSelected
-            )
             ToolOptionCard(
                 symbol = "◫",
                 title = "Diagnóstico KNX",
