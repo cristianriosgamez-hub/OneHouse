@@ -86,6 +86,36 @@ object KnxLoadProgressRepository {
         mutableProgress.value = current.copy(receivedAddresses = received)
     }
 
+    /**
+     * REV3: reconcilia en tiempo real una GA que quedó pendiente al cerrar la
+     * carga inicial y cuyo telegrama válido llega después. No genera ninguna
+     * lectura adicional: únicamente corrige la fotografía de progreso usando
+     * el mismo telegrama que ya ha aceptado la caché KNX central.
+     *
+     * También sustituye una resolución asumida (actualmente lluvia seca) por
+     * una respuesta real si esa GA termina enviando un telegrama posteriormente.
+     */
+    @Synchronized
+    fun reconcileAcceptedState(state: KnxStateRepository.State) {
+        val current = mutableProgress.value
+        if (!current.finished || current.targets.isEmpty()) return
+
+        val address = state.groupAddress
+        if (address !in current.targets) return
+        if (!StateFreshness.isTrusted(state)) return
+        if (address in current.receivedAddresses) return
+
+        // Solo hay algo que reconciliar si al cerrar la carga la dirección quedó
+        // sin respuesta o fue resuelta mediante una regla explícita.
+        if (address !in current.noResponseAddresses && address !in current.assumedAddresses) return
+
+        mutableProgress.value = current.copy(
+            receivedAddresses = current.receivedAddresses + address,
+            noResponseAddresses = current.noResponseAddresses - address,
+            assumedAddresses = current.assumedAddresses - address
+        )
+    }
+
     @Synchronized
     fun finish(finalNoResponse: Collection<String>, states: Map<String, KnxStateRepository.State>) {
         val current = mutableProgress.value

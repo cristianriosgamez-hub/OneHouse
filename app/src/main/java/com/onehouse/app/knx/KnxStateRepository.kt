@@ -173,6 +173,12 @@ class KnxStateRepository(context: Context) {
         }
 
         KnxPerformanceMetrics.recordCacheUpdate(System.nanoTime() - measurementStartNanos)
+
+        // v1.13.0.5 REV3: si la carga inicial ya había terminado con esta GA
+        // como "sin respuesta", un telegrama válido posterior sanea el
+        // diagnóstico y el porcentaje en tiempo real. No provoca lecturas KNX.
+        KnxLoadProgressRepository.reconcileAcceptedState(acceptedState)
+
         sharedUpdates.tryEmit(Update.StateChanged(acceptedState))
         val observerStartNanos = System.nanoTime()
         notifyObservers(updatedStates)

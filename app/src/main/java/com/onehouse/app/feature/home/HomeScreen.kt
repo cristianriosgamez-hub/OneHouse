@@ -202,10 +202,14 @@ fun HomeScreen(
                     )
                     Spacer(modifier = Modifier.height(6.dp))
                     Text(
-                        text = if (knxLoadProgress.finished) {
-                            "${homeGreeting()} · Tu hogar está listo"
-                        } else {
-                            "${homeGreeting()} · Cargando datos KNX"
+                        text = when {
+                            !knxLoadProgress.finished ->
+                                "${homeGreeting()} · Cargando datos KNX"
+                            knxLoadProgress.total > 0 &&
+                                knxLoadProgress.completed < knxLoadProgress.total ->
+                                "${homeGreeting()} · Carga KNX incompleta"
+                            else ->
+                                "${homeGreeting()} · Tu hogar está listo"
                         },
                         color = TextoSecundario,
                         style = MaterialTheme.typography.bodyMedium
