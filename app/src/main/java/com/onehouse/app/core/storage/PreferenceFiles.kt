@@ -20,11 +20,16 @@ object PreferenceFiles {
     const val SECURITY_MONITORING = "onehouse_security_monitoring"
     const val SECURITY_NOTIFICATIONS = "onehouse_security_notifications"
 
+    /**
+     * Ficheros que pertenecen realmente a OneHouse y pueden viajar en una copia.
+     *
+     * INSIDE_CONTROL_IMPORT e IMPORT_PROJECT_UI son únicamente fuentes/histórico
+     * del importador antiguo. Mantenerlos fuera evita reintroducir objetos KNX que
+     * OneHouse ya ha eliminado de su modelo activo.
+     */
     val backupFiles: List<String> = listOf(
         KNX_SETTINGS,
         KNX_CONFIGURATION,
-        INSIDE_CONTROL_IMPORT,
-        IMPORT_PROJECT_UI,
         CLIMATE_SCHEDULE,
         WEEKLY_SCHEDULE,
         SOLAR_SCHEDULE,
@@ -33,5 +38,10 @@ object PreferenceFiles {
         HOME_ASSISTANT,
         SECURITY_MONITORING,
         SECURITY_NOTIFICATIONS
+    )
+
+    val legacyImportFiles: List<String> = listOf(
+        INSIDE_CONTROL_IMPORT,
+        IMPORT_PROJECT_UI
     )
 }

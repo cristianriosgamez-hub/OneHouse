@@ -133,7 +133,7 @@ fun BackupRestoreScreen(onBack: () -> Unit) {
                 ) {
                     Text("Crear copia", color = TextoPrincipal, fontWeight = FontWeight.SemiBold)
                     Text(
-                        "Incluye configuración KNX, horarios, automatizaciones, escenas y preferencias compatibles.",
+                        "Incluye solo la configuración KNX activa de OneHouse, horarios, automatizaciones, escenas y preferencias compatibles. Los datos históricos del importador quedan fuera.",
                         color = TextoSecundario
                     )
                     Button(
@@ -200,8 +200,12 @@ fun BackupRestoreScreen(onBack: () -> Unit) {
                         "Escenas: ${selected.summary.scenes}\nAutomatizaciones: ${selected.summary.automations}\n" +
                         "Horarios semanales: ${selected.summary.weeklySchedules}\n" +
                         "Eventos solares: ${selected.summary.solarSchedules}\n" +
-                        "Entradas KNX: ${selected.summary.knxEntries}\n\n" +
-                        "La configuración actual será sustituida."
+                        (if (selected.summary.knxActiveAddresses >= 0) {
+                            "Estados KNX activos: ${selected.summary.knxActiveAddresses}\n"
+                        } else {
+                            "Entradas KNX (copia antigua): ${selected.summary.knxEntries}\n"
+                        }) +
+                        "\nLa configuración actual será sustituida. Las GAs históricas del importador no se restaurarán."
                 )
             },
             confirmButton = {

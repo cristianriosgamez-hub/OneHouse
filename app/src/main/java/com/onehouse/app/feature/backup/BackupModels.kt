@@ -8,7 +8,8 @@ data class BackupSummary(
     val automations: Int,
     val weeklySchedules: Int,
     val solarSchedules: Int,
-    val knxEntries: Int
+    val knxEntries: Int,
+    val knxActiveAddresses: Int
 )
 
 data class BackupPreview(

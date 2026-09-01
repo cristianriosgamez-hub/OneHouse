@@ -16,8 +16,8 @@ android {
         applicationId = "com.onehouse.app"
         minSdk = 29
         targetSdk = 36
-        versionCode = 125
-        versionName = "1.13.0.5 Carga KNX segundo plano"
+        versionCode = 126
+        versionName = "1.13.1 Backup KNX limpio"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }

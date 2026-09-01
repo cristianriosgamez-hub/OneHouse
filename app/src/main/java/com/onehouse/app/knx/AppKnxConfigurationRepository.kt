@@ -237,6 +237,24 @@ class AppKnxConfigurationRepository(context: Context) {
     }
 
     companion object {
+        /**
+         * Lista blanca usada por el backup general de OneHouse. La copia automática
+         * interna no se exporta: podría contener una fotografía antigua anterior a
+         * la depuración de GAs y no es necesaria para restaurar la configuración.
+         */
+        fun isSupportedBackupPreferenceKey(key: String): Boolean {
+            if (key == KEY_PROJECT) return true
+            if (key.startsWith(KEY_GLOBAL_PREFIX)) {
+                val addressKey = key.removePrefix(KEY_GLOBAL_PREFIX)
+                return KnxAddressBook.entries.any { it.key == addressKey }
+            }
+            return key in setOf(
+                "${KEY_PARAMETER_PREFIX}climate_fan_low",
+                "${KEY_PARAMETER_PREFIX}climate_fan_medium",
+                "${KEY_PARAMETER_PREFIX}climate_fan_high"
+            )
+        }
+
         fun isValidGroupAddress(value: String): Boolean {
             val parts = value.trim().split('/')
             if (parts.size != 3) return false
