@@ -121,6 +121,15 @@ class KnxHomeStateRepository(context: Context) {
         fun notifyConnectionAvailable() {
             PeriodicKnxStateRefresh.onConnectionAvailable()
         }
+
+        /**
+         * Direcciones explícitas que forman parte de la carga inicial actual.
+         * Se expone de forma controlada para que BackupManager pueda contar
+         * exactamente las mismas GAs sin duplicar la lista ni acceder al objeto
+         * interno PeriodicKnxStateRefresh.
+         */
+        fun initialLoadExplicitStateAddresses(): List<String> =
+            PeriodicKnxStateRefresh.explicitStateAddresses()
     }
 
     private val appContext = context.applicationContext

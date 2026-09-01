@@ -244,7 +244,7 @@ class BackupManager(context: Context) {
             }
         }
 
-        return (KnxHomeStateRepository.explicitStateAddresses() + importedAddresses)
+        return (KnxHomeStateRepository.initialLoadExplicitStateAddresses() + importedAddresses)
             .map(String::trim)
             .filter(String::isNotBlank)
             .distinct()

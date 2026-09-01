@@ -1,0 +1,33 @@
+OneHouse v1.13.1 REV1 - Fix Backup KNX Count
+
+Corrección de compilación de la entrega v1.13.1.
+
+Problema detectado:
+- BackupManager intentaba llamar a KnxHomeStateRepository.explicitStateAddresses(),
+  pero esa función pertenece al objeto interno PeriodicKnxStateRefresh y no estaba
+  expuesta públicamente desde KnxHomeStateRepository.
+- Esto provocaba los 3 errores de Kotlin mostrados en Android Studio:
+  * Unresolved reference 'explicitStateAddresses'
+  * Cannot infer type for this parameter
+  * Error asociado a String::trim por pérdida de inferencia del tipo anterior
+
+Corrección aplicada:
+- Se añade KnxHomeStateRepository.initialLoadExplicitStateAddresses() como acceso
+  controlado a la misma lista de GAs explícitas utilizada por la carga inicial.
+- BackupManager utiliza esa función para calcular el número de estados KNX activos.
+- No se duplica ninguna lista de direcciones y backup/carga siguen compartiendo
+  exactamente la misma fuente de verdad.
+
+No se modifica:
+- Motor KNX ni tiempos de carga.
+- Las 36 GAs activas actuales.
+- Reintentos, reconciliación en tiempo real o lluvia inteligente.
+- Formato y política de limpieza del backup v1.13.1.
+
+Archivos a sustituir:
+1) app/src/main/java/com/onehouse/app/feature/backup/BackupManager.kt
+2) app/src/main/java/com/onehouse/app/knx/KnxHomeStateRepository.kt
+
+Nota de compilación:
+Se intentó ejecutar :app:compileDebugKotlin, pero el wrapper de este entorno intenta
+obtener Gradle 9.5.0 desde services.gradle.org y no dispone de acceso de red.
