@@ -1,5 +1,0 @@
-app\src\main\java\com\onehouse\app\core\storage\RetiredFeatureCleanup.kt
-app\src\main\java\com\onehouse\app\importer\InsideControlParser.kt
-app\src\main\java\com\onehouse\app\importer\InsideControlImporter.kt
-app\src\main\java\com\onehouse\app\importer\InsideControlProjectRepository.kt
-app\src\main\java\com\onehouse\app\importer\ImportedKnxObject.kt

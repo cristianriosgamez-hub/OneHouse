@@ -16,8 +16,8 @@ android {
         applicationId = "com.onehouse.app"
         minSdk = 29
         targetSdk = 36
-        versionCode = 129
-        versionName = "1.13.3 REV1 Limpieza definitiva"
+        versionCode = 130
+        versionName = "1.13.4 Motor real programación KNX climatización"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }

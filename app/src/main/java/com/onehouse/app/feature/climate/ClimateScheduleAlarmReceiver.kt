@@ -3,50 +3,56 @@ package com.onehouse.app.feature.climate
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
+import android.os.PowerManager
 
 /**
- * Punto de entrada de segundo plano.
+ * Punto de entrada de las programaciones de climatización.
  *
- * ClimateKnxCommandGateway es deliberadamente una interfaz: al conectar KNX,
- * la implementación real enviará aquí los telegramas correspondientes.
+ * La alarma despierta el proceso incluso con OneHouse cerrada. goAsync() evita
+ * abandonar el receiver mientras siguen los telegramas KNX y el WakeLock
+ * temporal mantiene la CPU activa con la pantalla apagada.
  */
 class ClimateScheduleAlarmReceiver : BroadcastReceiver() {
 
     override fun onReceive(context: Context, intent: Intent) {
-        val repository = SharedPreferencesClimateScheduleRepository(context)
-        val state = repository.load()
-        val eventId = intent.getLongExtra(EXTRA_EVENT_ID, -1L)
+        val appContext = context.applicationContext
+        val pendingResult = goAsync()
+        val wakeLock = runCatching {
+            appContext.getSystemService(PowerManager::class.java)
+                .newWakeLock(
+                    PowerManager.PARTIAL_WAKE_LOCK,
+                    "OneHouse:ClimateSchedule"
+                )
+                .apply { acquire(WAKE_LOCK_TIMEOUT_MILLIS) }
+        }.getOrNull()
 
-        val event = state.events.firstOrNull {
-            it.id == eventId && it.enabled
+        val finishOnce = object {
+            private var finished = false
+
+            @Synchronized
+            fun finish() {
+                if (finished) return
+                finished = true
+                runCatching {
+                    if (wakeLock?.isHeld == true) wakeLock.release()
+                }
+                pendingResult.finish()
+            }
         }
 
-        if (state.globallyEnabled && event != null) {
-            ClimateKnxCommandGatewayProvider.gateway.execute(event)
+        runCatching {
+            val eventId = intent.getLongExtra(EXTRA_EVENT_ID, -1L)
+            ClimateScheduleKnxCommandRunner(appContext).execute(eventId) {
+                finishOnce.finish()
+            }
+        }.onFailure {
+            ClimateBackgroundScheduler(appContext).reschedule()
+            finishOnce.finish()
         }
-
-        ClimateBackgroundScheduler(
-            context = context,
-            repository = repository
-        ).reschedule()
     }
 
     companion object {
         const val EXTRA_EVENT_ID = "climate_schedule_event_id"
-    }
-}
-
-interface ClimateKnxCommandGateway {
-    fun execute(event: ClimateScheduleEvent)
-}
-
-/**
- * Implementación provisional. Sustituir por el gateway KNX real.
- */
-object ClimateKnxCommandGatewayProvider {
-    var gateway: ClimateKnxCommandGateway = object : ClimateKnxCommandGateway {
-        override fun execute(event: ClimateScheduleEvent) {
-            // Pendiente: enviar ON/OFF, modo, consigna y ventilador a KNX.
-        }
+        private const val WAKE_LOCK_TIMEOUT_MILLIS = 60_000L
     }
 }
