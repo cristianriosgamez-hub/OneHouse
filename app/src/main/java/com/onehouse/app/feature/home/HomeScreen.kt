@@ -681,6 +681,16 @@ private fun QuickStatusGrid(
 ) {
     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
         HomeStatusCard(
+            title = "Luces",
+            value = if (homeState.lightsTotal > 0) {
+                "${homeState.lightsOn} de ${homeState.lightsTotal} encendidas"
+            } else "Sin datos",
+            detail = "Estado general",
+            icon = Icons.Rounded.Lightbulb,
+            accent = AmarilloEstado,
+            modifier = Modifier.weight(1f).height(150.dp)
+        )
+        HomeStatusCard(
             title = "Persianas",
             value = if (homeState.blindsTotal > 0) {
                 "${homeState.blindsOpen} de ${homeState.blindsTotal} abiertas"
@@ -690,35 +700,127 @@ private fun QuickStatusGrid(
             accent = AzulClaro,
             modifier = Modifier.weight(1f).height(150.dp)
         )
-        HomeStatusCard(
-            title = "Exterior",
-            value = weather.temperatureC?.let {
-                String.format(Locale("es", "ES"), "%.1f °C", it)
-            } ?: "-- °C",
-            detail = when {
-                weather.isLoading -> "Actualizando…"
-                weather.temperatureC != null -> weather.condition
-                weather.errorMessage != null -> "Dato no disponible"
-                else -> "Temperatura exterior"
-            },
-            icon = weatherIcon(weather),
-            accent = AzulClaro,
-            modifier = Modifier.weight(1f).height(150.dp)
-        )
     }
 
     Spacer(modifier = Modifier.height(12.dp))
 
-    HomeStatusCard(
-        title = "Luces",
-        value = if (homeState.lightsTotal > 0) {
-            "${homeState.lightsOn} de ${homeState.lightsTotal} encendidas"
-        } else "Sin datos",
-        detail = "Estado general",
-        icon = Icons.Rounded.Lightbulb,
-        accent = AmarilloEstado,
-        modifier = Modifier.fillMaxWidth().height(132.dp)
+    ExteriorWeatherCard(
+        weather = weather,
+        modifier = Modifier.fillMaxWidth()
     )
+}
+
+@Composable
+private fun ExteriorWeatherCard(
+    weather: WeatherUiState,
+    modifier: Modifier = Modifier
+) {
+    OneHouseCard(modifier = modifier) {
+        Column(modifier = Modifier.padding(18.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Surface(
+                    color = AzulClaro.copy(alpha = 0.13f),
+                    shape = RoundedCornerShape(14.dp)
+                ) {
+                    Icon(
+                        imageVector = weatherIcon(weather),
+                        contentDescription = null,
+                        tint = AzulClaro,
+                        modifier = Modifier.padding(7.dp).size(22.dp)
+                    )
+                }
+                Spacer(modifier = Modifier.size(10.dp))
+                Column {
+                    Text(
+                        text = "Exterior",
+                        color = TextoSecundario,
+                        style = MaterialTheme.typography.labelLarge,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                    Text(
+                        text = when {
+                            weather.isLoading -> "Actualizando…"
+                            weather.temperatureC != null -> weather.condition
+                            weather.errorMessage != null -> "Dato no disponible"
+                            else -> "Meteorología exterior"
+                        },
+                        color = TextoDesactivado,
+                        style = MaterialTheme.typography.labelSmall
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(14.dp))
+            Text(
+                text = weather.temperatureC?.let {
+                    String.format(Locale("es", "ES"), "%.1f °C", it)
+                } ?: "-- °C",
+                color = TextoPrincipal,
+                style = MaterialTheme.typography.headlineMedium,
+                fontWeight = FontWeight.Bold
+            )
+
+            Spacer(modifier = Modifier.height(14.dp))
+            HorizontalDivider(color = BordeTarjeta)
+            Spacer(modifier = Modifier.height(14.dp))
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                ExteriorMetric(
+                    title = "Sensación",
+                    value = weather.feelsLikeC?.let { String.format(Locale("es", "ES"), "%.1f °C", it) } ?: "--",
+                    modifier = Modifier.weight(1f)
+                )
+                ExteriorMetric(
+                    title = "Humedad",
+                    value = weather.humidityPercent?.let { "$it %" } ?: "--",
+                    modifier = Modifier.weight(1f)
+                )
+            }
+            Spacer(modifier = Modifier.height(10.dp))
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                ExteriorMetric(
+                    title = "Viento",
+                    value = weather.windSpeedKmh?.let { String.format(Locale("es", "ES"), "%.0f km/h", it) } ?: "--",
+                    modifier = Modifier.weight(1f)
+                )
+                ExteriorMetric(
+                    title = "Precipitación",
+                    value = weather.precipitationMm?.let { String.format(Locale("es", "ES"), "%.1f mm", it) } ?: "--",
+                    modifier = Modifier.weight(1f)
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun ExteriorMetric(
+    title: String,
+    value: String,
+    modifier: Modifier = Modifier
+) {
+    Column(modifier = modifier) {
+        Text(
+            text = title,
+            color = TextoDesactivado,
+            style = MaterialTheme.typography.labelSmall,
+            maxLines = 1
+        )
+        Spacer(modifier = Modifier.height(2.dp))
+        Text(
+            text = value,
+            color = TextoPrincipal,
+            style = MaterialTheme.typography.bodyMedium,
+            fontWeight = FontWeight.SemiBold,
+            maxLines = 1
+        )
+    }
 }
 
 @Composable

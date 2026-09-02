@@ -207,7 +207,7 @@ fun SettingsScreen(onBack: () -> Unit) {
                 SettingsDivider()
                 StatusRow(
                     label = "Última actualización",
-                    value = formatDate(settings.lastUpdatedEpochMillis)
+                    value = appLastUpdateDate(context)
                 )
             }
 
@@ -458,6 +458,13 @@ private fun formatDate(epochMillis: Long): String {
     if (epochMillis <= 0L) return "Sin cambios"
     return SimpleDateFormat("dd/MM/yyyy HH:mm", Locale.getDefault()).format(Date(epochMillis))
 }
+
+
+@Suppress("DEPRECATION")
+private fun appLastUpdateDate(context: android.content.Context): String = runCatching {
+    val packageInfo = context.packageManager.getPackageInfo(context.packageName, 0)
+    formatDate(packageInfo.lastUpdateTime)
+}.getOrElse { "—" }
 
 
 @Suppress("DEPRECATION")
