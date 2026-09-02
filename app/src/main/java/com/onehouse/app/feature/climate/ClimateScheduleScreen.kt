@@ -566,17 +566,16 @@ private fun AddScheduleDialog(
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 EditorLine(
                     title = "Hora",
-                    value = "%02d:%02d".format(hour, minute),
-                    onMinus = {
-                        val total = (hour * 60 + minute - 5 + 1440) % 1440
-                        hour = total / 60
-                        minute = total % 60
-                    },
-                    onPlus = {
-                        val total = (hour * 60 + minute + 5) % 1440
-                        hour = total / 60
-                        minute = total % 60
-                    }
+                    value = "%02d".format(hour),
+                    onMinus = { hour = (hour + 23) % 24 },
+                    onPlus = { hour = (hour + 1) % 24 }
+                )
+
+                EditorLine(
+                    title = "Minutos",
+                    value = "%02d".format(minute),
+                    onMinus = { minute = (minute + 55) % 60 },
+                    onPlus = { minute = (minute + 5) % 60 }
                 )
 
                 SelectionRow(

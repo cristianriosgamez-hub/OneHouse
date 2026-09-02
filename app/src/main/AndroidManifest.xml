@@ -27,6 +27,12 @@
             android:exported="false"
             android:foregroundServiceType="dataSync" />
 
+        <service
+            android:name=".feature.climate.ClimateScheduleExecutionService"
+            android:exported="false"
+            android:foregroundServiceType="dataSync"
+            android:stopWithTask="false" />
+
         <receiver
             android:name=".feature.climate.ClimateScheduleAlarmReceiver"
             android:exported="false" />

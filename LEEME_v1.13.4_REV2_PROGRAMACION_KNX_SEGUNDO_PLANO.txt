@@ -1,0 +1,59 @@
+OneHouse v1.13.4 REV2 - Programación KNX en segundo plano
+=========================================================
+
+Objetivo
+--------
+Corregir la ejecución de la programación de climatización cuando OneHouse lleva
+varios minutos en segundo plano con otra aplicación delante y la pantalla apagada.
+También simplificar la selección de hora para trabajar cómodamente con pasos de
+5 minutos.
+
+Cambios realizados
+------------------
+1. Ejecución programada mediante foreground service de corta duración:
+   - Nuevo ClimateScheduleExecutionService.
+   - La alarma exacta despierta el BroadcastReceiver y este delega el trabajo al
+     servicio foreground.
+   - El servicio mantiene un PARTIAL_WAKE_LOCK temporal mientras se envían y
+     verifican los telegramas KNX.
+   - Se detiene automáticamente al terminar; no queda ningún servicio permanente.
+
+2. Fallback defensivo:
+   - Si el dispositivo impide iniciar el foreground service, el receiver conserva
+     el mecanismo anterior goAsync() + WakeLock como vía alternativa.
+
+3. Selector de hora simplificado:
+   - Hora se modifica independientemente: 00..23, paso de 1 hora.
+   - Minutos se modifican independientemente: 00,05,10,...55.
+   - La lógica interna y los eventos guardados siguen usando la misma estructura.
+
+4. AndroidManifest:
+   - Registrado ClimateScheduleExecutionService como foregroundServiceType=dataSync.
+
+5. Versión:
+   - versionCode 132
+   - versionName 1.13.4 REV2 Programación KNX segundo plano
+
+No se modifica
+--------------
+- Motor de carga inicial KNX.
+- Lista de 36 estados/GAs.
+- Reconciliación KNX en tiempo real.
+- Lógica de lluvia.
+- Reconexión normal de luces/persianas/clima validada en REV1.
+
+Prueba recomendada
+------------------
+1. Instalar y abrir OneHouse.
+2. Confirmar que el permiso de alarmas exactas está concedido.
+3. Crear un evento para 15-20 minutos después.
+4. Ir a otra aplicación y bloquear la pantalla.
+5. No volver a OneHouse hasta después de la hora del evento.
+6. Comprobar físicamente si Climatización ejecutó la orden.
+7. Repetir posteriormente con 30 minutos si la primera prueba es correcta.
+
+Compilación
+-----------
+No se ha podido ejecutar Gradle en el entorno de generación porque el wrapper
+intenta descargar Gradle 9.5.0 desde services.gradle.org y no hay acceso de red.
+Compilar localmente en Android Studio antes de instalar.
