@@ -1,0 +1,23 @@
+OneHouse v1.13.8 - Optimización y pulido general
+
+CAMBIOS
+- Optimizada la actualización meteorológica compartida entre Inicio y la pantalla Tiempo.
+- Añadida exclusión mutua para impedir peticiones Open-Meteo duplicadas si dos pantallas solicitan actualización a la vez.
+- La caché de 15 minutos pasa a ser la única responsable de decidir cuándo refrescar, evitando refrescos forzados redundantes.
+- Actualizado el identificador User-Agent meteorológico a OneHouse-Android/1.13.8.
+- Eliminados imports obsoletos del repositorio meteorológico.
+- Actualizada versión a versionCode 137 / 1.13.8 Optimización y pulido general.
+
+IMPORTANTE
+- No se modifica el motor KNX.
+- No se modifican las 36 direcciones de carga inicial.
+- No se modifica túnel, reconciliación, lluvia, mandos, persianas, sensores ni climatización.
+- No se modifica el formato de backup v1.13.7.
+- No hay archivos que borrar.
+
+PRUEBA RECOMENDADA
+1. Compilar e instalar.
+2. Abrir Inicio y comprobar meteorología.
+3. Entrar en Tiempo y volver varias veces a Inicio.
+4. Confirmar que los datos siguen mostrándose con normalidad.
+5. Comprobar una luz/persiana para confirmar funcionamiento KNX sin cambios.

@@ -15,14 +15,14 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import org.json.JSONObject
 import java.net.HttpURLConnection
 import java.net.URL
 import java.time.Duration
 import java.time.LocalDate
 import java.time.LocalDateTime
-import java.time.OffsetDateTime
-import java.time.format.DateTimeFormatter
 import java.time.format.TextStyle
 import java.util.Locale
 
@@ -37,12 +37,14 @@ object OpenMeteoWeatherRepository : WeatherRepository {
 
     @Volatile private var cachedState: WeatherUiState? = null
     @Volatile private var cachedAt: Long = 0L
+    private val refreshMutex = Mutex()
 
     override suspend fun loadWeather(forceRefresh: Boolean): WeatherUiState = withContext(Dispatchers.IO) {
-        val now = System.currentTimeMillis()
-        cachedState?.takeIf { !forceRefresh && now - cachedAt < CACHE_MILLIS }?.let { return@withContext it }
+        refreshMutex.withLock {
+            val now = System.currentTimeMillis()
+            cachedState?.takeIf { !forceRefresh && now - cachedAt < CACHE_MILLIS }?.let { return@withLock it }
 
-        try {
+            try {
             val forecastUrl = "https://api.open-meteo.com/v1/forecast" +
                 "?latitude=$LATITUDE&longitude=$LONGITUDE" +
                 "&current=temperature_2m,relative_humidity_2m,apparent_temperature,precipitation,weather_code,surface_pressure,wind_speed_10m,wind_direction_10m,visibility,dew_point_2m" +
@@ -56,13 +58,14 @@ object OpenMeteoWeatherRepository : WeatherRepository {
                 requestJson(airUrl).getJSONObject("current").optIntOrNull("european_aqi")
             }.getOrNull()
 
-            parseWeather(forecastJson, airQuality).also {
-                cachedState = it
-                cachedAt = now
+                parseWeather(forecastJson, airQuality).also {
+                    cachedState = it
+                    cachedAt = System.currentTimeMillis()
+                }
+            } catch (error: Exception) {
+                cachedState?.copy(errorMessage = "No se pudo actualizar el tiempo")
+                    ?: WeatherUiState(isLoading = false, errorMessage = "Sin conexión con el servicio meteorológico")
             }
-        } catch (error: Exception) {
-            cachedState?.copy(errorMessage = "No se pudo actualizar el tiempo")
-                ?: WeatherUiState(isLoading = false, errorMessage = "Sin conexión con el servicio meteorológico")
         }
     }
 
@@ -72,7 +75,7 @@ object OpenMeteoWeatherRepository : WeatherRepository {
             connectTimeout = 8_000
             readTimeout = 8_000
             setRequestProperty("Accept", "application/json")
-            setRequestProperty("User-Agent", "OneHouse-Android/1.5.0")
+            setRequestProperty("User-Agent", "OneHouse-Android/1.13.8")
         }
         return try {
             if (connection.responseCode !in 200..299) {
@@ -159,10 +162,10 @@ fun rememberWeatherState(forceRefreshKey: Any? = Unit): WeatherUiState {
     var weatherState by remember { mutableStateOf(WeatherUiState()) }
 
     LaunchedEffect(forceRefreshKey) {
-        var firstLoad = true
         while (isActive) {
-            weatherState = OpenMeteoWeatherRepository.loadWeather(forceRefresh = !firstLoad)
-            firstLoad = false
+            // El repositorio comparte una caché de 15 minutos entre Inicio y Tiempo.
+            // Así evitamos dos peticiones simultáneas al volver a primer plano o navegar.
+            weatherState = OpenMeteoWeatherRepository.loadWeather(forceRefresh = false)
             delay(15 * 60 * 1000L)
         }
     }
