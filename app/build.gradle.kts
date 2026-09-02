@@ -16,8 +16,8 @@ android {
         applicationId = "com.onehouse.app"
         minSdk = 29
         targetSdk = 36
-        versionCode = 132
-        versionName = "1.13.4 REV2 Programación KNX segundo plano"
+        versionCode = 133
+        versionName = "1.13.5 Coherencia funcional KNX"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }

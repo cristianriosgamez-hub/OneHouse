@@ -102,9 +102,8 @@ object HomeStateMapper {
             RoomType.SUITE -> snapshot.numericAt(KnxAddressBook.Indoor.TEMPERATURE_SUITE, "9.001")
             else -> null
         }
-        // El importador es la fuente principal: así la UI usa exactamente la
-        // dirección asociada al objeto de esa estancia. Las GA del catálogo son
-        // solo respaldo para instalaciones antiguas.
+        // Se prioriza el dispositivo KNX configurado para la estancia y se usa
+        // la dirección global de OneHouse como respaldo explícito.
         val roomTemperature = importedRoomTemperature ?: explicitRoomTemperature
 
         // Entrada y Habitación 1 no tienen climatización en la UI.

@@ -29,6 +29,9 @@ class KnxAuditTest {
             "climate_fan_command" to ("5/2/5" to "5.001"),
             "climate_fan" to ("5/3/5" to "5.001"),
             "dining_co2" to ("5/1/1" to "9.008"),
+            "entrance_pir_block" to ("5/5/1" to "1.001"),
+            "kitchen_flood" to ("5/4/1" to "1.005"),
+            "bathroom_flood" to ("5/4/1" to "1.005"),
             "terrace_luminosity" to ("15/0/11" to "9.004"),
             "terrace_wind_speed" to ("15/0/14" to "9.005"),
             "terrace_raining" to ("15/0/15" to "1.005"),
@@ -60,6 +63,21 @@ class KnxAuditTest {
                 KnxDptResolver.isKnown(entry.dpt)
             )
         }
+    }
+
+    @Test
+    fun `entrada PIR e inundacion compartida conservan configuracion validada`() {
+        val entries = KnxAddressBook.entries.associateBy { it.key }
+
+        assertEquals("5/5/1", entries.getValue("entrance_pir_block").defaultAddress)
+        assertEquals("Lectura y mando", entries.getValue("entrance_pir_block").kind)
+        assertEquals("1.001", entries.getValue("entrance_pir_block").dpt)
+
+        assertEquals(
+            entries.getValue("kitchen_flood").defaultAddress,
+            entries.getValue("bathroom_flood").defaultAddress
+        )
+        assertEquals("5/4/1", entries.getValue("kitchen_flood").defaultAddress)
     }
 
     @Test

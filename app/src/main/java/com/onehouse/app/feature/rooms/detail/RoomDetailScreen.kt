@@ -30,8 +30,11 @@ import com.onehouse.app.design.FondoInferior
 import com.onehouse.app.design.FondoSuperior
 import com.onehouse.app.device.ImportedKnxDevice
 import com.onehouse.app.feature.home.state.HomeStateMapper
+import com.onehouse.app.knx.KnxAddressBook
+import com.onehouse.app.knx.KnxCommand
 import com.onehouse.app.knx.KnxCommandExecutor
 import com.onehouse.app.knx.KnxCommandType
+import com.onehouse.app.knx.KnxGroupAddress
 import com.onehouse.app.knx.KnxHomeStateRepository
 
 @Composable
@@ -144,7 +147,7 @@ fun RoomDetailScreen(roomType: RoomType, onBack: () -> Unit) {
                     )
                 }
 
-                // Cualquier objeto KNX adicional importado sigue mostrándose y conserva su mando.
+                // Cualquier objeto KNX adicional de la estancia sigue mostrándose y conserva su mando.
                 visibleLights
                     .filterNot { it.device.id in matchedDeviceIds }
                     .forEachIndexed { index, light ->
@@ -207,7 +210,20 @@ fun RoomDetailScreen(roomType: RoomType, onBack: () -> Unit) {
                     }
                     RoomType.ENTRANCE -> {
                         Spacer(Modifier.height(12.dp))
-                        RoomPirCard(blocked = roomState.pirBlocked, onBlockedChange = { })
+                        RoomPirCard(
+                            blocked = roomState.pirBlocked,
+                            onBlockedChange = { requested ->
+                                val command = KnxCommand(
+                                    type = if (requested) KnxCommandType.ON else KnxCommandType.OFF,
+                                    destination = KnxGroupAddress.parse(KnxAddressBook.Indoor.PIR_BLOCK_ENTRANCE),
+                                    dpt = "1.001"
+                                )
+                                commandExecutor.execute(
+                                    command = command,
+                                    verificationAddress = KnxAddressBook.Indoor.PIR_BLOCK_ENTRANCE
+                                ) { }
+                            }
+                        )
                     }
                     RoomType.HALLWAY -> {
                         Spacer(Modifier.height(12.dp))
