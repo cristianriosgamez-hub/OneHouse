@@ -22,14 +22,17 @@ internal object KnxCentralEngine {
         private val appContext = context.applicationContext
 
         val stateRepository = KnxStateRepository(appContext)
+        val monitorRepository = KnxTelegramMonitorRepository(appContext)
         val healthRepository = KnxEngineHealthRepository(stateRepository)
         val realtimeDispatcher = KnxRealtimeDispatcher(stateRepository)
         val subscriptionManager = KnxSubscriptionManager(
             stateRepository = stateRepository,
             realtimeDispatcher = realtimeDispatcher
         )
-        val connectionManager = KnxConnectionManager(stateRepository = stateRepository)
-        val monitorRepository = KnxTelegramMonitorRepository(appContext)
+        val connectionManager = KnxConnectionManager(
+            stateRepository = stateRepository,
+            monitorRepository = monitorRepository
+        )
         val statisticsRepository = KnxSessionStatisticsRepository(appContext)
     }
 

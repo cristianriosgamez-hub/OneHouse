@@ -10,14 +10,37 @@ import java.util.concurrent.atomic.AtomicLong
 /**
  * Historial ligero y persistente de comunicaciones KNX.
  *
- * El mismo flujo admite eventos salientes y, cuando se active el receptor
- * permanente del túnel, telegramas entrantes GroupValueWrite/Response.
+ * El mismo flujo admite eventos salientes, ciclo de vida del túnel y telegramas
+ * entrantes GroupValueWrite/Response recibidos por el receptor pasivo.
  */
 class KnxTelegramMonitorRepository(context: Context) {
+    data class Summary(
+        val total: Int,
+        val outgoing: Int,
+        val incoming: Int,
+        val system: Int,
+        val errors: Int,
+        val lastError: KnxTelegramEvent?,
+        val lastActivity: KnxTelegramEvent?
+    )
+
     private val preferences = context.applicationContext.getSharedPreferences(PREFERENCES_NAME, Context.MODE_PRIVATE)
 
     fun recent(limit: Int = MAX_EVENTS): List<KnxTelegramEvent> = synchronized(lock) {
         loadLocked().takeLast(limit.coerceIn(1, MAX_EVENTS)).reversed()
+    }
+
+    fun summary(): Summary = synchronized(lock) {
+        val events = loadLocked()
+        Summary(
+            total = events.size,
+            outgoing = events.count { it.direction == KnxTelegramEvent.Direction.OUTGOING },
+            incoming = events.count { it.direction == KnxTelegramEvent.Direction.INCOMING },
+            system = events.count { it.direction == KnxTelegramEvent.Direction.SYSTEM },
+            errors = events.count { it.status == KnxTelegramEvent.Status.ERROR },
+            lastError = events.lastOrNull { it.status == KnxTelegramEvent.Status.ERROR },
+            lastActivity = events.lastOrNull()
+        )
     }
 
     fun observe(observer: (List<KnxTelegramEvent>) -> Unit): Closeable {
@@ -124,7 +147,7 @@ class KnxTelegramMonitorRepository(context: Context) {
     private companion object {
         const val PREFERENCES_NAME = "knx_telegram_monitor"
         const val KEY_EVENTS = "events"
-        const val MAX_EVENTS = 60
+        const val MAX_EVENTS = 120
         val lock = Any()
         val observers = CopyOnWriteArraySet<(List<KnxTelegramEvent>) -> Unit>()
         val idCounter = AtomicLong(System.currentTimeMillis())

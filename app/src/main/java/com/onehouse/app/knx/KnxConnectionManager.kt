@@ -24,7 +24,8 @@ import kotlin.concurrent.withLock
  */
 class KnxConnectionManager(
     private val timeoutMillis: Int = KnxProtocol.DEFAULT_TIMEOUT_MILLIS,
-    private val stateRepository: KnxStateRepository? = null
+    private val stateRepository: KnxStateRepository? = null,
+    private val monitorRepository: KnxTelegramMonitorRepository? = null
 ) : Closeable {
 
     enum class State {
@@ -147,6 +148,12 @@ class KnxConnectionManager(
         when (decision) {
             is ConnectDecision.Reuse -> {
                 KnxPerformanceMetrics.recordTunnelReuse(source)
+                monitorRepository?.record(
+                    direction = KnxTelegramEvent.Direction.SYSTEM,
+                    kind = KnxTelegramEvent.Kind.CONNECT,
+                    status = KnxTelegramEvent.Status.CONFIRMED,
+                    detail = "Túnel reutilizado · canal ${decision.channelId} · origen $source"
+                )
                 mainHandler.post {
                     onResult(ConnectResult.Success(endpoint.host, decision.channelId))
                 }
@@ -157,6 +164,12 @@ class KnxConnectionManager(
                 // Contabilizamos también como reutilización: la solicitud aprovecha
                 // el intento de apertura que ya está en curso en vez de crear otro.
                 KnxPerformanceMetrics.recordTunnelReuse(source)
+                monitorRepository?.record(
+                    direction = KnxTelegramEvent.Direction.SYSTEM,
+                    kind = KnxTelegramEvent.Kind.CONNECT,
+                    status = KnxTelegramEvent.Status.PENDING,
+                    detail = "Solicitud agrupada con una apertura de túnel ya en curso · origen $source"
+                )
                 return Closeable {
                     synchronized(lock) { pendingConnectCallbacks.remove(onResult) }
                 }
@@ -166,7 +179,13 @@ class KnxConnectionManager(
         }
 
         KnxPerformanceMetrics.recordTunnelOpenAttempt(source)
-        disconnectInternal(sendRequest = true)
+        monitorRepository?.record(
+            direction = KnxTelegramEvent.Direction.SYSTEM,
+            kind = KnxTelegramEvent.Kind.CONNECT,
+            status = KnxTelegramEvent.Status.PENDING,
+            detail = "Apertura de túnel ${endpoint.host}:${endpoint.port} · origen $source"
+        )
+        disconnectInternal(sendRequest = true, reason = "Nueva apertura solicitada")
         cancelled = AtomicBoolean(false)
         state = State.CONNECTING
         synchronized(lock) { connectingEndpoint = endpoint }
@@ -174,6 +193,7 @@ class KnxConnectionManager(
         val currentCancellation = cancelled
         val thread = Thread {
             val result = openTunnel(endpoint, currentCancellation, source)
+            recordConnectResult(result, endpoint, source)
 
             if (!currentCancellation.get()) {
                 mainHandler.post {
@@ -222,7 +242,7 @@ class KnxConnectionManager(
 
     fun disconnect() {
         cancelScheduledDisconnect()
-        disconnectInternal(sendRequest = true)
+        disconnectInternal(sendRequest = true, reason = "Desconexión solicitada")
     }
 
     /**
@@ -246,7 +266,7 @@ class KnxConnectionManager(
                     true
                 }
             }
-            if (shouldDisconnect) disconnectInternal(sendRequest = true)
+            if (shouldDisconnect) disconnectInternal(sendRequest = true, reason = "Cierre por inactividad")
         }
         synchronized(lock) { scheduledDisconnect = task }
         mainHandler.postDelayed(task, delayMillis)
@@ -547,6 +567,18 @@ class KnxConnectionManager(
                         lastTunnelActivityMillis = System.currentTimeMillis()
                         KnxParallelEventBus.publish(parsed.telegram)
                         stateRepository?.record(parsed.telegram)
+                        monitorRepository?.record(
+                            direction = KnxTelegramEvent.Direction.INCOMING,
+                            kind = if (parsed.telegram.kind == IncomingGroupTelegram.Kind.RESPONSE) {
+                                KnxTelegramEvent.Kind.GROUP_VALUE_RESPONSE
+                            } else {
+                                KnxTelegramEvent.Kind.GROUP_VALUE_WRITE
+                            },
+                            groupAddress = parsed.telegram.destination.toString(),
+                            value = parsed.telegram.booleanValue?.let { if (it) "1" else "0" },
+                            status = KnxTelegramEvent.Status.RECEIVED,
+                            detail = "RX espontáneo · origen ${parsed.telegram.sourceAddress} · ${parsed.telegram.apci}"
+                        )
                     }
                 } catch (_: SocketTimeoutException) {
                     // El timeout corto solo permite ceder el socket a comandos.
@@ -577,7 +609,7 @@ class KnxConnectionManager(
 
     override fun close() {
         cancelScheduledDisconnect()
-        disconnectInternal(sendRequest = true)
+        disconnectInternal(sendRequest = true, reason = "Cierre del gestor KNX")
     }
 
     private fun openTunnel(
@@ -668,7 +700,30 @@ class KnxConnectionManager(
         }
     }
 
-    private fun disconnectInternal(sendRequest: Boolean) {
+    private fun recordConnectResult(result: ConnectResult, endpoint: KnxEndpoint, source: String) {
+        val (status, detail) = when (result) {
+            is ConnectResult.Success -> KnxTelegramEvent.Status.CONFIRMED to
+                "Túnel abierto · ${endpoint.host}:${endpoint.port} · canal ${result.channelId} · origen $source"
+            ConnectResult.Timeout -> KnxTelegramEvent.Status.ERROR to
+                "Timeout al abrir túnel ${endpoint.host}:${endpoint.port} · origen $source"
+            is ConnectResult.Rejected -> KnxTelegramEvent.Status.ERROR to
+                "Túnel rechazado · código ${result.status} (${KnxProtocol.statusDescription(result.status)}) · origen $source"
+            is ConnectResult.NetworkError -> KnxTelegramEvent.Status.ERROR to
+                "Error de red al abrir túnel · ${result.detail} · origen $source"
+            ConnectResult.InvalidResponse -> KnxTelegramEvent.Status.ERROR to
+                "Respuesta KNX/IP no válida al abrir túnel · origen $source"
+            ConnectResult.Cancelled -> KnxTelegramEvent.Status.ERROR to
+                "Apertura de túnel cancelada · origen $source"
+        }
+        monitorRepository?.record(
+            direction = KnxTelegramEvent.Direction.SYSTEM,
+            kind = KnxTelegramEvent.Kind.CONNECT,
+            status = status,
+            detail = detail
+        )
+    }
+
+    private fun disconnectInternal(sendRequest: Boolean, reason: String = "Desconexión") {
         val udpSocket: DatagramSocket?
         val currentChannel: Int?
         val ownAddress: Inet4Address?
@@ -707,6 +762,12 @@ class KnxConnectionManager(
 
         if (udpSocket != null && !udpSocket.isClosed && currentChannel != null) {
             KnxPerformanceMetrics.recordTunnelDisconnect()
+            monitorRepository?.record(
+                direction = KnxTelegramEvent.Direction.SYSTEM,
+                kind = KnxTelegramEvent.Kind.DISCONNECT,
+                status = KnxTelegramEvent.Status.CONFIRMED,
+                detail = "$reason · canal $currentChannel"
+            )
         }
         udpSocket?.close()
         clearSession()

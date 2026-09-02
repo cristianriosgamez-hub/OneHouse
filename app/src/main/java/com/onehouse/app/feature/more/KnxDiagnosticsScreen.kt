@@ -1,5 +1,8 @@
 package com.onehouse.app.feature.more
 
+import android.content.ClipData
+import android.content.ClipboardManager
+import android.content.Context
 import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -46,6 +49,7 @@ import com.onehouse.app.knx.KnxCommandExecutor
 import com.onehouse.app.knx.KnxCommandType
 import com.onehouse.app.knx.KnxGroupAddress
 import com.onehouse.app.knx.KnxPerformanceMetrics
+import com.onehouse.app.knx.KnxSessionStatisticsRepository
 import com.onehouse.app.knx.KnxStateRepository
 import com.onehouse.app.knx.KnxTelegramEvent
 import com.onehouse.app.knx.KnxTelegramMonitorRepository
@@ -70,17 +74,25 @@ fun KnxDiagnosticsScreen(onBack: () -> Unit) {
     val projectRepository = remember { AppKnxConfigurationRepository(context.applicationContext).also(KnxAddressBook::apply) }
     val stateRepository = remember { KnxStateRepository(context.applicationContext) }
     val monitorRepository = remember { KnxTelegramMonitorRepository(context.applicationContext) }
+    val sessionStatisticsRepository = remember { KnxSessionStatisticsRepository(context.applicationContext) }
     val executor = remember { KnxCommandExecutor(context.applicationContext) }
 
     var states by remember { mutableStateOf(stateRepository.snapshot()) }
-    var events by remember { mutableStateOf(monitorRepository.recent(20)) }
+    var events by remember { mutableStateOf(monitorRepository.recent(30)) }
+    var monitorSummary by remember { mutableStateOf(monitorRepository.summary()) }
+    var sessionStatistics by remember { mutableStateOf(sessionStatisticsRepository.snapshot()) }
     var performanceMetrics by remember { mutableStateOf(KnxPerformanceMetrics.snapshot()) }
     var filter by remember { mutableStateOf("") }
     var testingAddress by remember { mutableStateOf<String?>(null) }
 
     DisposableEffect(Unit) {
         val stateCloseable = stateRepository.observe { states = it }
-        val eventCloseable = monitorRepository.observe { events = it.take(20) }
+        val eventCloseable = monitorRepository.observe {
+            events = it.take(30)
+            monitorSummary = monitorRepository.summary()
+            sessionStatistics = sessionStatisticsRepository.snapshot()
+            performanceMetrics = KnxPerformanceMetrics.snapshot()
+        }
         onDispose {
             stateCloseable.close()
             eventCloseable.close()
@@ -197,6 +209,63 @@ fun KnxDiagnosticsScreen(onBack: () -> Unit) {
                     modifier = Modifier.padding(16.dp),
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
+                    Text("Salud de comunicaciones", color = TextoPrincipal, fontWeight = FontWeight.Bold)
+                    Text(
+                        "Historial pasivo: observa KNX sin generar telegramas adicionales.",
+                        color = TextoSecundario,
+                        fontSize = 12.sp
+                    )
+                    Text(
+                        "Eventos: ${monitorSummary.total} · TX ${monitorSummary.outgoing} · RX ${monitorSummary.incoming} · Sistema ${monitorSummary.system}",
+                        color = TextoSecundario
+                    )
+                    Text(
+                        text = if (monitorSummary.errors == 0) {
+                            "Errores registrados: 0"
+                        } else {
+                            "Errores registrados: ${monitorSummary.errors}"
+                        },
+                        color = if (monitorSummary.errors == 0) AzulClaro else MaterialTheme.colorScheme.error,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                    monitorSummary.lastActivity?.let { last ->
+                        Text(
+                            "Última actividad: ${formatDateTime(last.timestampMillis)} · ${eventKindLabel(last)}",
+                            color = TextoSecundario,
+                            fontSize = 12.sp
+                        )
+                    }
+                    monitorSummary.lastError?.let { lastError ->
+                        Text(
+                            "Último error: ${formatDateTime(lastError.timestampMillis)} · ${lastError.detail ?: eventKindLabel(lastError)}",
+                            color = MaterialTheme.colorScheme.error,
+                            fontSize = 12.sp
+                        )
+                    }
+                    Text(
+                        "Sesión persistente · conexiones ${sessionStatistics.connections} · errores conexión ${sessionStatistics.connectionErrors} · operaciones ${sessionStatistics.telegramsSent} · errores operación ${sessionStatistics.operationErrors}",
+                        color = TextoSecundario,
+                        fontSize = 12.sp
+                    )
+                    Text(
+                        "ACK gateway ${sessionStatistics.gatewayAcks} · último/media ${sessionStatistics.lastAckMillis?.let { "$it ms" } ?: "—"} / ${sessionStatistics.averageAckMillis?.let { "$it ms" } ?: "—"}",
+                        color = TextoSecundario,
+                        fontSize = 12.sp
+                    )
+                    OutlinedButton(
+                        onClick = { copyDiagnosticsToClipboard(context, monitorRepository, performanceMetrics, sessionStatistics) },
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text("Copiar diagnóstico")
+                    }
+                }
+            }
+
+            OneHouseCard {
+                Column(
+                    modifier = Modifier.padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
                     Text("Métricas motor KNX", color = TextoPrincipal, fontWeight = FontWeight.Bold)
                     Text(
                         "Medición interna de la ruta actual de estados KNX.",
@@ -263,7 +332,10 @@ fun KnxDiagnosticsScreen(onBack: () -> Unit) {
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
                         Button(
-                            onClick = { performanceMetrics = KnxPerformanceMetrics.snapshot() },
+                            onClick = {
+                                performanceMetrics = KnxPerformanceMetrics.snapshot()
+                                sessionStatistics = sessionStatisticsRepository.snapshot()
+                            },
                             modifier = Modifier.weight(1f)
                         ) {
                             Text("Actualizar")
@@ -271,7 +343,9 @@ fun KnxDiagnosticsScreen(onBack: () -> Unit) {
                         OutlinedButton(
                             onClick = {
                                 KnxPerformanceMetrics.clear()
+                                sessionStatisticsRepository.clear()
                                 performanceMetrics = KnxPerformanceMetrics.snapshot()
+                                sessionStatistics = sessionStatisticsRepository.snapshot()
                             },
                             modifier = Modifier.weight(1f)
                         ) {
@@ -382,7 +456,7 @@ fun KnxDiagnosticsScreen(onBack: () -> Unit) {
                 }
             }
 
-            Text("Monitor de telegramas", color = TextoPrincipal, fontWeight = FontWeight.Bold, fontSize = 20.sp)
+            Text("Monitor de telegramas · últimos 30", color = TextoPrincipal, fontWeight = FontWeight.Bold, fontSize = 20.sp)
             if (events.isEmpty()) {
                 Text("Todavía no hay operaciones KNX registradas.", color = TextoSecundario)
             } else {
@@ -440,15 +514,63 @@ private fun TelegramEventCard(event: KnxTelegramEvent) {
     OneHouseCard {
         Column(modifier = Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(3.dp)) {
             Text(
-                "${formatter.format(Date(event.timestampMillis))} · ${event.status.name}",
+                "${formatter.format(Date(event.timestampMillis))} · ${statusLabel(event.status)}",
                 color = TextoPrincipal,
                 fontWeight = FontWeight.SemiBold
             )
-            Text("${event.direction.name} · ${event.kind.name}", color = TextoSecundario, fontSize = 12.sp)
+            Text("${directionLabel(event.direction)} · ${kindLabel(event.kind)}", color = TextoSecundario, fontSize = 12.sp)
             event.groupAddress?.let { Text("GA $it${event.value?.let { value -> " · $value" }.orEmpty()}", color = TextoPrincipal) }
             event.detail?.let { Text(it, color = TextoSecundario, fontSize = 12.sp) }
         }
     }
+}
+
+private fun copyDiagnosticsToClipboard(
+    context: Context,
+    monitorRepository: KnxTelegramMonitorRepository,
+    metrics: KnxPerformanceMetrics.Snapshot,
+    session: KnxSessionStatisticsRepository.Snapshot
+) {
+    val summary = monitorRepository.summary()
+    val text = buildString {
+        appendLine("OneHouse · Diagnóstico KNX")
+        appendLine("Generado: ${formatDateTime(System.currentTimeMillis())}")
+        appendLine("Eventos: ${summary.total} · TX ${summary.outgoing} · RX ${summary.incoming} · Sistema ${summary.system} · Errores ${summary.errors}")
+        appendLine("Túnel: aperturas ${metrics.tunnelOpenAttempts} · reutilizados ${metrics.tunnelReuses} · conectados ${metrics.tunnelConnectSuccesses} · código36 ${metrics.tunnelRejected36} · cierres ${metrics.tunnelDisconnects}")
+        appendLine("Persistente: conexiones ${session.connections} · erroresConexión ${session.connectionErrors} · operaciones ${session.telegramsSent} · ACK ${session.gatewayAcks} · erroresOperación ${session.operationErrors} · retransmisiones ${session.retransmissions}")
+        appendLine()
+        append(monitorRepository.exportText())
+    }
+    val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+    clipboard.setPrimaryClip(ClipData.newPlainText("Diagnóstico KNX OneHouse", text))
+    Toast.makeText(context, "Diagnóstico KNX copiado", Toast.LENGTH_SHORT).show()
+}
+
+private fun formatDateTime(timestampMillis: Long): String =
+    SimpleDateFormat("dd/MM/yyyy HH:mm:ss", Locale.getDefault()).format(Date(timestampMillis))
+
+private fun eventKindLabel(event: KnxTelegramEvent): String =
+    "${directionLabel(event.direction)} · ${kindLabel(event.kind)} · ${statusLabel(event.status)}"
+
+private fun directionLabel(direction: KnxTelegramEvent.Direction): String = when (direction) {
+    KnxTelegramEvent.Direction.OUTGOING -> "TX"
+    KnxTelegramEvent.Direction.INCOMING -> "RX"
+    KnxTelegramEvent.Direction.SYSTEM -> "SISTEMA"
+}
+
+private fun kindLabel(kind: KnxTelegramEvent.Kind): String = when (kind) {
+    KnxTelegramEvent.Kind.CONNECT -> "CONEXIÓN"
+    KnxTelegramEvent.Kind.GROUP_VALUE_READ -> "LECTURA"
+    KnxTelegramEvent.Kind.GROUP_VALUE_WRITE -> "ESCRITURA"
+    KnxTelegramEvent.Kind.GROUP_VALUE_RESPONSE -> "RESPUESTA"
+    KnxTelegramEvent.Kind.DISCONNECT -> "DESCONEXIÓN"
+}
+
+private fun statusLabel(status: KnxTelegramEvent.Status): String = when (status) {
+    KnxTelegramEvent.Status.PENDING -> "PENDIENTE"
+    KnxTelegramEvent.Status.CONFIRMED -> "OK"
+    KnxTelegramEvent.Status.RECEIVED -> "RECIBIDO"
+    KnxTelegramEvent.Status.ERROR -> "ERROR"
 }
 
 private fun displayValue(state: KnxStateRepository.State): String = when {
