@@ -5,17 +5,17 @@ data class BackupSummary(
     val appVersion: String,
     val preferencesFiles: Int,
     val knxEntries: Int,
-    val knxActiveAddresses: Int
+    val knxActiveAddresses: Int,
+    val climateScheduleEvents: Int
 )
 
 data class BackupValidation(
     val schemaVersion: Int,
     val compatiblePreferenceFiles: Int,
-    val ignoredPreferenceFiles: Int,
-    val ignoredKnxEntries: Int,
+    val integrityVerified: Boolean,
     val warnings: List<String>
 ) {
-    val isClean: Boolean get() = warnings.isEmpty()
+    val isClean: Boolean get() = integrityVerified && warnings.isEmpty()
 }
 
 data class BackupPreview(

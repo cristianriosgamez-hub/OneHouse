@@ -133,7 +133,7 @@ fun BackupRestoreScreen(onBack: () -> Unit) {
                 ) {
                     Text("Crear copia", color = TextoPrincipal, fontWeight = FontWeight.SemiBold)
                     Text(
-                        "Incluye solo la configuración KNX activa de OneHouse, la programación de climatización y preferencias compatibles. Los datos históricos del importador quedan fuera.",
+                        "Incluye la configuración KNX activa, la conexión local/remota y la programación de climatización. Los consumos se gestionan desde Importar/Exportar consumos.",
                         color = TextoSecundario
                     )
                     Button(
@@ -153,7 +153,7 @@ fun BackupRestoreScreen(onBack: () -> Unit) {
                 ) {
                     Text("Restaurar copia", color = TextoPrincipal, fontWeight = FontWeight.SemiBold)
                     Text(
-                        "El archivo se valida antes de sobrescribir los datos actuales.",
+                        "El archivo se valida por estructura e integridad SHA-256 antes de sobrescribir los datos actuales.",
                         color = TextoSecundario
                     )
                     OutlinedButton(
@@ -196,24 +196,21 @@ fun BackupRestoreScreen(onBack: () -> Unit) {
             text = {
                 val date = DateFormat.getDateTimeInstance().format(Date(selected.summary.createdAtMillis))
                 val validation = selected.validation
-                val validationText = if (validation.warnings.isEmpty()) {
-                    "Validación: OK · copia compatible y limpia\n"
+                val validationText = if (validation.isClean) {
+                    "Validación: OK · estructura e integridad verificadas\n"
                 } else {
-                    "Validación: compatible con avisos\n" +
+                    "Validación: con avisos\n" +
                         validation.warnings.joinToString(separator = "\n") { "• $it" } + "\n"
                 }
                 Text(
                     "Fecha: $date\nVersión: ${selected.summary.appVersion}\n" +
                         "Esquema: ${validation.schemaVersion}\n" +
-                        "Bloques compatibles: ${validation.compatiblePreferenceFiles}\n" +
+                        "Bloques de configuración: ${validation.compatiblePreferenceFiles}\n" +
                         validationText +
-                        (if (selected.summary.knxActiveAddresses >= 0) {
-                            "Estados KNX activos: ${selected.summary.knxActiveAddresses}\n"
-                        } else {
-                            "Entradas KNX (copia antigua): ${selected.summary.knxEntries}\n"
-                        }) +
-                        "\nRestauración transaccional: si algo falla, OneHouse recuperará automáticamente la configuración anterior." +
-                        "\nLas GAs históricas del importador no se restaurarán."
+                        "Estados KNX activos: ${selected.summary.knxActiveAddresses}\n" +
+                        "Programaciones de clima: ${selected.summary.climateScheduleEvents}\n" +
+                        "\nEsta copia pertenece al formato definitivo de la OneHouse actual." +
+                        "\nRestauración transaccional: si algo falla, OneHouse recuperará automáticamente la configuración anterior."
                 )
             },
             confirmButton = {

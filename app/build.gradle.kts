@@ -16,8 +16,8 @@ android {
         applicationId = "com.onehouse.app"
         minSdk = 29
         targetSdk = 36
-        versionCode = 135
-        versionName = "1.13.6 Diagnóstico y robustez KNX"
+        versionCode = 136
+        versionName = "1.13.7 Backup definitivo OneHouse"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }

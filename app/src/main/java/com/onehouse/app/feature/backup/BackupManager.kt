@@ -10,32 +10,27 @@ import com.onehouse.app.knx.KnxDeviceFactory
 import com.onehouse.app.knx.KnxHomeStateRepository
 import org.json.JSONArray
 import org.json.JSONObject
+import java.security.MessageDigest
 import java.time.Instant
 
 /**
- * Creates and restores OneHouse backups using only the SharedPreferences files
- * explicitly supported by the application.
+ * Backup format for the current, cleaned OneHouse application.
  *
- * Since v1.13.1 the generic backup follows the same KNX whitelist as the live app:
- * only active OneHouse preferences are exported and KNX configuration
- * keys are filtered before writing or restoring a backup.
+ * Schema 3 deliberately has no backwards-compatibility layer. A backup is an
+ * exact snapshot of the active configuration blocks and is accepted only when
+ * its structure and SHA-256 payload fingerprint are valid.
+ *
+ * Consumption history is managed by the dedicated Import/Export Consumos tool;
+ * this backup protects the application/KNX configuration and climate schedule.
  */
 class BackupManager(context: Context) {
     private val appContext = context.applicationContext
 
     fun createBackup(appVersion: String): String {
-        // Forces the silent v1.13 pruning before taking the snapshot. This makes
-        // app_project_copy itself clean even if the user has never opened the KNX editor.
+        // Normalize the KNX project before taking the definitive snapshot.
         val knxRepository = AppKnxConfigurationRepository(appContext)
         knxRepository.loadProject()
         KnxAddressBook.apply(knxRepository)
-
-        val root = JSONObject()
-            .put("format", FORMAT)
-            .put("schemaVersion", SCHEMA_VERSION)
-            .put("createdAtMillis", System.currentTimeMillis())
-            .put("createdAtIso", Instant.now().toString())
-            .put("appVersion", appVersion)
 
         val files = JSONObject()
         BACKUP_PREFERENCES.forEach { name ->
@@ -47,8 +42,17 @@ class BackupManager(context: Context) {
                 )
             )
         }
-        root.put("preferences", files)
-        root.put("summary", buildSummary(files, activeKnxAddressCount(knxRepository)))
+
+        val root = JSONObject()
+            .put("format", FORMAT)
+            .put("schemaVersion", SCHEMA_VERSION)
+            .put("createdAtMillis", System.currentTimeMillis())
+            .put("createdAtIso", Instant.now().toString())
+            .put("appVersion", appVersion)
+            .put("preferences", files)
+            .put("payloadSha256", sha256(canonicalJson(files)))
+            .put("summary", buildSummary(files, activeKnxAddressCount(knxRepository)))
+
         return root.toString(2)
     }
 
@@ -58,15 +62,16 @@ class BackupManager(context: Context) {
         validateRoot(root)
         val files = root.getJSONObject("preferences")
         val validation = validateBackupContents(root, files)
-        val summaryJson = root.optJSONObject("summary") ?: buildSummary(files, -1)
+        val summaryJson = root.getJSONObject("summary")
 
         return BackupPreview(
             summary = BackupSummary(
                 createdAtMillis = root.getLong("createdAtMillis"),
-                appVersion = root.optString("appVersion", "Desconocida"),
-                preferencesFiles = summaryJson.optInt("preferencesFiles", files.length()),
-                knxEntries = summaryJson.optInt("knxEntries", countObjectEntries(files, PreferenceFiles.KNX_CONFIGURATION)),
-                knxActiveAddresses = summaryJson.optInt("knxActiveAddresses", -1)
+                appVersion = root.getString("appVersion"),
+                preferencesFiles = summaryJson.getInt("preferencesFiles"),
+                knxEntries = summaryJson.getInt("knxEntries"),
+                knxActiveAddresses = summaryJson.getInt("knxActiveAddresses"),
+                climateScheduleEvents = summaryJson.optInt("climateScheduleEvents", 0)
             ),
             validation = validation,
             rawJson = rawJson
@@ -78,106 +83,120 @@ class BackupManager(context: Context) {
         val root = JSONObject(rawJson)
         validateRoot(root)
         val files = root.getJSONObject("preferences")
-        // Run the same deep validation used by preview immediately before writing.
-        // This protects against a modified/corrupted file between preview and restore.
         validateBackupContents(root, files)
 
-        val decoded = linkedMapOf<String, Map<String, Any>>()
-        files.keys().forEach { name ->
-            if (name in BACKUP_PREFERENCES) {
-                val values = decodePreferences(files.getJSONObject(name))
-                decoded[name] = if (name == PreferenceFiles.KNX_CONFIGURATION) {
-                    // Solo se restauran las claves KNX admitidas por la versión actual.
-                    values
-                } else {
-                    values
-                }
-            }
+        // Schema 3 is exact: all current blocks were already required by validation.
+        val decoded = BACKUP_PREFERENCES.associateWith { name ->
+            decodePreferences(files.getJSONObject(name))
         }
-        require(decoded.isNotEmpty()) { "La copia no contiene datos compatibles con OneHouse." }
 
-        val previous: Map<String, Map<String, Any>> = decoded.keys.associateWith { name ->
+        // Keep a complete in-memory snapshot for transactional rollback.
+        val previous: Map<String, Map<String, Any>> = BACKUP_PREFERENCES.associateWith { name ->
             appContext.getSharedPreferences(name, Context.MODE_PRIVATE).all
                 .mapNotNull { (key, value) -> value?.let { key to it } }
                 .toMap()
         }
+
         try {
             decoded.forEach { (name, values) -> replacePreferences(name, values) }
 
-            if (decoded.containsKey(PreferenceFiles.KNX_CONFIGURATION)) {
-                val repository = AppKnxConfigurationRepository(appContext)
-                repository.loadProject()
-                KnxAddressBook.apply(repository)
+            // Re-parse/prune and apply restored KNX configuration before success.
+            val repository = AppKnxConfigurationRepository(appContext)
+            require(repository.loadProject() != null) {
+                "El proyecto KNX restaurado no se puede cargar."
             }
+            KnxAddressBook.apply(repository)
         } catch (restoreError: Throwable) {
             val rollbackError = runCatching {
                 previous.forEach { (name, values) -> replacePreferences(name, values) }
+                val repository = AppKnxConfigurationRepository(appContext)
+                repository.loadProject()
+                KnxAddressBook.apply(repository)
             }.exceptionOrNull()
             if (rollbackError != null) restoreError.addSuppressed(rollbackError)
             throw restoreError
         }
 
         BackupOperationResult.Success(
-            "Restauración completada y configuración KNX depurada. Reinicia OneHouse para recargar toda la configuración."
+            "Restauración completada y validada. Reinicia OneHouse para recargar toda la configuración."
         )
     }.getOrElse { error ->
         BackupOperationResult.Error(error.message ?: "No se pudo restaurar la copia de seguridad.")
     }
 
-
     private fun validateBackupContents(root: JSONObject, files: JSONObject): BackupValidation {
-        val schema = root.optInt("schemaVersion", -1)
-        var compatibleFiles = 0
-        val ignoredFiles = 0
-        val ignoredKnxEntries = 0
-        val warnings = mutableListOf<String>()
-
-        files.keys().forEach { name ->
-            val fileJson = files.optJSONObject(name)
-                ?: error("El bloque de preferencias '$name' está dañado.")
-
-            when {
-                name in BACKUP_PREFERENCES -> {
-                    compatibleFiles++
-                    // Fully decode every supported block now. Unknown types, missing values
-                    // or malformed numbers make the backup invalid before any write occurs.
-                    val decoded = decodePreferences(fileJson)
-                    if (name == PreferenceFiles.KNX_CONFIGURATION) {
-                        val unsupported = decoded.keys.filterNot {
-                            AppKnxConfigurationRepository.isSupportedBackupPreferenceKey(it)
-                        }
-                        require(unsupported.isEmpty()) {
-                            "La copia contiene entradas KNX no compatibles con esta versión: ${unsupported.joinToString()}"
-                        }
-                        validateKnxConfiguration(decoded)
-                    }
-                }
-                else -> error("La copia contiene un bloque no compatible con esta versión de OneHouse: '$name'.")
+        val actualNames = files.keys().asSequence().toSet()
+        val expectedNames = BACKUP_PREFERENCES.toSet()
+        require(actualNames == expectedNames) {
+            val missing = (expectedNames - actualNames).sorted()
+            val extra = (actualNames - expectedNames).sorted()
+            buildString {
+                append("La copia no coincide con la configuración actual de OneHouse.")
+                if (missing.isNotEmpty()) append(" Faltan: ${missing.joinToString()}.")
+                if (extra.isNotEmpty()) append(" Sobran: ${extra.joinToString()}.")
             }
         }
 
-        require(compatibleFiles > 0) { "La copia no contiene datos compatibles con OneHouse." }
-        if (schema == SCHEMA_VERSION && !files.has(PreferenceFiles.KNX_CONFIGURATION)) {
-            warnings += "La copia no contiene configuración KNX; la configuración KNX actual no se modificará."
+        val storedHash = root.getString("payloadSha256")
+        require(storedHash.matches(Regex("[0-9a-f]{64}"))) {
+            "La huella de integridad de la copia no es válida."
+        }
+        val calculatedHash = sha256(canonicalJson(files))
+        require(storedHash == calculatedHash) {
+            "La copia está dañada o ha sido modificada: la huella de integridad no coincide."
+        }
+
+        BACKUP_PREFERENCES.forEach { name ->
+            val fileJson = files.optJSONObject(name)
+                ?: error("El bloque '$name' está dañado.")
+            val decoded = decodePreferences(fileJson)
+            when (name) {
+                PreferenceFiles.KNX_SETTINGS -> validateKnxSettings(decoded)
+                PreferenceFiles.KNX_CONFIGURATION -> validateKnxConfiguration(decoded)
+                PreferenceFiles.CLIMATE_SCHEDULE -> validateClimateSchedule(decoded)
+            }
         }
 
         return BackupValidation(
-            schemaVersion = schema,
-            compatiblePreferenceFiles = compatibleFiles,
-            ignoredPreferenceFiles = ignoredFiles,
-            ignoredKnxEntries = ignoredKnxEntries,
-            warnings = warnings.distinct()
+            schemaVersion = root.getInt("schemaVersion"),
+            compatiblePreferenceFiles = BACKUP_PREFERENCES.size,
+            integrityVerified = true,
+            warnings = emptyList()
         )
     }
 
+    private fun validateKnxSettings(values: Map<String, Any>) {
+        val required = setOf("local_ip", "local_port", "remote_ip", "remote_port", "auto_reconnect")
+        require(values.keys.containsAll(required)) { "La configuración de conexión KNX está incompleta." }
+
+        require(values["local_ip"] is String) { "La IP local KNX no es válida." }
+        require(values["remote_ip"] is String) { "La IP remota KNX no es válida." }
+        requireValidPort("local_port", values["local_port"])
+        requireValidPort("remote_port", values["remote_port"])
+        require(values["auto_reconnect"] is Boolean) { "El ajuste de reconexión KNX no es válido." }
+    }
+
+    private fun requireValidPort(key: String, value: Any?) {
+        val port = (value as? String)?.toIntOrNull()
+        require(port != null && port in 1..65535) { "Puerto KNX no válido en '$key'." }
+    }
+
     private fun validateKnxConfiguration(values: Map<String, Any>) {
+        require(values.isNotEmpty()) { "La configuración KNX está vacía." }
+        val unsupported = values.keys.filterNot {
+            AppKnxConfigurationRepository.isSupportedBackupPreferenceKey(it)
+        }
+        require(unsupported.isEmpty()) {
+            "La copia contiene entradas KNX no admitidas: ${unsupported.joinToString()}."
+        }
+
+        val project = values["app_project_copy"]
+        require(project is String && project.isNotBlank()) {
+            "La copia del proyecto KNX está vacía o dañada."
+        }
+
         values.forEach { (key, value) ->
             when {
-                key == "app_project_copy" -> {
-                    require(value is String && value.isNotBlank()) {
-                        "La copia del proyecto KNX está vacía o dañada."
-                    }
-                }
                 key.startsWith("global_") -> {
                     require(value is String && AppKnxConfigurationRepository.isValidGroupAddress(value)) {
                         "Dirección KNX no válida en '$key': '$value'."
@@ -192,6 +211,27 @@ class BackupManager(context: Context) {
         }
     }
 
+    private fun validateClimateSchedule(values: Map<String, Any>) {
+        require(values["global_enabled"] is Boolean) {
+            "El estado global de la programación de climatización no es válido."
+        }
+        val events = values["events"] as? Set<*>
+            ?: error("La programación de climatización está dañada.")
+        events.forEach { raw ->
+            val value = raw as? String ?: error("Evento de climatización no válido.")
+            val parts = value.split('|')
+            require(parts.size == 9) { "Evento de climatización incompleto." }
+            require(parts[0].toLongOrNull() != null) { "Identificador de evento no válido." }
+            require((parts[1].toIntOrNull() ?: -1) in 1..7) { "Día de evento no válido." }
+            require((parts[2].toIntOrNull() ?: -1) in 0..23) { "Hora de evento no válida." }
+            require((parts[3].toIntOrNull() ?: -1) in 0..59) { "Minuto de evento no válido." }
+            require(parts[4] == "true" || parts[4] == "false") { "Estado de evento no válido." }
+            require(parts[5] == "true" || parts[5] == "false") { "Orden de encendido no válida." }
+            require(parts[6].toFloatOrNull() != null) { "Consigna de evento no válida." }
+            require(parts[7].isNotBlank() && parts[8].isNotBlank()) { "Modo o ventilador de evento no válido." }
+        }
+    }
+
     private fun requireValidSize(rawJson: String) {
         require(rawJson.toByteArray(Charsets.UTF_8).size <= MAX_BACKUP_BYTES) {
             "El archivo supera el tamaño máximo permitido de 5 MB."
@@ -201,18 +241,25 @@ class BackupManager(context: Context) {
     private fun validateRoot(root: JSONObject) {
         require(root.optString("format") == FORMAT) { "El archivo no es una copia válida de OneHouse." }
         val schema = root.optInt("schemaVersion", -1)
-        require(schema == SCHEMA_VERSION) { "Versión de copia no compatible: $schema." }
-        require(root.has("createdAtMillis") && root.optJSONObject("preferences") != null) {
-            "La copia está incompleta o dañada."
+        require(schema == SCHEMA_VERSION) {
+            "Versión de copia no compatible: $schema. Esta versión requiere esquema $SCHEMA_VERSION."
         }
+        require(
+            root.has("createdAtMillis") &&
+                root.optString("appVersion").isNotBlank() &&
+                root.optJSONObject("preferences") != null &&
+                root.optJSONObject("summary") != null &&
+                root.has("payloadSha256")
+        ) { "La copia está incompleta o dañada." }
     }
 
     private fun encodePreferences(name: String, preferences: SharedPreferences): JSONObject {
         val result = JSONObject()
-        preferences.all.forEach { (key, value) ->
+        preferences.all.toSortedMap().forEach { (key, value) ->
             if (name == PreferenceFiles.KNX_CONFIGURATION &&
                 !AppKnxConfigurationRepository.isSupportedBackupPreferenceKey(key)
-            ) {
+            ) return@forEach
+            if (name == PreferenceFiles.KNX_SETTINGS && key !in KNX_SETTINGS_BACKUP_KEYS) {
                 return@forEach
             }
 
@@ -223,13 +270,22 @@ class BackupManager(context: Context) {
                 is Int -> item.put("type", "int").put("value", value)
                 is Long -> item.put("type", "long").put("value", value.toString())
                 is Float -> item.put("type", "float").put("value", value.toDouble())
-                is Set<*> -> item.put(
-                    "type",
-                    "stringSet"
-                ).put("value", JSONArray(value.filterIsInstance<String>().sorted()))
+                is Set<*> -> item.put("type", "stringSet")
+                    .put("value", JSONArray(value.filterIsInstance<String>().sorted()))
                 else -> return@forEach
             }
             result.put(key, item)
+        }
+
+        // Climate schedule is a required schema-3 block even when the user has
+        // never created a schedule; encode its natural defaults explicitly.
+        if (name == PreferenceFiles.CLIMATE_SCHEDULE) {
+            if (!result.has("global_enabled")) {
+                result.put("global_enabled", JSONObject().put("type", "boolean").put("value", false))
+            }
+            if (!result.has("events")) {
+                result.put("events", JSONObject().put("type", "stringSet").put("value", JSONArray()))
+            }
         }
         return result
     }
@@ -238,6 +294,9 @@ class BackupManager(context: Context) {
         val result = linkedMapOf<String, Any>()
         json.keys().forEach { key ->
             val item = json.getJSONObject(key)
+            require(item.length() == 2 && item.has("type") && item.has("value")) {
+                "Entrada dañada en '$key'."
+            }
             result[key] = when (item.getString("type")) {
                 "string" -> item.getString("value")
                 "boolean" -> item.getBoolean("value")
@@ -270,8 +329,16 @@ class BackupManager(context: Context) {
 
     private fun buildSummary(files: JSONObject, activeKnxAddresses: Int): JSONObject = JSONObject()
         .put("preferencesFiles", files.length())
-        .put("knxEntries", countObjectEntries(files, PreferenceFiles.KNX_CONFIGURATION))
+        .put("knxEntries", files.getJSONObject(PreferenceFiles.KNX_CONFIGURATION).length())
         .put("knxActiveAddresses", activeKnxAddresses)
+        .put("climateScheduleEvents", climateEventCount(files))
+
+    private fun climateEventCount(files: JSONObject): Int = runCatching {
+        files.getJSONObject(PreferenceFiles.CLIMATE_SCHEDULE)
+            .getJSONObject("events")
+            .getJSONArray("value")
+            .length()
+    }.getOrDefault(0)
 
     /** Counts exactly the state addresses used by the current initial-load engine. */
     private fun activeKnxAddressCount(repository: AppKnxConfigurationRepository): Int {
@@ -280,7 +347,7 @@ class BackupManager(context: Context) {
             .orEmpty()
             .filter { it.canRead }
 
-        val importedAddresses = devices.flatMap { device ->
+        val projectAddresses = devices.flatMap { device ->
             val stateAddresses = device.readAddresses.map { it.toString() }
             if (stateAddresses.isNotEmpty()) {
                 stateAddresses
@@ -291,21 +358,41 @@ class BackupManager(context: Context) {
             }
         }
 
-        return (KnxHomeStateRepository.initialLoadExplicitStateAddresses() + importedAddresses)
+        return (KnxHomeStateRepository.initialLoadExplicitStateAddresses() + projectAddresses)
             .map(String::trim)
             .filter(String::isNotBlank)
             .distinct()
             .size
     }
 
-    private fun countObjectEntries(files: JSONObject, file: String): Int =
-        files.optJSONObject(file)?.length() ?: 0
+    /** Stable JSON representation independent of key insertion order. */
+    private fun canonicalJson(value: Any?): String = when (value) {
+        is JSONObject -> value.keys().asSequence().toList().sorted().joinToString(
+            prefix = "{", postfix = "}", separator = ","
+        ) { key -> JSONObject.quote(key) + ":" + canonicalJson(value.get(key)) }
+        is JSONArray -> (0 until value.length()).joinToString(
+            prefix = "[", postfix = "]", separator = ","
+        ) { index -> canonicalJson(value.get(index)) }
+        is String -> JSONObject.quote(value)
+        JSONObject.NULL, null -> "null"
+        else -> value.toString()
+    }
+
+    private fun sha256(text: String): String = MessageDigest.getInstance("SHA-256")
+        .digest(text.toByteArray(Charsets.UTF_8))
+        .joinToString("") { byte -> "%02x".format(byte.toInt() and 0xff) }
 
     private companion object {
         const val FORMAT = "onehouse-backup"
-        const val SCHEMA_VERSION = 2
+        const val SCHEMA_VERSION = 3
         const val MAX_BACKUP_BYTES = 5 * 1024 * 1024
-
         val BACKUP_PREFERENCES = PreferenceFiles.backupFiles
+        val KNX_SETTINGS_BACKUP_KEYS = setOf(
+            "local_ip",
+            "local_port",
+            "remote_ip",
+            "remote_port",
+            "auto_reconnect"
+        )
     }
 }

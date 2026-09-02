@@ -1,0 +1,52 @@
+OneHouse v1.13.7 - Backup definitivo OneHouse
+================================================
+
+OBJETIVO
+Dejar establecido el formato de backup válido para la OneHouse limpia actual,
+sin compatibilidad con módulos o copias históricas retiradas.
+
+CAMBIOS
+- Nuevo esquema de backup: schemaVersion 3.
+- El backup exige exactamente los 3 bloques activos:
+  * onehouse_knx_settings
+  * onehouse_knx_configuration
+  * onehouse_climate_schedule
+- KNX settings guarda únicamente configuración útil:
+  IP/puerto local, IP/puerto remoto y auto-reconexión.
+  No se guardan estados de test, mensajes ni timestamps transitorios.
+- KNX configuration mantiene únicamente las claves admitidas por
+  AppKnxConfigurationRepository.
+- La programación de climatización se guarda incluso si todavía está vacía.
+- Validación estricta de estructura, tipos, GAs, puertos y eventos de clima.
+- Huella SHA-256 del payload: una copia modificada o corrupta se rechaza antes
+  de escribir nada.
+- Restauración transaccional con rollback completo de los 3 bloques si falla
+  cualquier paso.
+- Tras restaurar, OneHouse vuelve a cargar y aplicar el proyecto KNX antes de
+  confirmar éxito.
+- La pantalla de confirmación muestra integridad verificada, estados KNX
+  activos y número de programaciones de clima.
+- Eliminadas referencias visuales a backups/importadores históricos.
+
+CONSUMOS
+El historial de consumos NO forma parte de este backup de configuración.
+Se mantiene en su herramienta específica "Importar/Exportar consumos".
+
+VERSION
+versionCode: 136
+versionName: 1.13.7 Backup definitivo OneHouse
+
+PRUEBA RECOMENDADA
+1. Compilar e instalar.
+2. Crear una copia nueva desde Backup y restauración.
+3. Abrir/seleccionar esa misma copia y confirmar que indica:
+   - Esquema 3
+   - 3 bloques de configuración
+   - Integridad verificada
+4. Cambiar de forma controlada una configuración (por ejemplo una IP o GA que
+   luego puedas devolver) y restaurar la copia.
+5. Reiniciar OneHouse y comprobar carga KNX completa y configuración recuperada.
+
+NOTA DE COMPILACION
+No se ha podido ejecutar Gradle en el entorno de entrega porque el wrapper
+intenta descargar Gradle 9.5.0 desde services.gradle.org y no hay acceso de red.
