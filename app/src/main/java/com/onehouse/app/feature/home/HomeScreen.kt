@@ -645,7 +645,7 @@ private fun ClimateHeroCard(homeState: HomeDashboardUiState) {
                     value = when (homeState.climate.powered) {
                         true -> "Encendido"
                         false -> "Apagado"
-                        null -> "Sin datos"
+                        null -> "---"
                     },
                     valueColor = if (homeState.climate.powered == true) VerdeEstado else TextoSecundario,
                     modifier = Modifier.weight(1f)
@@ -654,12 +654,12 @@ private fun ClimateHeroCard(homeState: HomeDashboardUiState) {
                     title = "Consigna",
                     value = homeState.climate.targetTemperature?.let {
                         String.format(Locale("es", "ES"), "%.1f °C", it)
-                    } ?: "-- °C",
+                    } ?: "---",
                     modifier = Modifier.weight(1f)
                 )
                 OneHouseStatusItem(
                     title = "Ventilador",
-                    value = homeState.climate.fanSpeed ?: "Sin datos",
+                    value = homeState.climate.fanSpeed ?: "---",
                     valueColor = if (homeState.climate.fanSpeed != null) AzulClaro else TextoSecundario,
                     modifier = Modifier.weight(1f)
                 )
@@ -678,7 +678,7 @@ private fun QuickStatusGrid(
             title = "Luces",
             value = if (homeState.lightsTotal > 0) {
                 "${homeState.lightsOn} de ${homeState.lightsTotal} encendidas"
-            } else "Sin datos",
+            } else "---",
             detail = "Estado general",
             icon = Icons.Rounded.Lightbulb,
             accent = AmarilloEstado,
@@ -688,7 +688,7 @@ private fun QuickStatusGrid(
             title = "Persianas",
             value = if (homeState.blindsTotal > 0) {
                 "${homeState.blindsOpen} de ${homeState.blindsTotal} abiertas"
-            } else "Sin datos",
+            } else "---",
             detail = "Estado general",
             icon = Icons.Rounded.Blinds,
             accent = AzulClaro,
@@ -710,82 +710,75 @@ private fun ExteriorWeatherCard(
     modifier: Modifier = Modifier
 ) {
     OneHouseCard(modifier = modifier) {
-        Column(modifier = Modifier.padding(18.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Surface(
-                    color = AzulClaro.copy(alpha = 0.13f),
-                    shape = RoundedCornerShape(14.dp)
-                ) {
-                    Icon(
-                        imageVector = weatherIcon(weather),
-                        contentDescription = null,
-                        tint = AzulClaro,
-                        modifier = Modifier.padding(7.dp).size(22.dp)
-                    )
+        Column(modifier = Modifier.padding(horizontal = 18.dp, vertical = 16.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.weight(1f)) {
+                    Surface(
+                        color = AzulClaro.copy(alpha = 0.13f),
+                        shape = RoundedCornerShape(14.dp)
+                    ) {
+                        Icon(
+                            imageVector = weatherIcon(weather),
+                            contentDescription = null,
+                            tint = AzulClaro,
+                            modifier = Modifier.padding(7.dp).size(22.dp)
+                        )
+                    }
+                    Spacer(modifier = Modifier.size(10.dp))
+                    Column {
+                        Text(
+                            text = "Exterior",
+                            color = TextoSecundario,
+                            style = MaterialTheme.typography.labelLarge,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                        Text(
+                            text = when {
+                                weather.isLoading -> "Actualizando…"
+                                weather.temperatureC != null -> weather.condition
+                                weather.errorMessage != null -> "Dato no disponible"
+                                else -> "Meteorología exterior"
+                            },
+                            color = TextoDesactivado,
+                            style = MaterialTheme.typography.labelSmall
+                        )
+                    }
                 }
-                Spacer(modifier = Modifier.size(10.dp))
-                Column {
-                    Text(
-                        text = "Exterior",
-                        color = TextoSecundario,
-                        style = MaterialTheme.typography.labelLarge,
-                        fontWeight = FontWeight.SemiBold
-                    )
-                    Text(
-                        text = when {
-                            weather.isLoading -> "Actualizando…"
-                            weather.temperatureC != null -> weather.condition
-                            weather.errorMessage != null -> "Dato no disponible"
-                            else -> "Meteorología exterior"
-                        },
-                        color = TextoDesactivado,
-                        style = MaterialTheme.typography.labelSmall
-                    )
-                }
+                Text(
+                    text = weather.temperatureC?.let {
+                        String.format(Locale("es", "ES"), "%.1f °C", it)
+                    } ?: "---",
+                    color = TextoPrincipal,
+                    style = MaterialTheme.typography.headlineMedium,
+                    fontWeight = FontWeight.Bold
+                )
             }
 
             Spacer(modifier = Modifier.height(14.dp))
-            Text(
-                text = weather.temperatureC?.let {
-                    String.format(Locale("es", "ES"), "%.1f °C", it)
-                } ?: "-- °C",
-                color = TextoPrincipal,
-                style = MaterialTheme.typography.headlineMedium,
-                fontWeight = FontWeight.Bold
-            )
-
-            Spacer(modifier = Modifier.height(14.dp))
             HorizontalDivider(color = BordeTarjeta)
-            Spacer(modifier = Modifier.height(14.dp))
+            Spacer(modifier = Modifier.height(12.dp))
 
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                horizontalArrangement = Arrangement.spacedBy(10.dp)
             ) {
                 ExteriorMetric(
                     title = "Sensación",
-                    value = weather.feelsLikeC?.let { String.format(Locale("es", "ES"), "%.1f °C", it) } ?: "--",
+                    value = weather.feelsLikeC?.let { String.format(Locale("es", "ES"), "%.1f °C", it) } ?: "---",
                     modifier = Modifier.weight(1f)
                 )
                 ExteriorMetric(
                     title = "Humedad",
-                    value = weather.humidityPercent?.let { "$it %" } ?: "--",
-                    modifier = Modifier.weight(1f)
-                )
-            }
-            Spacer(modifier = Modifier.height(10.dp))
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                ExteriorMetric(
-                    title = "Viento",
-                    value = weather.windSpeedKmh?.let { String.format(Locale("es", "ES"), "%.0f km/h", it) } ?: "--",
+                    value = weather.humidityPercent?.let { "$it %" } ?: "---",
                     modifier = Modifier.weight(1f)
                 )
                 ExteriorMetric(
                     title = "Precipitación",
-                    value = weather.precipitationMm?.let { String.format(Locale("es", "ES"), "%.1f mm", it) } ?: "--",
+                    value = weather.precipitationMm?.let { String.format(Locale("es", "ES"), "%.1f mm", it) } ?: "---",
                     modifier = Modifier.weight(1f)
                 )
             }

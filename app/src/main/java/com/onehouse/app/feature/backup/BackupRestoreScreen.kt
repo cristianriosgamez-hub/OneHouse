@@ -180,12 +180,6 @@ fun BackupRestoreScreen(onBack: () -> Unit) {
             status?.let {
                 OneHouseCard { Text(it, modifier = Modifier.padding(18.dp), color = TextoPrincipal) }
             }
-            Spacer(Modifier.height(8.dp))
-            OutlinedButton(
-                enabled = !isBusy,
-                onClick = onBack,
-                modifier = Modifier.fillMaxWidth()
-            ) { Text("Volver") }
         }
     }
 

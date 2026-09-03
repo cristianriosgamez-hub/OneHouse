@@ -589,7 +589,7 @@ internal fun RoomClimateCard(
                     )
                 }
                 Text(
-                    currentTemperature?.let { String.format("%.1f °C", it) } ?: "-- °C",
+                    currentTemperature?.let { String.format("%.1f °C", it) } ?: "---",
                     color = RoomOrange,
                     fontSize = 23.sp,
                     fontWeight = FontWeight.SemiBold
@@ -598,9 +598,9 @@ internal fun RoomClimateCard(
 
             Spacer(Modifier.height(14.dp))
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                ClimateValue("Consigna", targetTemperature?.let { String.format("%.1f °C", it) } ?: "-- °C")
-                ClimateValue("Modo", mode ?: "Sin datos")
-                ClimateValue("Ventilador", fanSpeed ?: "Sin datos")
+                ClimateValue("Consigna", targetTemperature?.let { String.format("%.1f °C", it) } ?: "---")
+                ClimateValue("Modo", mode ?: "---")
+                ClimateValue("Ventilador", fanSpeed ?: "---")
             }
         }
     }

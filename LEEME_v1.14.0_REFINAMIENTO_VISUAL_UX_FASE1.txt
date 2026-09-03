@@ -1,0 +1,52 @@
+OneHouse v1.14.0 – Refinamiento visual y UX (Fase 1)
+=====================================================
+
+Entrega SOLO CAMBIOS sobre v1.13.9 validada.
+
+Cambios incluidos:
+1. Inicio / Exterior
+   - Tarjeta Exterior más compacta.
+   - Temperatura exterior situada a la derecha del encabezado.
+   - Se elimina Viento de la tarjeta de Inicio (continúa disponible en Tiempo).
+   - Sensación, Humedad y Precipitación se muestran en una única fila.
+
+2. Estancias / Habitación 1
+   - Sustituida la imagen de Habitación 1 por una composición visual con zona de estudio,
+     claramente diferenciada de Suite.
+
+3. Barra de navegación inferior
+   - Sustituidos símbolos Unicode por iconos Material Rounded.
+   - Se mantienen exactamente las cinco secciones y su navegación.
+
+4. Iconografía de Más
+   - Configuración, Acerca de, Direcciones KNX, Manual y Herramientas pasan a iconos Material.
+   - No cambia la funcionalidad de ninguna opción.
+
+5. Estados KNX sin dato
+   - Inicio y componentes de climatización de estancias usan '---' cuando todavía no existe
+     un valor KNX real, evitando mezclar 'Sin datos' y '-- °C'.
+   - No se cambian valores reales ni lógica KNX.
+
+6. Backup y restauración
+   - Eliminado el botón inferior 'Volver'.
+   - Se mantiene la flecha superior como navegación estándar.
+
+Versión:
+- versionCode: 140
+- versionName: 1.14.0 Refinamiento visual y UX Fase 1
+
+IMPORTANTE – KNX SIN CAMBIOS:
+- No se modifica KnxConnectionManager.
+- No se modifica el motor de carga inicial.
+- No se modifican las 36 GAs.
+- No se modifican DPTs, túnel, reconciliación, lluvia, mandos ni programación de clima.
+- No se modifica el backup definitivo ni la meteorología/caché.
+
+Pruebas recomendadas:
+- Compilar.
+- Verificar conexión y carga KNX habitual.
+- Revisar Inicio: Exterior compacto y datos alineados.
+- Revisar Estancias: Habitación 1 diferenciada de Suite.
+- Recorrer las 5 pestañas de la barra inferior.
+- Revisar Más.
+- Abrir Backup y restauración y comprobar que solo queda la flecha superior para volver.

@@ -14,6 +14,13 @@ import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.Build
+import androidx.compose.material.icons.rounded.Info
+import androidx.compose.material.icons.rounded.MenuBook
+import androidx.compose.material.icons.rounded.Settings
+import androidx.compose.material.icons.rounded.Tune
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -22,6 +29,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.onehouse.app.design.AzulClaro
@@ -63,31 +71,31 @@ fun MoreScreen(
             )
 
             MoreOptionCard(
-                symbol = "⚙",
+                icon = Icons.Rounded.Settings,
                 title = "Configuración",
                 subtitle = "Conexión KNX y preferencias de la aplicación",
                 onClick = onConfigurationSelected
             )
             MoreOptionCard(
-                symbol = "ⓘ",
+                icon = Icons.Rounded.Info,
                 title = "Acerca de",
                 subtitle = "Información de OneHouse",
                 enabled = false
             )
             MoreOptionCard(
-                symbol = "⌘",
+                icon = Icons.Rounded.Tune,
                 title = "Direcciones KNX",
                 subtitle = "Editar las direcciones utilizadas por OneHouse",
                 onClick = onKnxAddressesSelected
             )
             MoreOptionCard(
-                symbol = "?",
+                icon = Icons.Rounded.MenuBook,
                 title = "Manual",
                 subtitle = "Ayuda y documentación de la aplicación",
                 enabled = false
             )
             MoreOptionCard(
-                symbol = "⌘",
+                icon = Icons.Rounded.Build,
                 title = "Herramientas",
                 subtitle = "Utilidades avanzadas de OneHouse",
                 onClick = onToolsSelected
@@ -100,7 +108,7 @@ fun MoreScreen(
 
 @Composable
 private fun MoreOptionCard(
-    symbol: String,
+    icon: ImageVector,
     title: String,
     subtitle: String,
     enabled: Boolean = true,
@@ -117,11 +125,11 @@ private fun MoreOptionCard(
                 color = AzulClaro.copy(alpha = if (enabled) 0.12f else 0.06f),
                 shape = CircleShape
             ) {
-                Text(
-                    text = symbol,
-                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
-                    color = if (enabled) AzulClaro else TextoDesactivado,
-                    fontSize = 24.sp
+                Icon(
+                    imageVector = icon,
+                    contentDescription = null,
+                    modifier = Modifier.padding(10.dp),
+                    tint = if (enabled) AzulClaro else TextoDesactivado
                 )
             }
             Column(
