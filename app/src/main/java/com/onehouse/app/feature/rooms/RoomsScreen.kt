@@ -62,7 +62,7 @@ data class RoomItem(
 )
 
 val oneHouseRooms = listOf(
-    RoomItem("Climatización", "Temperatura y programación", "❄"),
+    RoomItem("Climatización", "Temperatura y programación", "❄", R.drawable.room_climate),
     RoomItem("Entrada", "Iluminación y acceso", "🚪", R.drawable.room_entrance),
     RoomItem("Comedor", "Luces, persianas y ambiente", "🍽", R.drawable.room_dining),
     RoomItem("Cocina", "Electrodomésticos y seguridad", "⌂", R.drawable.room_kitchen),
@@ -71,8 +71,7 @@ val oneHouseRooms = listOf(
     RoomItem("Baño", "Iluminación y seguridad", "♨", R.drawable.room_bathroom),
     RoomItem("Pasillo", "Iluminación del pasillo", "⇆", R.drawable.room_hallway),
     RoomItem("Trastero", "Almacenamiento y luz", "▤", R.drawable.room_storage),
-    RoomItem("Terraza", "Exterior y climatología", "✿", R.drawable.room_terrace),
-    RoomItem("Mantenimiento", "Funciones generales del hogar", "⚙", R.drawable.room_storage)
+    RoomItem("Terraza", "Exterior y climatología", "✿", R.drawable.room_terrace)
 )
 
 fun roomItemForName(name: String): RoomItem? = oneHouseRooms.firstOrNull { it.name == name }
@@ -91,8 +90,7 @@ fun RoomsScreen(
     onDiningRoomSelected: () -> Unit = {},
     onSuiteSelected: () -> Unit = {},
     onTerraceSelected: () -> Unit = {},
-    onConsumptionSelected: () -> Unit = {},
-    onMaintenanceSelected: () -> Unit = {}
+    onConsumptionSelected: () -> Unit = {}
 ) {
     Column(
         modifier = Modifier
@@ -129,7 +127,6 @@ fun RoomsScreen(
                             "Comedor" -> onDiningRoomSelected()
                             "Suite" -> onSuiteSelected()
                             "Terraza" -> onTerraceSelected()
-                            "Mantenimiento" -> onMaintenanceSelected()
                         }
                     }
                 )
@@ -235,8 +232,9 @@ private fun RoomRowCard(
                 Text(
                     text = room.description,
                     color = TextoSecundario,
-                    fontSize = 12.sp,
-                    maxLines = 1,
+                    fontSize = 11.sp,
+                    lineHeight = 14.sp,
+                    maxLines = 2,
                     overflow = TextOverflow.Ellipsis
                 )
             }

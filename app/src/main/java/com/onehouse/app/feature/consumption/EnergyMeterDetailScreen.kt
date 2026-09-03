@@ -90,7 +90,12 @@ internal fun EnergyMeterDetailScreen(
                         .background(accent.copy(alpha = 0.16f), RoundedCornerShape(17.dp)),
                     contentAlignment = Alignment.Center
                 ) {
-                    Text(type.symbol, color = accent, fontSize = 29.sp, fontWeight = FontWeight.Bold)
+                    Icon(
+                        imageVector = meterIcon(type),
+                        contentDescription = null,
+                        tint = accent,
+                        modifier = Modifier.size(28.dp)
+                    )
                 }
                 Spacer(Modifier.width(13.dp))
                 Column(modifier = Modifier.weight(1f)) {
@@ -109,7 +114,7 @@ internal fun EnergyMeterDetailScreen(
 
             Spacer(Modifier.height(18.dp))
             Button(onClick = onAddReading, modifier = Modifier.fillMaxWidth()) {
-                Text("＋ Añadir lectura")
+                Text("Añadir lectura")
             }
         }
 

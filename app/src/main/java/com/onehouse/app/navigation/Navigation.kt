@@ -111,7 +111,7 @@ fun OneHouseNavigation() {
             MaintenanceScreen(
                 onBack = {
                     internalScreen = InternalScreen.MAIN
-                    selectedSection = OneHouseSection.ROOMS
+                    selectedSection = OneHouseSection.MORE
                 }
             )
             return
@@ -252,8 +252,7 @@ fun OneHouseNavigation() {
                     onDiningRoomSelected = { internalScreen = InternalScreen.DINING_ROOM },
                     onSuiteSelected = { internalScreen = InternalScreen.SUITE },
                     onTerraceSelected = { internalScreen = InternalScreen.TERRACE },
-                    onConsumptionSelected = { internalScreen = InternalScreen.CONSUMPTION },
-                    onMaintenanceSelected = { internalScreen = InternalScreen.MAINTENANCE }
+                    onConsumptionSelected = { internalScreen = InternalScreen.CONSUMPTION }
                 )
 
                 OneHouseSection.WEATHER -> WeatherScreen()
@@ -261,7 +260,8 @@ fun OneHouseNavigation() {
                 OneHouseSection.MORE -> MoreScreen(
                     onConfigurationSelected = { internalScreen = InternalScreen.SETTINGS },
                     onKnxAddressesSelected = { internalScreen = InternalScreen.KNX_ADDRESS_EDITOR },
-                    onToolsSelected = { internalScreen = InternalScreen.TOOLS }
+                    onToolsSelected = { internalScreen = InternalScreen.TOOLS },
+                    onMaintenanceSelected = { internalScreen = InternalScreen.MAINTENANCE }
                 )
             }
         }

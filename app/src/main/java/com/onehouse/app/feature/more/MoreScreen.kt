@@ -16,8 +16,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Build
-import androidx.compose.material.icons.rounded.Info
-import androidx.compose.material.icons.rounded.MenuBook
+import androidx.compose.material.icons.rounded.KeyboardArrowRight
 import androidx.compose.material.icons.rounded.Settings
 import androidx.compose.material.icons.rounded.Tune
 import androidx.compose.material3.Icon
@@ -44,7 +43,8 @@ import com.onehouse.app.design.TextoSecundario
 fun MoreScreen(
     onConfigurationSelected: () -> Unit,
     onKnxAddressesSelected: () -> Unit,
-    onToolsSelected: () -> Unit
+    onToolsSelected: () -> Unit,
+    onMaintenanceSelected: () -> Unit
 ) {
     Box(
         modifier = Modifier
@@ -77,28 +77,22 @@ fun MoreScreen(
                 onClick = onConfigurationSelected
             )
             MoreOptionCard(
-                icon = Icons.Rounded.Info,
-                title = "Acerca de",
-                subtitle = "Información de OneHouse",
-                enabled = false
-            )
-            MoreOptionCard(
                 icon = Icons.Rounded.Tune,
                 title = "Direcciones KNX",
                 subtitle = "Editar las direcciones utilizadas por OneHouse",
                 onClick = onKnxAddressesSelected
             )
             MoreOptionCard(
-                icon = Icons.Rounded.MenuBook,
-                title = "Manual",
-                subtitle = "Ayuda y documentación de la aplicación",
-                enabled = false
-            )
-            MoreOptionCard(
                 icon = Icons.Rounded.Build,
                 title = "Herramientas",
                 subtitle = "Utilidades avanzadas de OneHouse",
                 onClick = onToolsSelected
+            )
+            MoreOptionCard(
+                icon = Icons.Rounded.Build,
+                title = "Mantenimiento",
+                subtitle = "Funciones generales del hogar",
+                onClick = onMaintenanceSelected
             )
 
             Spacer(modifier = Modifier.height(10.dp))
@@ -157,11 +151,13 @@ private fun MoreOptionCard(
                     )
                 }
             }
-            Text(
-                text = if (enabled) "›" else "",
-                color = TextoSecundario,
-                fontSize = 32.sp
-            )
+            if (enabled) {
+                Icon(
+                    imageVector = Icons.Rounded.KeyboardArrowRight,
+                    contentDescription = null,
+                    tint = AzulClaro
+                )
+            }
         }
     }
 }

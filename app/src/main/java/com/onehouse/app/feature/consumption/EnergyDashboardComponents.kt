@@ -267,77 +267,93 @@ internal fun EnergySummaryCard(
     onClick: () -> Unit
 ) {
     val accent = accentFor(summary.type)
-    OneHouseCard(
-        modifier = modifier,
-        onClick = onClick
-    ) {
-        Column(modifier = Modifier.padding(14.dp)) {
+    val showsCost = summary.type != MeterType.ACS && summary.type != MeterType.CLIMATIZATION
+    OneHouseCard(modifier = modifier, onClick = onClick) {
+        Column(modifier = Modifier.padding(15.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
+                Box(
+                    modifier = Modifier
+                        .size(42.dp)
+                        .background(accent.copy(alpha = 0.16f), RoundedCornerShape(14.dp)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = meterIcon(summary.type),
+                        contentDescription = null,
+                        tint = accent,
+                        modifier = Modifier.size(23.dp)
+                    )
+                }
+                Spacer(Modifier.width(10.dp))
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        summary.type.shortTitle,
+                        color = TextoPrincipal,
+                        fontSize = 16.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        maxLines = 1
+                    )
+                    Text(
+                        summary.latestReading?.let { relativeUpdateText(it.timestamp) } ?: "Sin lecturas",
+                        color = TextoSecundario,
+                        fontSize = 10.sp,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
+                Icon(
+                    imageVector = Icons.Rounded.ChevronRight,
+                    contentDescription = "Abrir detalle",
+                    tint = accent,
+                    modifier = Modifier.size(21.dp)
+                )
+            }
+
+            Spacer(Modifier.height(14.dp))
+            Text("Este mes", color = TextoSecundario, fontSize = 10.sp)
+            Text(
+                "${formatNumber(summary.monthConsumption)} ${summary.type.unit}",
+                color = TextoPrincipal,
+                fontSize = 21.sp,
+                fontWeight = FontWeight.Bold,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+            Spacer(Modifier.height(11.dp))
             Box(
                 modifier = Modifier
-                    .size(44.dp)
-                    .background(accent.copy(alpha = 0.16f), RoundedCornerShape(15.dp)),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(
-                    imageVector = meterIcon(summary.type),
-                    contentDescription = null,
-                    tint = accent,
-                    modifier = Modifier.size(24.dp)
-                )
-            }
-            Spacer(Modifier.width(10.dp))
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    summary.type.shortTitle,
-                    color = TextoPrincipal,
-                    fontSize = 16.sp,
-                    fontWeight = FontWeight.SemiBold,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-                Text(
-                    summary.latestReading?.let { relativeUpdateText(it.timestamp) } ?: "Sin lecturas",
-                    color = TextoSecundario,
-                    fontSize = 9.sp,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-            }
-            Icon(
-                imageVector = Icons.Rounded.ChevronRight,
-                contentDescription = "Abrir detalle",
-                tint = accent.copy(alpha = 0.9f),
-                modifier = Modifier.size(22.dp)
+                    .fillMaxWidth()
+                    .height(1.dp)
+                    .background(BordeTarjeta.copy(alpha = 0.65f))
             )
-        }
-
-        Spacer(Modifier.height(15.dp))
-        Text("Consumo este mes", color = TextoSecundario, fontSize = 11.sp)
-        Spacer(Modifier.height(2.dp))
-        Text(
-            "${formatNumber(summary.monthConsumption)} ${summary.type.unit}",
-            color = TextoPrincipal,
-            fontSize = 22.sp,
-            fontWeight = FontWeight.Bold
-        )
-        Spacer(Modifier.height(12.dp))
-        val showsCost = summary.type != MeterType.ACS && summary.type != MeterType.CLIMATIZATION
-        CompactMetric(
-            "Año",
-            "${formatNumber(summary.yearConsumption)} ${summary.type.unit}",
-            Modifier.fillMaxWidth()
-        )
-        if (showsCost) {
-            Spacer(Modifier.height(8.dp))
-            CompactMetric(
-                "Coste",
-                "${formatNumber(summary.yearCost)} €",
-                Modifier.fillMaxWidth()
-            )
-        }
-        Spacer(Modifier.height(10.dp))
-        TrendLabel(summary.yearVariationPercent)
+            Spacer(Modifier.height(10.dp))
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text("Año", color = TextoSecundario, fontSize = 9.sp)
+                    Text(
+                        "${formatNumber(summary.yearConsumption)} ${summary.type.unit}",
+                        color = TextoPrincipal,
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
+                if (showsCost) {
+                    Column(horizontalAlignment = Alignment.End) {
+                        Text("Coste", color = TextoSecundario, fontSize = 9.sp)
+                        Text(
+                            "${formatNumber(summary.yearCost)} €",
+                            color = accent,
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            maxLines = 1
+                        )
+                    }
+                }
+            }
+            Spacer(Modifier.height(9.dp))
+            TrendLabel(summary.yearVariationPercent)
         }
     }
 }
@@ -412,7 +428,7 @@ internal fun PeriodSelector(
     }
 }
 
-private fun meterIcon(type: MeterType): ImageVector = when (type) {
+internal fun meterIcon(type: MeterType): ImageVector = when (type) {
     MeterType.ENDESA -> Icons.Rounded.Bolt
     MeterType.AGBAR -> Icons.Rounded.WaterDrop
     MeterType.CLIMATIZATION -> Icons.Rounded.AcUnit

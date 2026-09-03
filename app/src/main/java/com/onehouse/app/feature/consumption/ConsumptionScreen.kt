@@ -151,10 +151,10 @@ private fun EnergyDashboardScreen(
     ) {
         Spacer(Modifier.height(14.dp))
         if (onBack != null) {
-            RoomHeader("Contadores", onBack)
+            RoomHeader("Consumos", onBack)
         } else {
             Text(
-                "Contadores",
+                "Consumos",
                 color = TextoPrincipal,
                 fontSize = 30.sp,
                 fontWeight = FontWeight.Bold,
@@ -163,7 +163,7 @@ private fun EnergyDashboardScreen(
         }
 
         Text(
-            "Consulta el detalle, histórico y coste de cada suministro",
+            "Consulta el consumo, histórico y coste de cada suministro",
             color = TextoSecundario,
             fontSize = 14.sp
         )
@@ -190,6 +190,13 @@ private fun EnergyDashboardScreen(
                 // Vista simplificada temporal: solo se muestran los contadores.
                 // Se conservan los datos y componentes de analítica para poder
                 // reactivarlos en una entrega futura sin afectar al histórico.
+                Text(
+                    "Suministros",
+                    color = TextoPrincipal,
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.SemiBold
+                )
+                Spacer(Modifier.height(10.dp))
                 val orderedSummaries = summaries.sortedBy { summary ->
                     when (summary.type) {
                         com.onehouse.app.data.energy.MeterType.ENDESA -> 0

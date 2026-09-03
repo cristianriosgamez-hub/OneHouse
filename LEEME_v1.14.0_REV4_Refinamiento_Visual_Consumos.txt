@@ -1,0 +1,17 @@
+OneHouse v1.14.0 REV4 - Refinamiento visual de Consumos
+
+CAMBIOS
+- La pantalla principal pasa a titularse "Consumos" para coincidir con la navegación inferior.
+- Nueva jerarquía visual con sección "Suministros".
+- Rediseño compacto de las tarjetas Endesa, Agbar, Climatización y ACS.
+- Se mantiene el orden Endesa / Agbar / Climatización / ACS.
+- Mayor protagonismo del consumo mensual y mejor separación de datos anuales/coste.
+- Iconos Material coherentes también en el detalle de cada contador.
+- Se elimina el carácter "+" textual del botón "Añadir lectura" para una presentación más limpia.
+- ACS y Climatización continúan sin mostrar coste.
+- No se modifica ningún cálculo, histórico, base de datos, importación/exportación ni lógica de consumos.
+- No se modifica KNX, túneles, carga inicial, direcciones ni comandos.
+
+VERSION
+versionCode: 144
+versionName: 1.14.0 REV4 Refinamiento visual de consumos
