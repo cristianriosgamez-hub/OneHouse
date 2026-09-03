@@ -123,12 +123,6 @@ fun HomeScreen(
         }
     }
 
-    LaunchedEffect(connectionViewModel) {
-        connectionStatus = KnxConnectionStatus.TESTING
-        connectionViewModel.testConnection()
-    }
-
-
     DisposableEffect(lifecycleOwner, connectionViewModel) {
         val observer = LifecycleEventObserver { _, event ->
             if (event == Lifecycle.Event.ON_RESUME) {

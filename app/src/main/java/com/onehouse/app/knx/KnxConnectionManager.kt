@@ -652,8 +652,20 @@ class KnxConnectionManager(
                 when (val parsed = KnxProtocol.parseConnectResponse(response.data, response.length)) {
                     is KnxProtocol.ConnectResponse.Accepted -> {
                         if (cancellation.get()) {
+                            // Si la cancelación llega después de que el gateway haya
+                            // concedido canal, lo liberamos explícitamente. Cerrar solo
+                            // el socket UDP puede dejar el canal retenido temporalmente
+                            // en algunos interfaces KNX/IP y provocar código 36.
+                            runCatching {
+                                val disconnect = KnxProtocol.buildDisconnectRequest(
+                                    channelId = parsed.channelId,
+                                    localAddress = ownAddress,
+                                    localPort = udpSocket.localPort
+                                )
+                                udpSocket.send(DatagramPacket(disconnect, disconnect.size))
+                            }
                             udpSocket.close()
-                            state = State.DISCONNECTED
+                            clearSession()
                             ConnectResult.Cancelled
                         } else {
                             channelId = parsed.channelId

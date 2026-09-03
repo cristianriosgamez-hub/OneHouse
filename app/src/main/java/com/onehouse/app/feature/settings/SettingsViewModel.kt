@@ -108,6 +108,11 @@ class SettingsViewModel(
     }
 
     fun testConnection() {
+        // REV1: Home puede recibir más de un evento de ciclo de vida durante el
+        // arranque. Si ya hay una apertura en curso no la cancelamos ni abrimos
+        // otra: dejamos que el intento central termine y sea reutilizado.
+        if (connectionStatus == KnxConnectionStatus.TESTING && connectionTest != null) return
+
         networkState = networkDetector.currentState()
         validation = validate(settings)
 

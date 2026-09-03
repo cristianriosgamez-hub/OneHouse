@@ -16,8 +16,8 @@ android {
         applicationId = "com.onehouse.app"
         minSdk = 29
         targetSdk = 36
-        versionCode = 137
-        versionName = "1.13.8 Optimización y pulido general"
+        versionCode = 138
+        versionName = "1.13.8 REV1 Protección de apertura KNX"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
