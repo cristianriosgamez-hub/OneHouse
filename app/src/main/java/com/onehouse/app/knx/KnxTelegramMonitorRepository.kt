@@ -26,12 +26,18 @@ class KnxTelegramMonitorRepository(context: Context) {
 
     private val preferences = context.applicationContext.getSharedPreferences(PREFERENCES_NAME, Context.MODE_PRIVATE)
 
+    init {
+        synchronized(lock) {
+            if (cachedEvents == null) cachedEvents = loadFromPreferencesLocked()
+        }
+    }
+
     fun recent(limit: Int = MAX_EVENTS): List<KnxTelegramEvent> = synchronized(lock) {
-        loadLocked().takeLast(limit.coerceIn(1, MAX_EVENTS)).reversed()
+        eventsLocked().takeLast(limit.coerceIn(1, MAX_EVENTS)).reversed()
     }
 
     fun summary(): Summary = synchronized(lock) {
-        val events = loadLocked()
+        val events = eventsLocked()
         Summary(
             total = events.size,
             outgoing = events.count { it.direction == KnxTelegramEvent.Direction.OUTGOING },
@@ -68,8 +74,15 @@ class KnxTelegramMonitorRepository(context: Context) {
             detail = detail
         )
         synchronized(lock) {
-            val events = (loadLocked() + event).takeLast(MAX_EVENTS)
-            saveLocked(events)
+            val events = (eventsLocked() + event).takeLast(MAX_EVENTS)
+            cachedEvents = events
+            pendingWrites++
+            // Los errores se conservan inmediatamente; el tráfico normal se agrupa para
+            // evitar serializar las 120 entradas por cada telegrama de la carga inicial.
+            if (status == KnxTelegramEvent.Status.ERROR || pendingWrites >= PERSIST_EVERY_EVENTS) {
+                saveLocked(events)
+                pendingWrites = 0
+            }
         }
         notifyObservers()
         return event
@@ -91,11 +104,17 @@ class KnxTelegramMonitorRepository(context: Context) {
     }
 
     fun clear() {
-        synchronized(lock) { preferences.edit().remove(KEY_EVENTS).apply() }
+        synchronized(lock) {
+            cachedEvents = emptyList()
+            pendingWrites = 0
+            preferences.edit().remove(KEY_EVENTS).apply()
+        }
         notifyObservers()
     }
 
-    private fun loadLocked(): List<KnxTelegramEvent> {
+    private fun eventsLocked(): List<KnxTelegramEvent> = cachedEvents ?: emptyList()
+
+    private fun loadFromPreferencesLocked(): List<KnxTelegramEvent> {
         val raw = preferences.getString(KEY_EVENTS, null) ?: return emptyList()
         return runCatching {
             val array = JSONArray(raw)
@@ -148,7 +167,10 @@ class KnxTelegramMonitorRepository(context: Context) {
         const val PREFERENCES_NAME = "knx_telegram_monitor"
         const val KEY_EVENTS = "events"
         const val MAX_EVENTS = 120
+        const val PERSIST_EVERY_EVENTS = 8
         val lock = Any()
+        var cachedEvents: List<KnxTelegramEvent>? = null
+        var pendingWrites: Int = 0
         val observers = CopyOnWriteArraySet<(List<KnxTelegramEvent>) -> Unit>()
         val idCounter = AtomicLong(System.currentTimeMillis())
     }
