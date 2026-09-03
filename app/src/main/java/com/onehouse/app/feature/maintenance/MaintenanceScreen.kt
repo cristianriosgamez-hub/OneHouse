@@ -17,6 +17,15 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.AcUnit
+import androidx.compose.material.icons.rounded.Blinds
+import androidx.compose.material.icons.rounded.Home
+import androidx.compose.material.icons.rounded.Lightbulb
+import androidx.compose.material.icons.rounded.LocalFireDepartment
+import androidx.compose.material.icons.rounded.Settings
+import androidx.compose.material.icons.rounded.WaterDrop
+import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -29,6 +38,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -78,17 +88,17 @@ fun MaintenanceScreen(onBack: () -> Unit) {
         Spacer(Modifier.height(14.dp))
         RoomHeader("Mantenimiento", onBack)
         Spacer(Modifier.height(16.dp))
-        ActionCard("☼", "Apagado luces", "Apagar todas las luces de la vivienda", Blue)
+        ActionCard(Icons.Rounded.Lightbulb, "Apagado luces", "Apagar todas las luces de la vivienda", Blue)
         Spacer(Modifier.height(12.dp))
-        ActionCard("⌂", "Apagado general", "Apagar todos los sistemas de la vivienda", Purple)
+        ActionCard(Icons.Rounded.Home, "Apagado general", "Apagar todos los sistemas de la vivienda", Purple)
         Spacer(Modifier.height(12.dp))
-        ActionCard("♨", "Apagado clima", "Apagar el sistema de climatización", Green)
+        ActionCard(Icons.Rounded.AcUnit, "Apagado clima", "Apagar el sistema de climatización", Green)
         Spacer(Modifier.height(12.dp))
-        ActionCard("▤", "Cerrar todas las persianas", "Cerrar todas las persianas de la vivienda", Orange)
+        ActionCard(Icons.Rounded.Blinds, "Cerrar todas las persianas", "Cerrar todas las persianas de la vivienda", Orange)
         Spacer(Modifier.height(12.dp))
-        SensorCard("◉", "Sensor inundación", floodDetected, Color(0xFF28DDE3))
+        SensorCard(Icons.Rounded.WaterDrop, "Sensor inundación", floodDetected, Color(0xFF28DDE3))
         Spacer(Modifier.height(12.dp))
-        SensorCard("♨", "Sensor incendio", fireDetected, Red)
+        SensorCard(Icons.Rounded.LocalFireDepartment, "Sensor incendio", fireDetected, Red)
         Spacer(Modifier.height(12.dp))
         ValveCard(open = valveOpen, onChange = { valveOpen = it })
         Spacer(Modifier.height(64.dp))
@@ -96,12 +106,12 @@ fun MaintenanceScreen(onBack: () -> Unit) {
 }
 
 @Composable
-private fun ActionCard(symbol: String, title: String, subtitle: String, accent: Color) {
+private fun ActionCard(icon: ImageVector, title: String, subtitle: String, accent: Color) {
     Row(
         modifier = Modifier.fillMaxWidth().background(MaintenanceCard, RoundedCornerShape(22.dp)).border(1.dp, BordeTarjeta, RoundedCornerShape(22.dp)).padding(18.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        IconBox(symbol, accent)
+        IconBox(icon, accent)
         Spacer(Modifier.size(16.dp))
         Column(modifier = Modifier.weight(1f)) {
             Text(title, color = TextoPrincipal, fontSize = 17.sp, fontWeight = FontWeight.SemiBold)
@@ -114,12 +124,12 @@ private fun ActionCard(symbol: String, title: String, subtitle: String, accent: 
 }
 
 @Composable
-private fun SensorCard(symbol: String, title: String, detected: Boolean?, accent: Color) {
+private fun SensorCard(icon: ImageVector, title: String, detected: Boolean?, accent: Color) {
     Row(
         modifier = Modifier.fillMaxWidth().background(MaintenanceCard, RoundedCornerShape(22.dp)).border(1.dp, BordeTarjeta, RoundedCornerShape(22.dp)).padding(18.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        IconBox(symbol, accent)
+        IconBox(icon, accent)
         Spacer(Modifier.size(16.dp))
         Column(modifier = Modifier.weight(1f)) {
             Text(title, color = TextoPrincipal, fontSize = 17.sp, fontWeight = FontWeight.SemiBold)
@@ -147,7 +157,7 @@ private fun ValveCard(open: Boolean, onChange: (Boolean) -> Unit) {
         modifier = Modifier.fillMaxWidth().background(MaintenanceCard, RoundedCornerShape(22.dp)).border(1.dp, BordeTarjeta, RoundedCornerShape(22.dp)).padding(18.dp)
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            IconBox("⚙", Blue)
+            IconBox(Icons.Rounded.Settings, Blue)
             Spacer(Modifier.size(16.dp))
             Column(modifier = Modifier.weight(1f)) {
                 Text("Electroválvula de agua", color = TextoPrincipal, fontSize = 17.sp, fontWeight = FontWeight.SemiBold)
@@ -180,9 +190,16 @@ private fun ValveOption(text: String, selected: Boolean, onClick: () -> Unit) {
 }
 
 @Composable
-private fun IconBox(symbol: String, accent: Color) {
+private fun IconBox(icon: ImageVector, accent: Color) {
     Box(
         modifier = Modifier.size(58.dp).background(accent.copy(alpha = 0.11f), RoundedCornerShape(20.dp)),
         contentAlignment = Alignment.Center
-    ) { Text(symbol, color = accent, fontSize = 30.sp) }
+    ) {
+        Icon(
+            imageVector = icon,
+            contentDescription = null,
+            tint = accent,
+            modifier = Modifier.size(30.dp)
+        )
+    }
 }

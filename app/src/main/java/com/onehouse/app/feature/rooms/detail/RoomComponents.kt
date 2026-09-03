@@ -23,6 +23,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.AcUnit
+import androidx.compose.material.icons.rounded.ArrowBack
 import androidx.compose.material.icons.rounded.Bathtub
 import androidx.compose.material.icons.rounded.Bed
 import androidx.compose.material.icons.rounded.Blinds
@@ -37,6 +38,7 @@ import androidx.compose.material.icons.rounded.Thermostat
 import androidx.compose.material.icons.rounded.WaterDrop
 import androidx.compose.material.icons.rounded.WbSunny
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
@@ -72,15 +74,13 @@ internal fun RoomHeader(title: String, onBack: () -> Unit) {
         modifier = Modifier.fillMaxWidth(),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Text(
-            text = "‹",
-            color = TextoPrincipal,
-            fontSize = 40.sp,
-            fontWeight = FontWeight.Light,
-            modifier = Modifier
-                .clickable(onClick = onBack)
-                .padding(horizontal = 8.dp, vertical = 2.dp)
-        )
+        IconButton(onClick = onBack) {
+            Icon(
+                imageVector = Icons.Rounded.ArrowBack,
+                contentDescription = "Volver",
+                tint = TextoPrincipal
+            )
+        }
         Text(
             text = title,
             color = TextoPrincipal,

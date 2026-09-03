@@ -20,6 +20,10 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.ArrowBack
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import com.onehouse.app.knx.KnxGroupAddress
@@ -230,14 +234,13 @@ private fun String?.toFanSpeed(): FanSpeed? = when (this?.trim()?.lowercase()) {
 @Composable
 private fun ClimateHeader(exteriorWeather: WeatherUiState, onBack: () -> Unit) {
     Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-        Text(
-            text = "‹",
-            color = ClimateText,
-            fontSize = 40.sp,
-            fontWeight = FontWeight.Light,
-            modifier = Modifier.clip(CircleShape).clickable(onClick = onBack)
-                .padding(horizontal = 10.dp, vertical = 2.dp)
-        )
+        IconButton(onClick = onBack) {
+            Icon(
+                imageVector = Icons.Rounded.ArrowBack,
+                contentDescription = "Volver",
+                tint = ClimateText
+            )
+        }
         Column(modifier = Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally) {
             Text("Climatización", color = ClimateText, fontSize = 24.sp, fontWeight = FontWeight.Bold)
             Spacer(Modifier.height(7.dp))

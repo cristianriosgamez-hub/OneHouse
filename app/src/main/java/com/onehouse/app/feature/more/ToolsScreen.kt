@@ -15,6 +15,14 @@ import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.ArrowBack
+import androidx.compose.material.icons.rounded.ChevronRight
+import androidx.compose.material.icons.rounded.NetworkCheck
+import androidx.compose.material.icons.rounded.ReceiptLong
+import androidx.compose.material.icons.rounded.Sync
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -22,6 +30,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -56,14 +65,13 @@ fun ToolsScreen(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text(
-                    text = "‹",
-                    color = TextoPrincipal,
-                    fontSize = 44.sp,
-                    modifier = Modifier
-                        .clickable(onClick = onBack)
-                        .padding(end = 14.dp)
-                )
+                IconButton(onClick = onBack) {
+                    Icon(
+                        imageVector = Icons.Rounded.ArrowBack,
+                        contentDescription = "Volver",
+                        tint = TextoPrincipal
+                    )
+                }
                 Column {
                     Text(
                         text = "Herramientas",
@@ -79,19 +87,19 @@ fun ToolsScreen(
             }
 
             ToolOptionCard(
-                symbol = "◫",
+                icon = Icons.Rounded.NetworkCheck,
                 title = "Diagnóstico KNX",
                 subtitle = "Valores reales, tiempos y prueba de lectura",
                 onClick = onKnxDiagnosticsSelected
             )
             ToolOptionCard(
-                symbol = "⇅",
+                icon = Icons.Rounded.Sync,
                 title = "Backup y restauración",
                 subtitle = "Exportar y recuperar la configuración",
                 onClick = onBackupRestoreSelected
             )
             ToolOptionCard(
-                symbol = "▦",
+                icon = Icons.Rounded.ReceiptLong,
                 title = "Importar / Exportar consumos",
                 subtitle = "Excel con ENDESA, AGBAR, Climatización y ACS",
                 onClick = onConsumptionTransferSelected
@@ -104,7 +112,7 @@ fun ToolsScreen(
 
 @Composable
 private fun ToolOptionCard(
-    symbol: String,
+    icon: ImageVector,
     title: String,
     subtitle: String,
     onClick: () -> Unit
@@ -120,11 +128,11 @@ private fun ToolOptionCard(
                 color = AzulClaro.copy(alpha = 0.12f),
                 shape = CircleShape
             ) {
-                Text(
-                    text = symbol,
-                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
-                    color = AzulClaro,
-                    fontSize = 24.sp
+                Icon(
+                    imageVector = icon,
+                    contentDescription = null,
+                    modifier = Modifier.padding(10.dp),
+                    tint = AzulClaro
                 )
             }
             Column(
@@ -144,10 +152,10 @@ private fun ToolOptionCard(
                     fontSize = 13.sp
                 )
             }
-            Text(
-                text = "›",
-                color = TextoSecundario,
-                fontSize = 32.sp
+            Icon(
+                imageVector = Icons.Rounded.ChevronRight,
+                contentDescription = null,
+                tint = TextoSecundario
             )
         }
     }

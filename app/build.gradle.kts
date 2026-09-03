@@ -16,8 +16,8 @@ android {
         applicationId = "com.onehouse.app"
         minSdk = 29
         targetSdk = 36
-        versionCode = 147
-        versionName = "1.14.0 REV7 Pulido final de coherencia visual"
+        versionCode = 148
+        versionName = "1.14.0 REV8 Auditoría visual final"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }

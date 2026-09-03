@@ -1,0 +1,45 @@
+OneHouse v1.14.0 REV8 - Auditoría visual final
+================================================
+
+Versión:
+- versionCode: 148
+- versionName: 1.14.0 REV8 Auditoría visual final
+
+Cambios incluidos:
+1. Herramientas
+   - Flecha de regreso sustituida por Material Icon.
+   - Diagnóstico KNX, Backup/Restauración e Importar/Exportar consumos usan Material Icons.
+   - Chevron de acceso sustituido por Material Icon.
+
+2. Mantenimiento
+   - Sustituidos símbolos antiguos por iconografía Material coherente:
+     luces, apagado general, climatización, persianas, inundación, incendio y electroválvula.
+   - Se mantiene el estado KNX desconocido como "---".
+   - No se modifica el comportamiento de los controles.
+
+3. Estancias / detalle
+   - Cabecera de las pantallas de estancia usa flecha Material estándar.
+
+4. Climatización
+   - Cabecera principal usa flecha Material estándar.
+   - Programación de climatización usa flecha Material estándar.
+
+IMPORTANTE:
+- No se ha modificado el motor KNX.
+- No se han cambiado túneles, carga inicial de 36 direcciones, reintentos ni reconciliación.
+- No se han añadido lecturas ni telegramas KNX.
+- No se han cambiado comandos de luces, persianas o climatización.
+- No se han modificado cálculos de consumos ni Open-Meteo.
+- Esta entrega es exclusivamente de coherencia visual.
+
+Archivos a sustituir:
+- app/build.gradle.kts
+- app/src/main/java/com/onehouse/app/feature/more/ToolsScreen.kt
+- app/src/main/java/com/onehouse/app/feature/maintenance/MaintenanceScreen.kt
+- app/src/main/java/com/onehouse/app/feature/rooms/detail/RoomComponents.kt
+- app/src/main/java/com/onehouse/app/feature/climate/ClimateScreen.kt
+- app/src/main/java/com/onehouse/app/feature/climate/ClimateScheduleScreen.kt
+
+Validación en este entorno:
+- Se ha realizado revisión estática del código.
+- No ha sido posible ejecutar Gradle porque el wrapper intenta descargar Gradle 9.5.0 desde services.gradle.org y el entorno no dispone de acceso de red.
