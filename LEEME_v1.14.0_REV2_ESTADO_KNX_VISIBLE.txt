@@ -1,0 +1,17 @@
+OneHouse v1.14.0 REV2 - Estado KNX visible
+
+CAMBIOS
+- El indicador Conectado / Sin conexión / Comprobando se mueve a la cabecera de Inicio.
+- Ahora el estado KNX se ve nada más abrir Inicio, sin necesidad de desplazarse al final.
+- Se elimina el indicador duplicado que aparecía al final de la pantalla.
+- Se reutiliza exactamente el mismo estado de conexión existente: no se añaden pruebas, conexiones ni tráfico KNX.
+- Se mantiene el resto de cambios visuales ya validados de v1.14.0 / REV1.
+
+SIN CAMBIOS
+- Motor KNX, 36 GAs, túnel, carga inicial y reconciliación.
+- Luces, persianas, sensores y climatización.
+- Backup/restauración y meteorología.
+
+VERSION
+- versionCode: 142
+- versionName: 1.14.0 REV2 Estado KNX visible

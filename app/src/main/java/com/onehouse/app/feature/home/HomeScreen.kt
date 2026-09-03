@@ -185,6 +185,8 @@ fun HomeScreen(
                         color = TextoSecundario,
                         style = MaterialTheme.typography.bodyMedium
                     )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    ConnectionStatus(connectionStatus, centered = false)
                 }
                 KnxLoadProgressButton(
                     progress = knxLoadProgress,
@@ -219,10 +221,6 @@ fun HomeScreen(
                     onFavoriteSelected = onFavoriteSelected
                 )
             }
-
-
-            Spacer(modifier = Modifier.height(22.dp))
-            ConnectionStatus(connectionStatus)
         }
     }
 
@@ -948,7 +946,7 @@ private fun weatherIcon(weather: WeatherUiState): ImageVector {
 }
 
 @Composable
-private fun ConnectionStatus(status: KnxConnectionStatus) {
+private fun ConnectionStatus(status: KnxConnectionStatus, centered: Boolean = true) {
     val label = when (status) {
         KnxConnectionStatus.NOT_TESTED -> "No comprobado"
         KnxConnectionStatus.TESTING -> "Comprobando…"
@@ -964,7 +962,7 @@ private fun ConnectionStatus(status: KnxConnectionStatus) {
 
     Row(
         modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.Center,
+        horizontalArrangement = if (centered) Arrangement.Center else Arrangement.Start,
         verticalAlignment = Alignment.CenterVertically
     ) {
         Box(

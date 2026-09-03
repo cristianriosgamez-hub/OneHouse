@@ -1,0 +1,22 @@
+OneHouse v1.14.0 REV1 - Imagen Habitación 1
+
+CAMBIOS
+- Sustituida únicamente la imagen de "Habitación 1" por la imagen elegida por el usuario.
+- La imagen se ha recortado manteniendo proporciones, sin estirarla ni deformarla.
+- Resolución final 1200x720 px, manteniendo el tono cálido original y con remuestreo de alta calidad.
+- Se conserva el mismo recurso Android (room_bedroom_1.png), por lo que no cambia ninguna lógica de navegación ni de Estancias.
+
+VERSIÓN
+- versionCode: 141
+- versionName: 1.14.0 REV1 Imagen Habitación 1
+
+NO MODIFICADO
+- Motor KNX y sus 36 GAs.
+- Apertura/reutilización del túnel KNX/IP.
+- Carga inicial, reconciliación, sensores, climatización y programación.
+- Backup/restauración.
+- Meteorología y consumos.
+- Resto de imágenes de las estancias.
+
+NOTA
+La posición del indicador "Conectado / Sin conexión" de Inicio no se modifica en esta REV. Puede trasladarse a la zona superior de Inicio en la siguiente entrega sin cambiar la lógica KNX; únicamente se reutilizaría el mismo estado visual existente.
