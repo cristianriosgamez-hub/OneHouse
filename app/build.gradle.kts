@@ -16,8 +16,8 @@ android {
         applicationId = "com.onehouse.app"
         minSdk = 29
         targetSdk = 36
-        versionCode = 144
-        versionName = "1.14.0 REV4 Refinamiento visual de consumos"
+        versionCode = 145
+        versionName = "1.14.0 REV5 Refinamiento visual de Tiempo"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }

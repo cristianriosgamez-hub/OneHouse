@@ -4,7 +4,6 @@ import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -19,6 +18,16 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.Air
+import androidx.compose.material.icons.rounded.Cloud
+import androidx.compose.material.icons.rounded.LocationOn
+import androidx.compose.material.icons.rounded.Thermostat
+import androidx.compose.material.icons.rounded.Umbrella
+import androidx.compose.material.icons.rounded.Visibility
+import androidx.compose.material.icons.rounded.WaterDrop
+import androidx.compose.material.icons.rounded.WbSunny
+import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -31,6 +40,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -102,11 +112,17 @@ fun WeatherScreen(onBack: (() -> Unit)? = null) {
                 textAlign = TextAlign.Center
             )
         }
-        Spacer(Modifier.height(14.dp))
+        Spacer(Modifier.height(18.dp))
+        WeatherSectionTitle("Condiciones actuales")
+        Spacer(Modifier.height(10.dp))
         WeatherMetricsGrid(state.metrics)
-        Spacer(Modifier.height(14.dp))
+        Spacer(Modifier.height(18.dp))
+        WeatherSectionTitle("Próximos días")
+        Spacer(Modifier.height(10.dp))
         ForecastCard(state.forecast)
-        Spacer(Modifier.height(14.dp))
+        Spacer(Modifier.height(18.dp))
+        WeatherSectionTitle("Sol y luna")
+        Spacer(Modifier.height(10.dp))
         SunAndMoonCards(state)
         Spacer(Modifier.height(96.dp))
     }
@@ -126,14 +142,23 @@ private fun WeatherHeroCard(state: WeatherUiState) {
             .border(1.dp, BordeTarjeta, RoundedCornerShape(26.dp))
             .padding(18.dp)
     ) {
-        Text(
-            text = "⌖  ${state.location}",
-            color = TextoPrincipal,
-            fontSize = 18.sp,
-            fontWeight = FontWeight.SemiBold,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis
-        )
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Icon(
+                imageVector = Icons.Rounded.LocationOn,
+                contentDescription = null,
+                tint = WeatherBlue,
+                modifier = Modifier.size(20.dp)
+            )
+            Spacer(Modifier.width(7.dp))
+            Text(
+                text = state.location,
+                color = TextoPrincipal,
+                fontSize = 18.sp,
+                fontWeight = FontWeight.SemiBold,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+        }
         Text("Actualizado: ${state.updatedAt}", color = TextoSecundario, fontSize = 13.sp)
         Spacer(Modifier.height(18.dp))
 
@@ -147,8 +172,13 @@ private fun WeatherHeroCard(state: WeatherUiState) {
             }
 
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                Text(state.conditionSymbol, color = Color(0xFFFFC52B), fontSize = 58.sp)
-                Spacer(Modifier.height(6.dp))
+                Icon(
+                    imageVector = conditionIcon(state.condition),
+                    contentDescription = state.condition,
+                    tint = Color(0xFFFFC52B),
+                    modifier = Modifier.size(54.dp)
+                )
+                Spacer(Modifier.height(8.dp))
                 Box(
                     modifier = Modifier
                         .background(Color(0xCC081725), RoundedCornerShape(18.dp))
@@ -156,7 +186,14 @@ private fun WeatherHeroCard(state: WeatherUiState) {
                         .padding(horizontal = 13.dp, vertical = 10.dp)
                 ) {
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Text("Temperatura interior", color = TextoPrincipal, fontSize = 11.sp)
+                        Icon(
+                            imageVector = Icons.Rounded.Thermostat,
+                            contentDescription = null,
+                            tint = WeatherBlue,
+                            modifier = Modifier.size(18.dp)
+                        )
+                        Spacer(Modifier.height(2.dp))
+                        Text("Interior", color = TextoSecundario, fontSize = 11.sp)
                         Text(state.indoorTemperature, color = WeatherBlue, fontSize = 23.sp, fontWeight = FontWeight.Medium)
                         Text(
                             text = "${state.indoorComfort} ●",
@@ -168,6 +205,35 @@ private fun WeatherHeroCard(state: WeatherUiState) {
             }
         }
     }
+}
+
+@Composable
+private fun WeatherSectionTitle(title: String) {
+    Text(
+        text = title,
+        color = TextoPrincipal,
+        fontSize = 17.sp,
+        fontWeight = FontWeight.SemiBold,
+        modifier = Modifier.fillMaxWidth()
+    )
+}
+
+private fun conditionIcon(condition: String): ImageVector {
+    val normalized = condition.lowercase()
+    return when {
+        "sol" in normalized || "despejado" in normalized -> Icons.Rounded.WbSunny
+        else -> Icons.Rounded.Cloud
+    }
+}
+
+private fun metricIcon(title: String): ImageVector = when (title) {
+    "Humedad" -> Icons.Rounded.WaterDrop
+    "Precipitación" -> Icons.Rounded.Umbrella
+    "Viento" -> Icons.Rounded.Air
+    "Calidad del aire" -> Icons.Rounded.Cloud
+    "Índice UV" -> Icons.Rounded.WbSunny
+    "Visibilidad" -> Icons.Rounded.Visibility
+    else -> Icons.Rounded.WbSunny
 }
 
 private fun indoorComfortColor(value: Float?): Color = when {
@@ -212,8 +278,20 @@ private fun WeatherMetricCard(metric: WeatherMetric, accent: Color, modifier: Mo
             .padding(horizontal = 14.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Text(metric.symbol, color = accent, fontSize = 28.sp)
-        Spacer(Modifier.width(12.dp))
+        Box(
+            modifier = Modifier
+                .size(42.dp)
+                .background(accent.copy(alpha = 0.12f), RoundedCornerShape(13.dp)),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(
+                imageVector = metricIcon(metric.title),
+                contentDescription = null,
+                tint = accent,
+                modifier = Modifier.size(24.dp)
+            )
+        }
+        Spacer(Modifier.width(11.dp))
         Column(modifier = Modifier.weight(1f)) {
             Text(
                 text = metric.title,
@@ -250,41 +328,40 @@ private fun ForecastCard(forecast: List<DailyForecast>) {
             .border(1.dp, BordeTarjeta, RoundedCornerShape(24.dp))
             .padding(vertical = 18.dp)
     ) {
-        Text(
-            text = "Pronóstico 5 días",
-            color = TextoPrincipal,
-            fontSize = 18.sp,
-            fontWeight = FontWeight.SemiBold,
-            modifier = Modifier.padding(horizontal = 18.dp)
-        )
-        Spacer(Modifier.height(16.dp))
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .horizontalScroll(rememberScrollState())
-                .padding(horizontal = 10.dp),
-            horizontalArrangement = Arrangement.spacedBy(6.dp)
-        ) {
-            forecast.forEach { day ->
-                ForecastDay(day)
+        if (forecast.isEmpty()) {
+            Text(
+                text = "Pronóstico no disponible",
+                color = TextoSecundario,
+                fontSize = 13.sp,
+                modifier = Modifier.padding(horizontal = 18.dp, vertical = 6.dp)
+            )
+        } else {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 8.dp),
+                horizontalArrangement = Arrangement.spacedBy(2.dp)
+            ) {
+                forecast.take(5).forEach { day ->
+                    ForecastDay(day, Modifier.weight(1f))
+                }
             }
         }
     }
 }
 
 @Composable
-private fun ForecastDay(day: DailyForecast) {
+private fun ForecastDay(day: DailyForecast, modifier: Modifier = Modifier) {
     Column(
-        modifier = Modifier
-            .width(92.dp)
-            .padding(horizontal = 5.dp, vertical = 2.dp),
+        modifier = modifier
+            .padding(horizontal = 2.dp, vertical = 2.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         Text(day.day, color = TextoPrincipal, fontSize = 12.sp, maxLines = 1)
         Spacer(Modifier.height(4.dp))
         Text(day.symbol, fontSize = 27.sp)
-        Text(day.high, color = WeatherOrange, fontSize = 18.sp)
-        Text(day.low, color = WeatherBlue, fontSize = 16.sp)
+        Text(day.high, color = WeatherOrange, fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
+        Text(day.low, color = WeatherBlue, fontSize = 14.sp)
         Text(
             text = "◌ ${day.precipitation}",
             color = TextoSecundario,

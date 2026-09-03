@@ -1,0 +1,33 @@
+OneHouse v1.14.0 REV5 - Refinamiento visual de Tiempo
+=====================================================
+
+Cambios incluidos
+-----------------
+- Pantalla Tiempo reorganizada visualmente en tres bloques claros:
+  * Condiciones actuales
+  * Próximos días
+  * Sol y luna
+- Sustitución de símbolos/glyphs de métricas por iconos Material coherentes con el resto de OneHouse.
+- Cabecera meteorológica refinada con icono de ubicación Material.
+- Estado meteorológico principal representado con iconografía Material más limpia.
+- Tarjeta de temperatura interior simplificada visualmente y con icono de termostato.
+- Pronóstico de 5 días visible de una sola vez, sin desplazamiento horizontal.
+- Ajustes de tamaños, espaciados y jerarquía visual para mejorar lectura en móvil.
+
+No modificado
+-------------
+- No se modifica Open-Meteo ni su caché de 15 minutos.
+- No se modifica la obtención ni el cálculo de datos meteorológicos.
+- No se modifica KNX, túneles, carga inicial, direcciones de grupo ni comandos.
+- No se modifica la lógica de climatización ni de consumos.
+
+Versión
+-------
+versionCode: 145
+versionName: 1.14.0 REV5 Refinamiento visual de Tiempo
+
+Archivos de esta entrega
+------------------------
+- app/build.gradle.kts
+- app/src/main/java/com/onehouse/app/feature/weather/WeatherScreen.kt
+- LEEME_v1.14.0_REV5_Refinamiento_Visual_Tiempo.txt
