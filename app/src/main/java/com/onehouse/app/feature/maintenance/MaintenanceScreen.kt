@@ -129,7 +129,7 @@ private fun SensorCard(symbol: String, title: String, detected: Boolean?, accent
             when (detected) {
                 true -> "⚠ Detección"
                 false -> "✓ Sin detecciones"
-                null -> "-- Sin datos"
+                null -> "---"
             },
             color = when (detected) {
                 true -> Red

@@ -1,0 +1,17 @@
+OneHouse v1.14.0 REV7 - Pulido final de coherencia visual
+
+Cambios incluidos:
+- Backup y restauración: flecha Atrás sustituida por icono Material estándar.
+- Direcciones KNX: flecha Atrás sustituida por icono Material estándar.
+- Mantenimiento: estado KNX todavía no recibido se muestra como "---", coherente con el resto de OneHouse.
+- Ajustes menores de coherencia visual en pantallas secundarias.
+- versionCode 147 / versionName 1.14.0 REV7 Pulido final de coherencia visual.
+
+No se modifica:
+- Motor KNX ni apertura/reutilización de túneles.
+- Carga inicial de 36 direcciones.
+- Comandos KNX ni lógica de climatización.
+- BackupManager ni formato/esquema del backup.
+- Cálculos, consumos o meteorología.
+
+Sustituir únicamente los archivos incluidos respetando sus rutas.

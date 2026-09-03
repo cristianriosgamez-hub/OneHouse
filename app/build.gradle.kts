@@ -16,8 +16,8 @@ android {
         applicationId = "com.onehouse.app"
         minSdk = 29
         targetSdk = 36
-        versionCode = 146
-        versionName = "1.14.0 REV6 Refinamiento visual de Configuración y Diagnóstico"
+        versionCode = 147
+        versionName = "1.14.0 REV7 Pulido final de coherencia visual"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }

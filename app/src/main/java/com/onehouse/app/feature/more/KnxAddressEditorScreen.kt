@@ -10,6 +10,8 @@ import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -114,7 +116,13 @@ fun KnxAddressEditorScreen(onBack: () -> Unit) {
             verticalArrangement = Arrangement.spacedBy(14.dp)
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Text("‹", color = TextoPrincipal, fontSize = 42.sp, modifier = Modifier.padding(end = 10.dp).clickable(onClick = onBack))
+                IconButton(onClick = onBack) {
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                        contentDescription = "Volver",
+                        tint = TextoPrincipal
+                    )
+                }
                 Column(Modifier.weight(1f)) {
                     Text("Direcciones KNX", color = TextoPrincipal, style = MaterialTheme.typography.headlineMedium)
                     Text("Configuración independiente de OneHouse", color = TextoSecundario)
