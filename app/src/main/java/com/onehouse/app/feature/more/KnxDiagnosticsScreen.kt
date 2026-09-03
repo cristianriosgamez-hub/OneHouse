@@ -18,7 +18,11 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.ArrowBack
 import androidx.compose.material3.Button
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
@@ -172,23 +176,22 @@ fun KnxDiagnosticsScreen(onBack: () -> Unit) {
             verticalArrangement = Arrangement.spacedBy(14.dp)
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(
-                    text = "‹",
-                    color = TextoPrincipal,
-                    fontSize = 42.sp,
-                    modifier = Modifier
-                        .padding(end = 10.dp)
-                        .clickable(onClick = onBack)
-                )
+                IconButton(onClick = onBack, modifier = Modifier.padding(end = 6.dp)) {
+                    Icon(
+                        imageVector = Icons.Rounded.ArrowBack,
+                        contentDescription = "Volver",
+                        tint = TextoPrincipal
+                    )
+                }
                 Column(modifier = Modifier.weight(1f)) {
                     Text("Diagnóstico KNX", color = TextoPrincipal, style = MaterialTheme.typography.headlineMedium)
-                    Text("Diagnóstico exclusivo de la configuración independiente de OneHouse", color = TextoSecundario)
+                    Text("Estado, actividad y herramientas de diagnóstico", color = TextoSecundario)
                 }
             }
 
             OneHouseCard {
                 Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text("Resumen", color = TextoPrincipal, fontWeight = FontWeight.Bold)
+                    Text("Resumen de la instalación", color = TextoPrincipal, fontWeight = FontWeight.Bold, fontSize = 18.sp)
                     Text("Objetos de OneHouse: ${objects.size}", color = TextoSecundario)
                     Text("Direcciones con respuesta: ${states.keys.count { address -> objects.any { it.address == address } }}", color = TextoSecundario)
                     Text("Telegramas recientes: ${events.size}", color = TextoSecundario)
@@ -209,7 +212,7 @@ fun KnxDiagnosticsScreen(onBack: () -> Unit) {
                     modifier = Modifier.padding(16.dp),
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    Text("Salud de comunicaciones", color = TextoPrincipal, fontWeight = FontWeight.Bold)
+                    Text("Salud de comunicaciones", color = TextoPrincipal, fontWeight = FontWeight.Bold, fontSize = 18.sp)
                     Text(
                         "Historial pasivo: observa KNX sin generar telegramas adicionales.",
                         color = TextoSecundario,
@@ -266,7 +269,7 @@ fun KnxDiagnosticsScreen(onBack: () -> Unit) {
                     modifier = Modifier.padding(16.dp),
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    Text("Métricas motor KNX", color = TextoPrincipal, fontWeight = FontWeight.Bold)
+                    Text("Métricas del motor KNX", color = TextoPrincipal, fontWeight = FontWeight.Bold, fontSize = 18.sp)
                     Text(
                         "Medición interna de la ruta actual de estados KNX.",
                         color = TextoSecundario,
@@ -456,7 +459,7 @@ fun KnxDiagnosticsScreen(onBack: () -> Unit) {
                 }
             }
 
-            Text("Monitor de telegramas · últimos 30", color = TextoPrincipal, fontWeight = FontWeight.Bold, fontSize = 20.sp)
+            Text("Actividad KNX reciente · últimos 30", color = TextoPrincipal, fontWeight = FontWeight.Bold, fontSize = 20.sp)
             if (events.isEmpty()) {
                 Text("Todavía no hay operaciones KNX registradas.", color = TextoSecundario)
             } else {

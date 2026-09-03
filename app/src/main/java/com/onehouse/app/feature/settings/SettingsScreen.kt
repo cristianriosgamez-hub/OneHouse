@@ -117,7 +117,7 @@ fun SettingsScreen(onBack: () -> Unit) {
         ) {
             SettingsHeader(onBack = onBack)
             Text(
-                text = "Conexión y estado de OneHouse",
+                text = "Conexión, dispositivo y estado del sistema",
                 color = TextoSecundario,
                 style = MaterialTheme.typography.bodyMedium
             )
@@ -168,8 +168,8 @@ fun SettingsScreen(onBack: () -> Unit) {
 
             SettingsCardHeader(
                 icon = Icons.Rounded.Info,
-                title = "Estado de la aplicación",
-                subtitle = "Información general del sistema"
+                title = "Estado del sistema",
+                subtitle = "Resumen de conexión, red y versión"
             ) {
                 StatusRow(
                     label = "Estado KNX",
@@ -213,8 +213,8 @@ fun SettingsScreen(onBack: () -> Unit) {
 
             SettingsCardHeader(
                 icon = Icons.Rounded.Smartphone,
-                title = "Información del dispositivo",
-                subtitle = "Detalles de tu dispositivo"
+                title = "Este dispositivo",
+                subtitle = "Información del teléfono donde se ejecuta OneHouse"
             ) {
                 StatusRow(label = "Dispositivo", value = "${Build.MANUFACTURER} ${Build.MODEL}")
                 SettingsDivider()
@@ -302,7 +302,7 @@ fun SettingsScreen(onBack: () -> Unit) {
                             .weight(1f)
                             .padding(horizontal = 14.dp)
                     ) {
-                        Text("Probar conexión KNX/IP", color = TextoPrincipal, fontWeight = FontWeight.SemiBold)
+                        Text("Comprobar conexión KNX/IP", color = TextoPrincipal, fontWeight = FontWeight.SemiBold)
                         Text(viewModel.statusMessage, color = TextoSecundario, fontSize = 13.sp)
                     }
                     Icon(Icons.Rounded.ChevronRight, contentDescription = null, tint = TextoSecundario)

@@ -16,8 +16,8 @@ android {
         applicationId = "com.onehouse.app"
         minSdk = 29
         targetSdk = 36
-        versionCode = 145
-        versionName = "1.14.0 REV5 Refinamiento visual de Tiempo"
+        versionCode = 146
+        versionName = "1.14.0 REV6 Refinamiento visual de Configuración y Diagnóstico"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
