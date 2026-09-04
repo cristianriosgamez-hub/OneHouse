@@ -18,6 +18,7 @@ class ClimateScheduleAlarmReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
         val appContext = context.applicationContext
         val eventId = intent.getLongExtra(EXTRA_EVENT_ID, -1L)
+        ClimateScheduleExecutionTrace.stage(appContext, "RECEIVER", eventId)
         if (eventId <= 0L) {
             ClimateBackgroundScheduler(appContext).reschedule()
             return
@@ -37,6 +38,7 @@ class ClimateScheduleAlarmReceiver : BroadcastReceiver() {
         // Fallback defensivo para dispositivos que impidan iniciar el FGS desde
         // segundo plano pese a venir de una alarma exacta.
         if (!serviceStarted) {
+            ClimateScheduleExecutionTrace.stage(appContext, "FALLBACK", eventId)
             executeInsideReceiver(appContext, eventId)
         }
     }
@@ -71,6 +73,7 @@ class ClimateScheduleAlarmReceiver : BroadcastReceiver() {
                 finishOnce.finish()
             }
         }.onFailure {
+            ClimateScheduleExecutionTrace.stage(context, "ERROR", eventId)
             ClimateBackgroundScheduler(context).reschedule()
             finishOnce.finish()
         }

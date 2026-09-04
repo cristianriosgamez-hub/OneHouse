@@ -38,6 +38,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
@@ -53,6 +54,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import java.time.DayOfWeek
 import java.time.Duration
 import java.time.LocalDateTime
@@ -76,6 +80,24 @@ fun ClimateScheduleScreen(
     }
     var expandedDay by remember { mutableStateOf<DayOfWeek?>(null) }
     var editingDay by remember { mutableStateOf<DayOfWeek?>(null) }
+    var trace by remember { mutableStateOf(ClimateScheduleExecutionTrace.snapshot(context)) }
+    val lifecycleOwner = LocalLifecycleOwner.current
+
+    DisposableEffect(lifecycleOwner, state) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) {
+                // Al volver de Ajustes de "Alarmas y recordatorios", si el permiso
+                // exacto ya fue concedido, sustituimos inmediatamente el fallback
+                // inexacto por una alarma exacta.
+                if (state.globallyEnabled && canScheduleExactAlarm(context)) {
+                    scheduler.reschedule()
+                }
+                trace = ClimateScheduleExecutionTrace.snapshot(context)
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+    }
 
     fun persist(newState: ClimateScheduleState) {
         state = newState
@@ -84,6 +106,7 @@ fun ClimateScheduleScreen(
             requestExactAlarmAccessIfNeeded(context)
         }
         scheduler.reschedule()
+        trace = ClimateScheduleExecutionTrace.snapshot(context)
     }
 
     val next = ClimateScheduleEngine.nextExecution(state)
@@ -117,6 +140,10 @@ fun ClimateScheduleScreen(
         Spacer(modifier = Modifier.height(14.dp))
 
         NextEventCard(next = next)
+
+        Spacer(modifier = Modifier.height(10.dp))
+
+        ScheduleExecutionStatusCard(trace = trace)
 
         Spacer(modifier = Modifier.height(22.dp))
 
@@ -741,6 +768,34 @@ private fun SelectionRow(
     }
 }
 
+@Composable
+private fun ScheduleExecutionStatusCard(trace: ClimateScheduleExecutionTrace.Snapshot) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(ClimateCard, RoundedCornerShape(18.dp))
+            .border(1.dp, ClimateBorder, RoundedCornerShape(18.dp))
+            .padding(14.dp)
+    ) {
+        Text("Estado de ejecución", color = ClimateText, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
+        Spacer(modifier = Modifier.height(6.dp))
+        Text(
+            text = if (trace.nextAlarmAt != null) {
+                "Alarma: ${trace.nextLabel()} · ${if (trace.exact) "exacta" else "inexacta"}"
+            } else {
+                "Alarma: ---"
+            },
+            color = ClimateTextSecondary,
+            fontSize = 12.sp
+        )
+        Text(
+            text = "Último paso: ${trace.lastLabel()}",
+            color = ClimateTextSecondary,
+            fontSize = 12.sp
+        )
+    }
+}
+
 private fun dayLabel(day: DayOfWeek): String =
     day.getDisplayName(TextStyle.FULL, Locale("es", "ES"))
         .replaceFirstChar { it.uppercase() }
@@ -749,11 +804,13 @@ private fun formatTemperature(value: Float): String =
     String.format(Locale("es", "ES"), "%.1f °C", value)
 
 
-private fun requestExactAlarmAccessIfNeeded(context: Context) {
-    if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S) return
+private fun canScheduleExactAlarm(context: Context): Boolean {
+    if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S) return true
+    return context.getSystemService(AlarmManager::class.java).canScheduleExactAlarms()
+}
 
-    val alarmManager = context.getSystemService(AlarmManager::class.java)
-    if (alarmManager.canScheduleExactAlarms()) return
+private fun requestExactAlarmAccessIfNeeded(context: Context) {
+    if (canScheduleExactAlarm(context)) return
 
     runCatching {
         val intent = Intent(

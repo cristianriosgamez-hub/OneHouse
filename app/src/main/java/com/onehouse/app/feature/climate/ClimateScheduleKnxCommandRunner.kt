@@ -19,6 +19,7 @@ class ClimateScheduleKnxCommandRunner(context: Context) {
     private var commandExecutor: KnxCommandExecutor? = null
 
     fun execute(eventId: Long, onFinished: () -> Unit) {
+        ClimateScheduleExecutionTrace.stage(appContext, "KNX_START", eventId)
         val repository = SharedPreferencesClimateScheduleRepository(appContext)
         val state = repository.load()
         val event = state.events.firstOrNull { it.id == eventId && it.enabled }
@@ -186,6 +187,7 @@ class ClimateScheduleKnxCommandRunner(context: Context) {
         repository: ClimateScheduleRepository,
         onFinished: () -> Unit
     ) {
+        ClimateScheduleExecutionTrace.stage(appContext, "KNX_FINISH", -1L)
         ClimateBackgroundScheduler(
             context = appContext,
             repository = repository

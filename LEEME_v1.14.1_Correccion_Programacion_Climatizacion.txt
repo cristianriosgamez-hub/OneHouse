@@ -1,0 +1,29 @@
+OneHouse v1.14.1 - Corrección programación climatización
+========================================================
+
+Objetivo
+- Corregir el FAILED detectado en la ejecución programada de climatización con la app en segundo plano/pantalla apagada.
+
+Cambios
+- Al volver desde Ajustes de Android tras conceder "Alarmas y recordatorios", OneHouse reprograma automáticamente la siguiente ejecución como alarma exacta.
+- Se conserva el fallback inexacto cuando el permiso todavía no está disponible.
+- Se añade trazabilidad persistente y ligera del recorrido: alarma registrada -> receiver -> servicio -> KNX -> finalización/error.
+- La pantalla Programación muestra "Estado de ejecución", con próxima alarma, si es exacta/inexacta y último paso alcanzado.
+- Receiver y ForegroundService mantienen los WakeLocks/fallbacks existentes.
+- No se modifica KnxCentralEngine, la carga inicial de 36 direcciones, la protección de túnel/código 36 ni la lógica general KNX validada.
+
+Versión
+- versionCode: 149
+- versionName: 1.14.1 Corrección programación climatización
+
+Prueba recomendada
+1. Instalar/actualizar y abrir Programación de climatización.
+2. Activar Programación automática y conceder "Alarmas y recordatorios" si Android lo solicita.
+3. Volver a OneHouse y confirmar que "Estado de ejecución" indica una alarma "exacta".
+4. Crear un evento al menos 5 minutos por delante.
+5. Dejar OneHouse en segundo plano y apagar la pantalla.
+6. Esperar la hora programada y comprobar la climatización.
+7. Si no ejecuta, abrir Programación y comunicar el texto exacto de "Último paso"; permitirá localizar el punto donde se detuvo.
+
+Nota de compilación
+- No se ha podido ejecutar Gradle en el entorno de generación porque el wrapper intenta descargar Gradle 9.5.0 desde services.gradle.org y este entorno no tiene acceso de red. El usuario debe compilar en Android Studio como en las entregas anteriores.

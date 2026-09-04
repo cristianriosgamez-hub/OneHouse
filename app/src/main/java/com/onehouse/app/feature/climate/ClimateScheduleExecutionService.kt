@@ -30,6 +30,7 @@ class ClimateScheduleExecutionService : Service() {
         acquireWakeLock()
 
         val eventId = intent?.getLongExtra(EXTRA_EVENT_ID, -1L) ?: -1L
+        ClimateScheduleExecutionTrace.stage(applicationContext, "SERVICE", eventId)
         if (eventId <= 0L) {
             finishExecution(startId)
             return START_NOT_STICKY
@@ -40,6 +41,7 @@ class ClimateScheduleExecutionService : Service() {
                 finishExecution(startId)
             }
         }.onFailure {
+            ClimateScheduleExecutionTrace.stage(applicationContext, "ERROR", eventId)
             ClimateBackgroundScheduler(applicationContext).reschedule()
             finishExecution(startId)
         }

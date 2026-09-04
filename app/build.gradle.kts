@@ -16,8 +16,8 @@ android {
         applicationId = "com.onehouse.app"
         minSdk = 29
         targetSdk = 36
-        versionCode = 148
-        versionName = "1.14.0 REV8 Auditoría visual final"
+        versionCode = 149
+        versionName = "1.14.1 Corrección programación climatización"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }

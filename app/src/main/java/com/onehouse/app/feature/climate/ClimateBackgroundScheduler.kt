@@ -31,7 +31,8 @@ class ClimateBackgroundScheduler(
 
         val pendingIntent = pendingIntent(next.event.id)
 
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S || alarmManager.canScheduleExactAlarms()) {
+        val exact = Build.VERSION.SDK_INT < Build.VERSION_CODES.S || alarmManager.canScheduleExactAlarms()
+        if (exact) {
             alarmManager.setExactAndAllowWhileIdle(
                 AlarmManager.RTC_WAKEUP,
                 triggerAtMillis,
@@ -47,10 +48,12 @@ class ClimateBackgroundScheduler(
                 pendingIntent
             )
         }
+        ClimateScheduleExecutionTrace.scheduled(context, next.event.id, triggerAtMillis, exact)
     }
 
     fun cancel() {
         alarmManager.cancel(pendingIntent(0L))
+        ClimateScheduleExecutionTrace.cancelled(context)
     }
 
     private fun pendingIntent(eventId: Long): PendingIntent {
