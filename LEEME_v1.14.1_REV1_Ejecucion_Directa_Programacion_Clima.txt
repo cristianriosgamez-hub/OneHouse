@@ -1,0 +1,55 @@
+OneHouse v1.14.1 REV1 - Ejecución directa programación clima
+versionCode 150
+
+OBJETIVO
+Corregir la ejecución de la programación de climatización cuando OneHouse permanece
+en segundo plano y el teléfono está con la pantalla apagada.
+
+DIAGNÓSTICO DE PARTIDA
+- La alarma queda registrada como exacta.
+- En la prueba anterior el clima no se ejecutó a la hora prevista.
+- Al volver a abrir OneHouse, el evento pendiente terminó ejecutándose.
+- La traza anterior podía quedar sobrescrita por una nueva reprogramación al volver
+  a la pantalla, por lo que no demostraba de forma concluyente si el Receiver había
+  sido entregado o si el bloqueo estaba en el arranque posterior del servicio.
+
+CAMBIOS REV1
+1. ClimateScheduleAlarmReceiver
+   - El evento KNX se inicia directamente desde el BroadcastReceiver.
+   - Se elimina de este recorrido la dependencia de startForegroundService(), ya
+     que HyperOS puede aceptar esa llamada y retrasar el arranque real del servicio.
+   - Se usa goAsync() para mantener viva la ejecución asíncrona del receiver.
+   - Se adquiere PARTIAL_WAKE_LOCK con límite de 120 segundos durante la ejecución.
+   - El runner KNX existente sigue enviando las órdenes secuencialmente y agenda
+     el siguiente evento al finalizar.
+
+2. ClimateScheduleExecutionTrace
+   - Registrar/reprogramar la siguiente alarma ya NO sobrescribe "Último paso".
+   - Se añade la etapa "Ejecución directa iniciada".
+   - Esto permite conservar el último punto real alcanzado por una ejecución.
+
+3. Versión
+   - versionCode: 150
+   - versionName: 1.14.1 REV1 Ejecución directa programación clima
+
+NO SE MODIFICA
+- KnxCentralEngine.
+- Carga inicial de las 36 direcciones KNX.
+- Protección de túneles/código 36.
+- Direcciones de grupo KNX ni valores de climatización.
+- Backup, consumos, meteorología o resto de pantallas.
+
+PRUEBA RECOMENDADA
+1. Instalar/compilar REV1.
+2. Confirmar que Programación automática está activa y la alarma aparece "exacta".
+3. Crear un evento al menos 5 minutos por delante.
+4. Salir de OneHouse sin forzar su detención y apagar la pantalla.
+5. No volver a abrir OneHouse hasta 2-3 minutos después de la hora programada.
+6. Comprobar físicamente si el clima arrancó a la hora prevista.
+7. Después abrir Programación y revisar "Último paso".
+   Si funciona, debe haber alcanzado "Ejecución finalizada" antes de abrir la app.
+
+NOTA
+No usar "Forzar detención" de Android para esta prueba: Android elimina/bloquea las
+alarmas de una aplicación que ha sido forzada a detenerse hasta que el usuario la
+abre de nuevo.

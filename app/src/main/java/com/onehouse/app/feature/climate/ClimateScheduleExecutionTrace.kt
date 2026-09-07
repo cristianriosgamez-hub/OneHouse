@@ -20,7 +20,6 @@ object ClimateScheduleExecutionTrace {
             .putBoolean(KEY_EXACT, exact)
             .putLong(KEY_LAST_EVENT, eventId)
             .apply()
-        stage(context, "ALARM_REGISTERED", eventId)
     }
 
     fun cancelled(context: Context) {
@@ -62,6 +61,7 @@ object ClimateScheduleExecutionTrace {
     private fun stageLabel(stage: String?): String = when (stage) {
         "ALARM_REGISTERED" -> "Alarma registrada"
         "RECEIVER" -> "Alarma recibida"
+        "DIRECT_EXECUTION" -> "Ejecución directa iniciada"
         "SERVICE" -> "Servicio iniciado"
         "KNX_START" -> "Comando KNX iniciado"
         "KNX_FINISH" -> "Ejecución finalizada"
