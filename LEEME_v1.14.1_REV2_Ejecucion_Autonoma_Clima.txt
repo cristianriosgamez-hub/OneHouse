@@ -1,0 +1,37 @@
+OneHouse v1.14.1 REV2 - Ejecución autónoma de programación de climatización
+
+OBJETIVO
+Corregir el escenario pendiente en el que una programación funciona con OneHouse
+en segundo plano, pero no se ejecuta si el proceso de la aplicación ya no está vivo.
+
+CAMBIOS
+1. AlarmManager entrega ahora la alarma directamente a ClimateScheduleExecutionService
+   mediante PendingIntent.getForegroundService() (Android 8+).
+2. Se elimina del camino principal el salto AlarmManager -> BroadcastReceiver -> servicio.
+   Android puede crear el proceso de OneHouse y levantar directamente el servicio cuando
+   llega una alarma exacta.
+3. ClimateScheduleExecutionService sigue siendo de corta duración, entra inmediatamente
+   en foreground, adquiere PARTIAL_WAKE_LOCK y ejecuta los mismos comandos KNX secuenciales.
+4. Se conserva ClimateScheduleAlarmReceiver como código de compatibilidad/diagnóstico,
+   pero ya no es el destino de las nuevas alarmas programadas.
+5. Al cambiar el permiso de "Alarmas y recordatorios", OneHouse puede reconstruir la
+   siguiente alarma mediante ACTION_SCHEDULE_EXACT_ALARM_PERMISSION_STATE_CHANGED.
+6. No se modifica KnxCentralEngine, la carga inicial de 36 direcciones, las GAs, el
+   mecanismo anti-código-36 ni los controles KNX manuales.
+
+VERSIÓN
+versionCode: 151
+versionName: 1.14.1 REV2 Ejecución autónoma clima
+
+PRUEBA RECOMENDADA
+A) Abrir OneHouse y crear un evento 5 minutos por delante.
+B) Confirmar en Estado de ejecución que la siguiente alarma aparece como exacta.
+C) Salir de OneHouse y quitarla de Aplicaciones recientes (NO usar Forzar detención).
+D) Apagar la pantalla y no volver a abrir OneHouse hasta 2-3 minutos después de la hora.
+E) Confirmar físicamente que el clima se ha ejecutado.
+F) Abrir OneHouse y revisar Último paso; debe haber alcanzado Servicio iniciado /
+   Comando KNX iniciado / Ejecución finalizada.
+
+IMPORTANTE
+"Forzar detención" desde Ajustes es un escenario distinto: Android pone el paquete en
+estado detenido y no se considera un caso soportable por una alarma interna de la app.
