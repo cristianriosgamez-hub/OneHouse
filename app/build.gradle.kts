@@ -17,7 +17,7 @@ android {
         minSdk = 29
         targetSdk = 36
         versionCode = 151
-        versionName = "1.14.1 REV7 Negociación KNX/IP HPAI"
+        versionName = "1.14.1 REV8 Compatibilidad KNX/IP NAT"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }

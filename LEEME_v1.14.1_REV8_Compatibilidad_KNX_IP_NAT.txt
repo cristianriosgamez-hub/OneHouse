@@ -1,0 +1,32 @@
+OneHouse v1.14.1 REV8 - Compatibilidad KNX/IP NAT
+
+OBJETIVO
+Probar de forma controlada una segunda variante de negociación KNXnet/IP remota sin modificar el funcionamiento local que ya está validado.
+
+CAMBIOS
+- En conexión REMOTA se mantiene como intento 1 el comportamiento REV7: NAT estándar, HPAI Control/Data = 0.0.0.0:0.
+- SOLO si el intento 1 termina por timeout con 0 datagramas, se realiza un intento 2 de compatibilidad: HPAI Control/Data anuncian la IP/puerto UDP local del móvil.
+- Ambos intentos usan el mismo socket UDP para conservar el mismo mapeo NAT durante la prueba.
+- El diagnóstico identifica: intento 1/2, modo NAT_ESTANDAR o COMPAT_HPAI_LOCAL, HPAI, HEX, respuesta o timeout.
+- Si una variante recibe CONNECT_RESPONSE y abre túnel, se conserva ese modo para el DISCONNECT_REQUEST.
+- La ruta LOCAL ejecuta exactamente un intento, igual que antes. No tiene fallback REV8.
+- Documentación técnica actualizada.
+- VersionName: 1.14.1 REV8 Compatibilidad KNX/IP NAT.
+
+NO SE MODIFICA
+- Direcciones de grupo ni DPT.
+- Luces, persianas, clima, temperaturas o sensores.
+- Motor paralelo, EventBus, carga de estados o resolvers.
+- Selección automática Local/Remota.
+- Configuración del router.
+
+IMPORTANTE
+El modo COMPAT_HPAI_LOCAL es una prueba de compatibilidad. La IP móvil 10.x es privada y no se presupone que vaya a funcionar. Su utilidad es comprobar si el gateway/router responde de forma distinta frente al HPAI NAT estándar. No sustituye NAT estándar salvo que realmente consiga respuesta.
+
+PRUEBA RECOMENDADA
+1. Compilar e instalar REV8.
+2. En oficina, Wi-Fi OFF y datos móviles/5G ON.
+3. Abrir OneHouse y esperar al intento KNX.
+4. Ir a Más > Diagnóstico KNX > Última negociación KNX/IP.
+5. Capturar desde 'REV8 intento 1/2' hasta el resultado de 'REV8 intento 2/2'.
+6. No cambiar el router durante esta prueba.
