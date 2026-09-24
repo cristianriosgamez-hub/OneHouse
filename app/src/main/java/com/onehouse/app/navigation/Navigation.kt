@@ -18,6 +18,7 @@ import com.onehouse.app.feature.more.MoreScreen
 import com.onehouse.app.feature.more.ToolsScreen
 import com.onehouse.app.feature.more.KnxAddressEditorScreen
 import com.onehouse.app.feature.more.KnxDiagnosticsScreen
+import com.onehouse.app.feature.more.TechnicalDocumentationScreen
 import com.onehouse.app.feature.rooms.RoomsScreen
 import com.onehouse.app.feature.settings.SettingsScreen
 import com.onehouse.app.feature.rooms.detail.RoomDetailScreen
@@ -48,7 +49,8 @@ private enum class InternalScreen {
     KNX_DIAGNOSTICS,
     BACKUP_RESTORE,
     CONSUMPTION_TRANSFER,
-    TOOLS
+    TOOLS,
+    DOCUMENTATION
 }
 
 @Composable
@@ -140,6 +142,16 @@ fun OneHouseNavigation() {
             return
         }
 
+
+        InternalScreen.DOCUMENTATION -> {
+            TechnicalDocumentationScreen(
+                onBack = {
+                    internalScreen = InternalScreen.MAIN
+                    selectedSection = OneHouseSection.MORE
+                }
+            )
+            return
+        }
 
         InternalScreen.KNX_ADDRESS_EDITOR -> {
             KnxAddressEditorScreen(
@@ -261,7 +273,8 @@ fun OneHouseNavigation() {
                     onConfigurationSelected = { internalScreen = InternalScreen.SETTINGS },
                     onKnxAddressesSelected = { internalScreen = InternalScreen.KNX_ADDRESS_EDITOR },
                     onToolsSelected = { internalScreen = InternalScreen.TOOLS },
-                    onMaintenanceSelected = { internalScreen = InternalScreen.MAINTENANCE }
+                    onMaintenanceSelected = { internalScreen = InternalScreen.MAINTENANCE },
+                    onDocumentationSelected = { internalScreen = InternalScreen.DOCUMENTATION }
                 )
             }
         }

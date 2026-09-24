@@ -17,7 +17,7 @@ android {
         minSdk = 29
         targetSdk = 36
         versionCode = 151
-        versionName = "1.14.1 REV2 Ejecución autónoma clima"
+        versionName = "1.14.1 REV4 Documentación técnica"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }

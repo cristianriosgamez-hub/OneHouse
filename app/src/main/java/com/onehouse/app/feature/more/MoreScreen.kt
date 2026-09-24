@@ -16,6 +16,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Build
+import androidx.compose.material.icons.rounded.Info
 import androidx.compose.material.icons.rounded.KeyboardArrowRight
 import androidx.compose.material.icons.rounded.Settings
 import androidx.compose.material.icons.rounded.Tune
@@ -44,7 +45,8 @@ fun MoreScreen(
     onConfigurationSelected: () -> Unit,
     onKnxAddressesSelected: () -> Unit,
     onToolsSelected: () -> Unit,
-    onMaintenanceSelected: () -> Unit
+    onMaintenanceSelected: () -> Unit,
+    onDocumentationSelected: () -> Unit
 ) {
     Box(
         modifier = Modifier
@@ -93,6 +95,12 @@ fun MoreScreen(
                 title = "Mantenimiento",
                 subtitle = "Funciones generales del hogar",
                 onClick = onMaintenanceSelected
+            )
+            MoreOptionCard(
+                icon = Icons.Rounded.Info,
+                title = "Documentación técnica",
+                subtitle = "Arquitectura, KNX, red, diagnóstico y decisiones",
+                onClick = onDocumentationSelected
             )
 
             Spacer(modifier = Modifier.height(10.dp))
