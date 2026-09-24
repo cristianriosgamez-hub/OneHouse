@@ -1,8 +1,15 @@
 package com.onehouse.app.design
 
+import androidx.compose.animation.animateContentSize
+import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.LocalIndication
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -11,18 +18,25 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextFieldColors
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
@@ -38,22 +52,50 @@ fun OneHouseCard(
     onClick: (() -> Unit)? = null,
     content: @Composable () -> Unit
 ) {
-    val cardModifier = if (onClick != null) {
-        modifier.clickable {
-            onClick()
+    val shape = RoundedCornerShape(24.dp)
+    val interactionSource = remember { MutableInteractionSource() }
+    val isPressed by interactionSource.collectIsPressedAsState()
+    val scale by animateFloatAsState(
+        targetValue = if (isPressed && onClick != null) 0.985f else 1f,
+        animationSpec = spring(stiffness = 700f, dampingRatio = 0.78f),
+        label = "oneHouseCardScale"
+    )
+    val elevation by animateDpAsState(
+        targetValue = if (isPressed && onClick != null) 3.dp else 10.dp,
+        animationSpec = spring(stiffness = 700f, dampingRatio = 0.8f),
+        label = "oneHouseCardElevation"
+    )
+    val cardModifier = modifier
+        .graphicsLayer {
+            scaleX = scale
+            scaleY = scale
         }
-    } else {
-        modifier
-    }
+        .shadow(
+            elevation = elevation,
+            shape = shape,
+            ambientColor = Color.Black.copy(alpha = 0.28f),
+            spotColor = AzulClaro.copy(alpha = 0.10f)
+        )
+        .clip(shape)
+        .animateContentSize()
+        .then(
+            if (onClick != null) {
+                Modifier.clickable(
+                    interactionSource = interactionSource,
+                    indication = LocalIndication.current,
+                    onClick = onClick
+                )
+            } else {
+                Modifier
+            }
+        )
 
     Surface(
         modifier = cardModifier,
         color = FondoTarjeta,
-        shape = RoundedCornerShape(20.dp),
-        border = BorderStroke(
-            width = 1.dp,
-            color = BordeTarjeta
-        )
+        shape = shape,
+        border = BorderStroke(1.dp, BordeTarjeta),
+        tonalElevation = 2.dp
     ) {
         content()
     }
@@ -65,22 +107,39 @@ fun OneHouseSecondaryCard(
     onClick: (() -> Unit)? = null,
     content: @Composable () -> Unit
 ) {
-    val cardModifier = if (onClick != null) {
-        modifier.clickable {
-            onClick()
+    val shape = RoundedCornerShape(20.dp)
+    val interactionSource = remember { MutableInteractionSource() }
+    val isPressed by interactionSource.collectIsPressedAsState()
+    val scale by animateFloatAsState(
+        targetValue = if (isPressed && onClick != null) 0.985f else 1f,
+        animationSpec = spring(stiffness = 700f, dampingRatio = 0.78f),
+        label = "oneHouseSecondaryCardScale"
+    )
+    val cardModifier = modifier
+        .graphicsLayer {
+            scaleX = scale
+            scaleY = scale
         }
-    } else {
-        modifier
-    }
+        .clip(shape)
+        .animateContentSize()
+        .then(
+            if (onClick != null) {
+                Modifier.clickable(
+                    interactionSource = interactionSource,
+                    indication = LocalIndication.current,
+                    onClick = onClick
+                )
+            } else {
+                Modifier
+            }
+        )
 
     Surface(
         modifier = cardModifier,
         color = FondoTarjetaSecundaria,
-        shape = RoundedCornerShape(18.dp),
-        border = BorderStroke(
-            width = 1.dp,
-            color = BordeTarjeta
-        )
+        shape = shape,
+        border = BorderStroke(1.dp, BordeTarjeta),
+        tonalElevation = 1.dp
     ) {
         content()
     }
@@ -98,20 +157,21 @@ fun OneHousePrimaryButton(
         enabled = enabled,
         modifier = modifier
             .fillMaxWidth()
-            .height(54.dp),
-        shape = RoundedCornerShape(14.dp),
+            .height(56.dp),
+        shape = RoundedCornerShape(18.dp),
         colors = ButtonDefaults.buttonColors(
             containerColor = AzulOneHouse,
             contentColor = TextoPrincipal,
-            disabledContainerColor = TextoDesactivado,
-            disabledContentColor = TextoSecundario
+            disabledContainerColor = FondoChip,
+            disabledContentColor = TextoDesactivado
+        ),
+        elevation = ButtonDefaults.buttonElevation(
+            defaultElevation = 4.dp,
+            pressedElevation = 1.dp,
+            disabledElevation = 0.dp
         )
     ) {
-        Text(
-            text = text,
-            fontSize = 18.sp,
-            fontWeight = FontWeight.SemiBold
-        )
+        Text(text = text, style = MaterialTheme.typography.titleMedium)
     }
 }
 
@@ -130,14 +190,12 @@ fun OneHouseTextField(
         value = value,
         onValueChange = onValueChange,
         modifier = modifier.fillMaxWidth(),
-        label = {
-            Text(label)
-        },
+        label = { Text(label) },
         singleLine = singleLine,
         visualTransformation = visualTransformation,
         keyboardOptions = keyboardOptions,
         trailingIcon = trailingContent,
-        shape = RoundedCornerShape(14.dp),
+        shape = RoundedCornerShape(18.dp),
         colors = oneHouseTextFieldColors()
     )
 }
@@ -153,50 +211,32 @@ fun OneHouseInfoCard(
     valueColor: Color = TextoPrincipal,
     onClick: (() -> Unit)? = null
 ) {
-    OneHouseCard(
-        modifier = modifier,
-        onClick = onClick
-    ) {
-        Column(
-            modifier = Modifier.padding(16.dp)
-        ) {
+    OneHouseCard(modifier = modifier, onClick = onClick) {
+        Column(modifier = Modifier.padding(17.dp)) {
+            Surface(
+                color = symbolColor.copy(alpha = 0.13f),
+                shape = RoundedCornerShape(13.dp)
+            ) {
+                Text(
+                    text = symbol,
+                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                    color = symbolColor,
+                    fontSize = 21.sp,
+                    fontWeight = FontWeight.SemiBold
+                )
+            }
 
-            Text(
-                text = symbol,
-                color = symbolColor,
-                fontSize = 26.sp
-            )
-
-            Spacer(
-                modifier = Modifier.height(10.dp)
-            )
-
-            Text(
-                text = title,
-                color = TextoSecundario,
-                fontSize = 13.sp
-            )
-
-            Spacer(
-                modifier = Modifier.height(4.dp)
-            )
-
+            Spacer(modifier = Modifier.height(12.dp))
+            Text(text = title, color = TextoSecundario, style = MaterialTheme.typography.labelLarge)
+            Spacer(modifier = Modifier.height(4.dp))
             Text(
                 text = value,
                 color = valueColor,
-                fontSize = 16.sp,
-                fontWeight = FontWeight.SemiBold
+                style = MaterialTheme.typography.titleMedium,
+                maxLines = 2
             )
-
-            Spacer(
-                modifier = Modifier.height(2.dp)
-            )
-
-            Text(
-                text = detail,
-                color = TextoDesactivado,
-                fontSize = 11.sp
-            )
+            Spacer(modifier = Modifier.height(3.dp))
+            Text(text = detail, color = TextoDesactivado, style = MaterialTheme.typography.labelSmall)
         }
     }
 }
@@ -208,29 +248,18 @@ fun OneHouseSceneCard(
     modifier: Modifier = Modifier,
     onClick: () -> Unit
 ) {
-    OneHouseSecondaryCard(
-        modifier = modifier.height(94.dp),
-        onClick = onClick
-    ) {
-        Column(
-            modifier = Modifier.padding(14.dp)
-        ) {
-            Text(
-                text = symbol,
-                color = AzulClaro,
-                fontSize = 25.sp
-            )
-
-            Spacer(
-                modifier = Modifier.height(8.dp)
-            )
-
+    OneHouseSecondaryCard(modifier = modifier.height(104.dp), onClick = onClick) {
+        Column(modifier = Modifier.padding(15.dp)) {
+            Text(text = symbol, color = AzulClaro, fontSize = 25.sp)
+            Spacer(modifier = Modifier.height(10.dp))
             Text(
                 text = name,
                 color = TextoPrincipal,
-                fontSize = 15.sp,
-                fontWeight = FontWeight.Medium
+                style = MaterialTheme.typography.titleSmall,
+                maxLines = 1
             )
+            Spacer(modifier = Modifier.height(2.dp))
+            Text(text = "Abrir estancia", color = TextoDesactivado, style = MaterialTheme.typography.labelSmall)
         }
     }
 }
@@ -242,42 +271,30 @@ fun OneHouseStatusItem(
     modifier: Modifier = Modifier,
     valueColor: Color = TextoPrincipal
 ) {
-    Column(
-        modifier = modifier,
-        horizontalAlignment = Alignment.CenterHorizontally
-    ) {
+    Column(modifier = modifier, horizontalAlignment = Alignment.CenterHorizontally) {
         Text(
             text = title,
             color = TextoSecundario,
-            fontSize = 12.sp,
+            style = MaterialTheme.typography.labelMedium,
             textAlign = TextAlign.Center
         )
-
-        Spacer(
-            modifier = Modifier.height(5.dp)
-        )
-
+        Spacer(modifier = Modifier.height(5.dp))
         Text(
             text = value,
             color = valueColor,
-            fontSize = 14.sp,
-            fontWeight = FontWeight.SemiBold,
+            style = MaterialTheme.typography.titleSmall,
             textAlign = TextAlign.Center
         )
     }
 }
 
 @Composable
-fun OneHouseSectionTitle(
-    title: String,
-    modifier: Modifier = Modifier
-) {
+fun OneHouseSectionTitle(title: String, modifier: Modifier = Modifier) {
     Text(
         text = title,
         modifier = modifier,
         color = TextoPrincipal,
-        fontSize = 20.sp,
-        fontWeight = FontWeight.SemiBold
+        style = MaterialTheme.typography.headlineSmall
     )
 }
 
@@ -285,47 +302,55 @@ fun OneHouseSectionTitle(
 fun OneHouseHeader(
     title: String,
     subtitle: String,
-    badgeText: String? = "OH",
+    badgeText: String? = null,
     modifier: Modifier = Modifier
 ) {
-    Row(
-        modifier = modifier.fillMaxWidth(),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Column(
-            modifier = Modifier.weight(1f)
-        ) {
-            Text(
-                text = title,
-                color = TextoPrincipal,
-                fontSize = 28.sp,
-                fontWeight = FontWeight.Bold
-            )
-
-            Text(
-                text = subtitle,
-                color = TextoSecundario,
-                fontSize = 15.sp
-            )
+    Row(modifier = modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+        Column(modifier = Modifier.weight(1f)) {
+            Text(text = title, color = TextoPrincipal, style = MaterialTheme.typography.headlineLarge)
+            Spacer(modifier = Modifier.height(2.dp))
+            Text(text = subtitle, color = TextoSecundario, style = MaterialTheme.typography.bodyMedium)
         }
 
         if (!badgeText.isNullOrBlank()) {
             Surface(
-                color = FondoTarjetaSecundaria,
-                shape = RoundedCornerShape(50),
-                border = BorderStroke(
-                    width = 1.dp,
-                    color = BordeTarjeta
-                )
+                color = FondoTarjetaElevada,
+                shape = CircleShape,
+                border = BorderStroke(1.dp, BordeTarjetaActivo),
+                shadowElevation = 6.dp
             ) {
                 Text(
                     text = badgeText,
                     modifier = Modifier.padding(12.dp),
                     color = AzulClaro,
-                    fontSize = 14.sp,
+                    style = MaterialTheme.typography.labelLarge,
                     fontWeight = FontWeight.Bold
                 )
             }
+        }
+    }
+}
+
+@Composable
+fun OneHouseSectionHeader(
+    title: String,
+    subtitle: String? = null,
+    modifier: Modifier = Modifier
+) {
+    Column(modifier = modifier.fillMaxWidth()) {
+        Text(
+            text = title,
+            color = TextoPrincipal,
+            style = MaterialTheme.typography.titleLarge,
+            fontWeight = FontWeight.SemiBold
+        )
+        if (!subtitle.isNullOrBlank()) {
+            Spacer(modifier = Modifier.height(4.dp))
+            Text(
+                text = subtitle,
+                color = TextoSecundario,
+                style = MaterialTheme.typography.bodySmall
+            )
         }
     }
 }
@@ -337,51 +362,35 @@ fun OneHouseFingerprintRow(
     modifier: Modifier = Modifier,
     onClick: () -> Unit
 ) {
-    OneHouseCard(
-        modifier = modifier.fillMaxWidth(),
-        onClick = onClick
-    ) {
+    OneHouseCard(modifier = modifier.fillMaxWidth(), onClick = onClick) {
         Row(
-            modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp),
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 11.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Image(
                 painter = painterResource(R.drawable.fingerprint_modern),
                 contentDescription = "Acceso con huella",
-                modifier = Modifier.size(72.dp)
+                modifier = Modifier.size(42.dp)
             )
-
-            Spacer(modifier = Modifier.width(14.dp))
-
+            Spacer(modifier = Modifier.width(12.dp))
             Column {
-                Text(
-                    text = title,
-                    color = TextoPrincipal,
-                    fontSize = 16.sp,
-                    fontWeight = FontWeight.Medium
-                )
-
+                Text(text = title, color = TextoPrincipal, style = MaterialTheme.typography.titleMedium)
                 Spacer(modifier = Modifier.height(3.dp))
-
-                Text(
-                    text = subtitle,
-                    color = AzulClaro,
-                    fontSize = 13.sp
-                )
+                Text(text = subtitle, color = AzulClaro, style = MaterialTheme.typography.bodySmall)
             }
         }
     }
 }
 
 @Composable
-private fun oneHouseTextFieldColors(): TextFieldColors {
-    return OutlinedTextFieldDefaults.colors(
-        focusedBorderColor = AzulOneHouse,
-        unfocusedBorderColor = BordeTarjeta,
-        focusedTextColor = TextoPrincipal,
-        unfocusedTextColor = TextoPrincipal,
-        focusedLabelColor = AzulOneHouse,
-        unfocusedLabelColor = TextoSecundario,
-        cursorColor = AzulOneHouse
-    )
-}
+private fun oneHouseTextFieldColors(): TextFieldColors = OutlinedTextFieldDefaults.colors(
+    focusedBorderColor = AzulOneHouse,
+    unfocusedBorderColor = BordeTarjeta,
+    focusedTextColor = TextoPrincipal,
+    unfocusedTextColor = TextoPrincipal,
+    focusedLabelColor = AzulClaro,
+    unfocusedLabelColor = TextoSecundario,
+    cursorColor = AzulOneHouse,
+    focusedContainerColor = FondoTarjeta.copy(alpha = 0.7f),
+    unfocusedContainerColor = FondoTarjeta.copy(alpha = 0.45f)
+)

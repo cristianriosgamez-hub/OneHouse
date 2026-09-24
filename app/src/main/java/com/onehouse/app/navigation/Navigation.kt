@@ -4,26 +4,29 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.unit.sp
 import com.onehouse.app.feature.climate.ClimateScreen
 import com.onehouse.app.feature.consumption.ConsumptionScreen
 import com.onehouse.app.feature.home.HomeScreen
 import com.onehouse.app.feature.maintenance.MaintenanceScreen
+import com.onehouse.app.feature.more.MoreScreen
+import com.onehouse.app.feature.more.ToolsScreen
+import com.onehouse.app.feature.more.KnxAddressEditorScreen
+import com.onehouse.app.feature.more.KnxDiagnosticsScreen
 import com.onehouse.app.feature.rooms.RoomsScreen
+import com.onehouse.app.feature.settings.SettingsScreen
 import com.onehouse.app.feature.rooms.detail.RoomDetailScreen
 import com.onehouse.app.feature.rooms.detail.RoomType
 import com.onehouse.app.feature.rooms.roomItemForName
 import com.onehouse.app.feature.terrace.TerraceScreen
 import com.onehouse.app.feature.weather.WeatherScreen
+import com.onehouse.app.feature.backup.BackupRestoreScreen
+import com.onehouse.app.feature.consumption.transfer.ConsumptionTransferScreen
 import com.onehouse.app.design.FondoSuperior
 
 private enum class InternalScreen {
@@ -39,7 +42,13 @@ private enum class InternalScreen {
     SUITE,
     TERRACE,
     CONSUMPTION,
-    MAINTENANCE
+    MAINTENANCE,
+    SETTINGS,
+    KNX_ADDRESS_EDITOR,
+    KNX_DIAGNOSTICS,
+    BACKUP_RESTORE,
+    CONSUMPTION_TRANSFER,
+    TOOLS
 }
 
 @Composable
@@ -102,7 +111,72 @@ fun OneHouseNavigation() {
             MaintenanceScreen(
                 onBack = {
                     internalScreen = InternalScreen.MAIN
-                    selectedSection = OneHouseSection.ROOMS
+                    selectedSection = OneHouseSection.MORE
+                }
+            )
+            return
+        }
+
+        InternalScreen.SETTINGS -> {
+            SettingsScreen(
+                onBack = {
+                    internalScreen = InternalScreen.MAIN
+                    selectedSection = OneHouseSection.MORE
+                }
+            )
+            return
+        }
+
+        InternalScreen.TOOLS -> {
+            ToolsScreen(
+                onBack = {
+                    internalScreen = InternalScreen.MAIN
+                    selectedSection = OneHouseSection.MORE
+                },
+                onKnxDiagnosticsSelected = { internalScreen = InternalScreen.KNX_DIAGNOSTICS },
+                onBackupRestoreSelected = { internalScreen = InternalScreen.BACKUP_RESTORE },
+                onConsumptionTransferSelected = { internalScreen = InternalScreen.CONSUMPTION_TRANSFER }
+            )
+            return
+        }
+
+
+        InternalScreen.KNX_ADDRESS_EDITOR -> {
+            KnxAddressEditorScreen(
+                onBack = {
+                    internalScreen = InternalScreen.MAIN
+                    selectedSection = OneHouseSection.MORE
+                }
+            )
+            return
+        }
+
+        InternalScreen.KNX_DIAGNOSTICS -> {
+            KnxDiagnosticsScreen(
+                onBack = {
+                    internalScreen = InternalScreen.TOOLS
+                }
+            )
+            return
+        }
+
+
+
+
+
+        InternalScreen.BACKUP_RESTORE -> {
+            BackupRestoreScreen(
+                onBack = {
+                    internalScreen = InternalScreen.TOOLS
+                }
+            )
+            return
+        }
+
+        InternalScreen.CONSUMPTION_TRANSFER -> {
+            ConsumptionTransferScreen(
+                onBack = {
+                    internalScreen = InternalScreen.TOOLS
                 }
             )
             return
@@ -178,21 +252,18 @@ fun OneHouseNavigation() {
                     onDiningRoomSelected = { internalScreen = InternalScreen.DINING_ROOM },
                     onSuiteSelected = { internalScreen = InternalScreen.SUITE },
                     onTerraceSelected = { internalScreen = InternalScreen.TERRACE },
-                    onConsumptionSelected = { internalScreen = InternalScreen.CONSUMPTION },
-                    onMaintenanceSelected = { internalScreen = InternalScreen.MAINTENANCE }
+                    onConsumptionSelected = { internalScreen = InternalScreen.CONSUMPTION }
                 )
 
                 OneHouseSection.WEATHER -> WeatherScreen()
                 OneHouseSection.CONSUMPTION -> ConsumptionScreen()
-                OneHouseSection.MORE -> TemporaryScreen(title = "Más")
+                OneHouseSection.MORE -> MoreScreen(
+                    onConfigurationSelected = { internalScreen = InternalScreen.SETTINGS },
+                    onKnxAddressesSelected = { internalScreen = InternalScreen.KNX_ADDRESS_EDITOR },
+                    onToolsSelected = { internalScreen = InternalScreen.TOOLS },
+                    onMaintenanceSelected = { internalScreen = InternalScreen.MAINTENANCE }
+                )
             }
         }
-    }
-}
-
-@Composable
-private fun TemporaryScreen(title: String) {
-    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-        Text(text = title, color = Color.White, fontSize = 26.sp)
     }
 }

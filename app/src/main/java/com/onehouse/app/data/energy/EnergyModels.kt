@@ -11,7 +11,7 @@ enum class MeterType(
 ) {
     ENDESA("ENDESA", "Electricidad ENDESA", "ENDESA", "kWh", "ϟ"),
     CLIMATIZATION("CLIMATIZATION", "Climatización", "Clima", "MWh", "♨"),
-    ACS("ACS", "Agua caliente sanitaria", "ACS", "m³", "♨"),
+    ACS("ACS", "Agua caliente sanitaria", "ACS", "kW", "♨"),
     AGBAR("AGBAR", "Agua AGBAR", "AGBAR", "m³", "≈");
 
     companion object {
@@ -41,6 +41,15 @@ data class MeterSummary(
     val yearVariationPercent: Double? = null
 )
 
+data class EnergyOverview(
+    val electricityYearKwh: Double = 0.0,
+    val waterYearM3: Double = 0.0,
+    val totalYearCost: Double = 0.0,
+    val metersWithData: Int = 0,
+    val totalReadings: Int = 0,
+    val lastUpdatedAt: Long? = null
+)
+
 data class EnergyStatistics(
     val average: Double? = null,
     val maximum: Double? = null,
@@ -58,9 +67,11 @@ data class EnergyChartPoint(
 data class EnergyDashboardState(
     val isLoading: Boolean = true,
     val summaries: List<MeterSummary> = MeterType.entries.map { MeterSummary(it) },
+    val overview: EnergyOverview = EnergyOverview(),
     val selectedType: MeterType? = null,
     val selectedPeriod: EnergyPeriod = EnergyPeriod.YEAR,
     val selectedReadings: List<EnergyReadingEntity> = emptyList(),
+    val allSelectedReadings: List<EnergyReadingEntity> = emptyList(),
     val chartPoints: List<EnergyChartPoint> = emptyList(),
     val statistics: EnergyStatistics = EnergyStatistics(),
     val editorReading: EnergyReadingEntity? = null,

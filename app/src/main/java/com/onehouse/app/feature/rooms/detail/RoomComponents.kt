@@ -21,6 +21,24 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.AcUnit
+import androidx.compose.material.icons.rounded.ArrowBack
+import androidx.compose.material.icons.rounded.Bathtub
+import androidx.compose.material.icons.rounded.Bed
+import androidx.compose.material.icons.rounded.Blinds
+import androidx.compose.material.icons.rounded.Dining
+import androidx.compose.material.icons.rounded.DoorFront
+import androidx.compose.material.icons.rounded.Inventory2
+import androidx.compose.material.icons.rounded.Kitchen
+import androidx.compose.material.icons.rounded.Lightbulb
+import androidx.compose.material.icons.rounded.LocalFireDepartment
+import androidx.compose.material.icons.rounded.MeetingRoom
+import androidx.compose.material.icons.rounded.Thermostat
+import androidx.compose.material.icons.rounded.WaterDrop
+import androidx.compose.material.icons.rounded.WbSunny
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
@@ -32,6 +50,7 @@ import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
@@ -55,15 +74,13 @@ internal fun RoomHeader(title: String, onBack: () -> Unit) {
         modifier = Modifier.fillMaxWidth(),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Text(
-            text = "‹",
-            color = TextoPrincipal,
-            fontSize = 40.sp,
-            fontWeight = FontWeight.Light,
-            modifier = Modifier
-                .clickable(onClick = onBack)
-                .padding(horizontal = 8.dp, vertical = 2.dp)
-        )
+        IconButton(onClick = onBack) {
+            Icon(
+                imageVector = Icons.Rounded.ArrowBack,
+                contentDescription = "Volver",
+                tint = TextoPrincipal
+            )
+        }
         Text(
             text = title,
             color = TextoPrincipal,
@@ -148,7 +165,7 @@ internal fun RoomHeroCard(
                     modifier = Modifier.fillMaxSize(),
                     verticalArrangement = Arrangement.SpaceBetween
                 ) {
-                    RoomIconBox(symbol = roomSymbol(type), accent = RoomBlue, size = 62)
+                    RoomIconBox(icon = roomIcon(type), accent = RoomBlue, size = 62)
                     Column {
                         Text(title, color = TextoPrincipal, fontSize = 23.sp, fontWeight = FontWeight.SemiBold)
                         Text(subtitle, color = TextoSecundario, fontSize = 13.sp)
@@ -179,7 +196,7 @@ internal fun RoomLightCard(
     )
     RoomPremiumCard {
         Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-            RoomIconBox(symbol = symbol, accent = accent)
+            RoomIconBox(icon = roomLightIcon(title), accent = accent)
             Spacer(Modifier.size(14.dp))
             Column(modifier = Modifier.weight(1f)) {
                 Text(title, color = TextoPrincipal, fontSize = 17.sp, fontWeight = FontWeight.SemiBold)
@@ -208,7 +225,7 @@ internal fun RoomLightCard(
 internal fun RoomTemperatureCard(temperature: Float) {
     RoomPremiumCard {
         Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-            RoomIconBox(symbol = "♨", accent = RoomBlue)
+            RoomIconBox(icon = Icons.Rounded.Thermostat, accent = RoomBlue)
             Spacer(Modifier.size(14.dp))
             Column(modifier = Modifier.weight(1f)) {
                 Text("Temperatura interior", color = TextoPrincipal, fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
@@ -230,16 +247,17 @@ internal fun RoomTemperatureCard(temperature: Float) {
 @Composable
 internal fun RoomBlindCard(
     lastCommand: BlindCommand,
+    positionPercent: Float? = null,
     onCommand: (BlindCommand) -> Unit
 ) {
     RoomPremiumCard {
         Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-            RoomIconBox(symbol = "▤", accent = RoomBlue)
+            RoomIconBox(icon = Icons.Rounded.Blinds, accent = RoomBlue)
             Spacer(Modifier.size(14.dp))
             Column(modifier = Modifier.weight(1f)) {
                 Text("Persiana", color = TextoPrincipal, fontSize = 17.sp, fontWeight = FontWeight.SemiBold)
                 Text(
-                    when (lastCommand) {
+                    positionPercent?.let { "Posición real ${it.toInt()} %" } ?: when (lastCommand) {
                         BlindCommand.UP -> "Subiendo"
                         BlindCommand.STOP -> "Detenida"
                         BlindCommand.DOWN -> "Bajando"
@@ -279,19 +297,58 @@ private fun BlindButton(symbol: String, selected: Boolean, onClick: () -> Unit) 
 }
 
 @Composable
-internal fun RoomFloodSensorCard(floodDetected: Boolean) {
-    val accent = if (floodDetected) RoomRed else RoomGreen
+internal fun RoomSensorValueCard(
+    title: String,
+    value: String?,
+    unit: String,
+    symbol: String,
+    accent: Color = RoomBlue,
+    waitingLabel: String = "Esperando datos KNX"
+) {
+    RoomPremiumCard {
+        Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            RoomIconBox(symbol = symbol, accent = accent)
+            Spacer(Modifier.size(14.dp))
+            Column(modifier = Modifier.weight(1f)) {
+                Text(title, color = TextoPrincipal, fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
+                Text(
+                    if (value == null) waitingLabel else "Estado real KNX",
+                    color = TextoSecundario,
+                    fontSize = 11.sp
+                )
+            }
+            Text(
+                value?.let { "$it $unit".trim() } ?: "--",
+                color = if (value == null) TextoSecundario else accent,
+                fontSize = 21.sp,
+                fontWeight = FontWeight.SemiBold
+            )
+        }
+    }
+}
+
+@Composable
+internal fun RoomFloodSensorCard(floodDetected: Boolean?) {
+    val accent = when (floodDetected) {
+        true -> RoomRed
+        false -> RoomGreen
+        null -> TextoSecundario
+    }
     RoomPremiumCard {
         Column {
             Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                RoomIconBox(symbol = "◉", accent = RoomRed)
+                RoomIconBox(icon = Icons.Rounded.WaterDrop, accent = accent)
                 Spacer(Modifier.size(14.dp))
                 Column(modifier = Modifier.weight(1f)) {
                     Text("Sensor de inundación", color = TextoPrincipal, fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
-                    Text("Estado actual", color = TextoSecundario, fontSize = 11.sp)
+                    Text("Estado real KNX", color = TextoSecundario, fontSize = 11.sp)
                 }
                 Text(
-                    if (floodDetected) "⚠ Alarma" else "✓ Normal",
+                    when (floodDetected) {
+                        true -> "⚠ Alarma"
+                        false -> "✓ Normal"
+                        null -> "--"
+                    },
                     color = accent,
                     fontSize = 15.sp,
                     fontWeight = FontWeight.SemiBold
@@ -306,12 +363,12 @@ internal fun RoomFloodSensorCard(floodDetected: Boolean) {
                     .padding(14.dp)
             ) {
                 Text(
-                    if (floodDetected) {
-                        "Se ha detectado agua. Revisa la estancia inmediatamente."
-                    } else {
-                        "No se ha detectado ninguna fuga de agua. Todo funciona correctamente."
+                    when (floodDetected) {
+                        true -> "Se ha detectado agua. Revisa la estancia inmediatamente."
+                        false -> "No se ha detectado ninguna fuga de agua."
+                        null -> "Esperando el estado del sensor desde el bus KNX."
                     },
-                    color = if (floodDetected) RoomRed else TextoSecundario,
+                    color = if (floodDetected == true) RoomRed else TextoSecundario,
                     fontSize = 12.sp,
                     lineHeight = 17.sp
                 )
@@ -321,8 +378,41 @@ internal fun RoomFloodSensorCard(floodDetected: Boolean) {
 }
 
 @Composable
-internal fun RoomPirCard(blocked: Boolean, onBlockedChange: (Boolean) -> Unit) {
-    val accent = if (blocked) RoomOrange else RoomGreen
+internal fun RoomFireSensorCard(fireDetected: Boolean?) {
+    val accent = when (fireDetected) {
+        true -> RoomRed
+        false -> RoomGreen
+        null -> TextoSecundario
+    }
+    RoomPremiumCard {
+        Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            RoomIconBox(icon = Icons.Rounded.LocalFireDepartment, accent = accent)
+            Spacer(Modifier.size(14.dp))
+            Column(modifier = Modifier.weight(1f)) {
+                Text("Sensor de incendio", color = TextoPrincipal, fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
+                Text("Estado real KNX", color = TextoSecundario, fontSize = 11.sp)
+            }
+            Text(
+                when (fireDetected) {
+                    true -> "⚠ Alarma"
+                    false -> "✓ Normal"
+                    null -> "--"
+                },
+                color = accent,
+                fontSize = 15.sp,
+                fontWeight = FontWeight.SemiBold
+            )
+        }
+    }
+}
+
+@Composable
+internal fun RoomPirCard(blocked: Boolean?, onBlockedChange: (Boolean) -> Unit) {
+    val accent = when (blocked) {
+        true -> RoomOrange
+        false -> RoomGreen
+        null -> TextoSecundario
+    }
     RoomPremiumCard {
         Column {
             Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
@@ -330,21 +420,31 @@ internal fun RoomPirCard(blocked: Boolean, onBlockedChange: (Boolean) -> Unit) {
                 Spacer(Modifier.size(14.dp))
                 Column(modifier = Modifier.weight(1f)) {
                     Text("Sensor de movimiento PIR", color = TextoPrincipal, fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
-                    Text(if (blocked) "Bloqueado" else "Funcionamiento automático", color = accent, fontSize = 11.sp)
-                }
-                Box(
-                    modifier = Modifier
-                        .background(accent.copy(alpha = 0.12f), RoundedCornerShape(13.dp))
-                        .border(1.dp, accent, RoundedCornerShape(13.dp))
-                        .clickable { onBlockedChange(!blocked) }
-                        .padding(horizontal = 14.dp, vertical = 10.dp)
-                ) {
                     Text(
-                        if (blocked) "Desbloquear" else "Bloquear",
+                        when (blocked) {
+                            true -> "Bloqueado"
+                            false -> "Funcionamiento automático"
+                            null -> "Esperando datos KNX"
+                        },
                         color = accent,
-                        fontSize = 12.sp,
-                        fontWeight = FontWeight.SemiBold
+                        fontSize = 11.sp
                     )
+                }
+                if (blocked != null) {
+                    Box(
+                        modifier = Modifier
+                            .background(accent.copy(alpha = 0.12f), RoundedCornerShape(13.dp))
+                            .border(1.dp, accent, RoundedCornerShape(13.dp))
+                            .clickable { onBlockedChange(!blocked) }
+                            .padding(horizontal = 14.dp, vertical = 10.dp)
+                    ) {
+                        Text(
+                            if (blocked) "Desbloquear" else "Bloquear",
+                            color = accent,
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                    }
                 }
             }
             Spacer(Modifier.height(14.dp))
@@ -356,8 +456,11 @@ internal fun RoomPirCard(blocked: Boolean, onBlockedChange: (Boolean) -> Unit) {
                     .padding(13.dp)
             ) {
                 Text(
-                    if (blocked) "El encendido automático por presencia está desactivado."
-                    else "La luz puede activarse automáticamente cuando el sensor detecta movimiento.",
+                    when (blocked) {
+                        true -> "El encendido automático por presencia está desactivado."
+                        false -> "La luz puede activarse automáticamente cuando el sensor detecta movimiento."
+                        null -> "Esperando el estado del PIR desde el bus KNX."
+                    },
                     color = TextoSecundario,
                     fontSize = 11.sp,
                     lineHeight = 16.sp
@@ -380,10 +483,35 @@ private fun RoomPremiumCard(content: @Composable () -> Unit) {
     Box(
         modifier = Modifier
             .fillMaxWidth()
-            .background(Brush.verticalGradient(listOf(RoomCardTop, RoomCardBottom)), RoundedCornerShape(22.dp))
+            .background(
+                Brush.verticalGradient(listOf(RoomCardTop, RoomCardBottom)),
+                RoundedCornerShape(22.dp)
+            )
             .border(1.dp, BordeTarjeta, RoundedCornerShape(22.dp))
             .padding(17.dp)
-    ) { content() }
+    ) {
+        content()
+    }
+}
+
+@Composable
+private fun RoomIconBox(icon: ImageVector, accent: Color, size: Int = 48) {
+    Box(
+        modifier = Modifier
+            .size(size.dp)
+            .background(
+                accent.copy(alpha = 0.13f),
+                RoundedCornerShape(if (size > 50) 20.dp else 15.dp)
+            ),
+        contentAlignment = Alignment.Center
+    ) {
+        Icon(
+            imageVector = icon,
+            contentDescription = null,
+            tint = accent,
+            modifier = Modifier.size(if (size > 50) 34.dp else 28.dp)
+        )
+    }
 }
 
 @Composable
@@ -391,7 +519,10 @@ private fun RoomIconBox(symbol: String, accent: Color, size: Int = 48) {
     Box(
         modifier = Modifier
             .size(size.dp)
-            .background(accent.copy(alpha = 0.13f), RoundedCornerShape(if (size > 50) 20.dp else 15.dp)),
+            .background(
+                accent.copy(alpha = 0.13f),
+                RoundedCornerShape(if (size > 50) 20.dp else 15.dp)
+            ),
         contentAlignment = Alignment.Center
     ) {
         Text(
@@ -404,13 +535,82 @@ private fun RoomIconBox(symbol: String, accent: Color, size: Int = 48) {
     }
 }
 
-private fun roomSymbol(type: RoomType): String = when (type) {
-    RoomType.ENTRANCE -> "⌂"
-    RoomType.HALLWAY -> "↔"
-    RoomType.STORAGE -> "▦"
-    RoomType.BATHROOM -> "◉"
-    RoomType.KITCHEN -> "◈"
-    RoomType.BEDROOM_1 -> "▤"
-    RoomType.DINING_ROOM -> "◫"
-    RoomType.SUITE -> "▣"
+private fun roomIcon(type: RoomType): ImageVector = when (type) {
+    RoomType.ENTRANCE -> Icons.Rounded.DoorFront
+    RoomType.HALLWAY -> Icons.Rounded.MeetingRoom
+    RoomType.STORAGE -> Icons.Rounded.Inventory2
+    RoomType.BATHROOM -> Icons.Rounded.Bathtub
+    RoomType.KITCHEN -> Icons.Rounded.Kitchen
+    RoomType.BEDROOM_1 -> Icons.Rounded.Bed
+    RoomType.DINING_ROOM -> Icons.Rounded.Dining
+    RoomType.SUITE -> Icons.Rounded.Bed
+}
+
+private fun roomLightIcon(title: String): ImageVector {
+    val normalized = title
+        .lowercase()
+        .replace("á", "a")
+        .replace("é", "e")
+        .replace("í", "i")
+        .replace("ó", "o")
+        .replace("ú", "u")
+
+    return when {
+        normalized.contains("mesita") || normalized.contains("cabecero") -> Icons.Rounded.Bed
+        normalized.contains("fluorescente") -> Icons.Rounded.WbSunny
+        normalized.contains("lampara") -> Icons.Rounded.Lightbulb
+        else -> Icons.Rounded.Lightbulb
+    }
+}
+
+@Composable
+internal fun RoomClimateCard(
+    powered: Boolean?,
+    currentTemperature: Float?,
+    targetTemperature: Float?,
+    mode: String?,
+    fanSpeed: String?
+) {
+    RoomPremiumCard {
+        Column {
+            Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                RoomIconBox(icon = Icons.Rounded.AcUnit, accent = RoomBlue)
+                Spacer(Modifier.size(14.dp))
+                Column(modifier = Modifier.weight(1f)) {
+                    Text("Climatización", color = TextoPrincipal, fontSize = 17.sp, fontWeight = FontWeight.SemiBold)
+                    Text(
+                        when (powered) {
+                            true -> "Encendida"
+                            false -> "Apagada"
+                            null -> "Esperando estado KNX"
+                        },
+                        color = if (powered == true) RoomGreen else TextoSecundario,
+                        fontSize = 12.sp
+                    )
+                }
+                Text(
+                    currentTemperature?.let { String.format("%.1f °C", it) } ?: "---",
+                    color = RoomOrange,
+                    fontSize = 23.sp,
+                    fontWeight = FontWeight.SemiBold
+                )
+            }
+
+            Spacer(Modifier.height(14.dp))
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                ClimateValue("Consigna", targetTemperature?.let { String.format("%.1f °C", it) } ?: "---")
+                ClimateValue("Modo", mode ?: "---")
+                ClimateValue("Ventilador", fanSpeed ?: "---")
+            }
+        }
+    }
+}
+
+@Composable
+private fun ClimateValue(title: String, value: String) {
+    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+        Text(title, color = TextoSecundario, fontSize = 10.sp)
+        Spacer(Modifier.height(3.dp))
+        Text(value, color = TextoPrincipal, fontSize = 12.sp, fontWeight = FontWeight.Medium)
+    }
 }

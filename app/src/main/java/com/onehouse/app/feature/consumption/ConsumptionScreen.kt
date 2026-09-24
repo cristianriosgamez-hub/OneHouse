@@ -1,7 +1,12 @@
 package com.onehouse.app.feature.consumption
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -20,9 +25,9 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
@@ -43,55 +48,65 @@ import com.onehouse.app.feature.rooms.detail.RoomHeader
 @Composable
 fun ConsumptionScreen(onBack: (() -> Unit)? = null) {
     val context = LocalContext.current
-    val database = remember(context.applicationContext) {
-        OneHouseDatabase.getInstance(context.applicationContext)
+    val applicationContext = context.applicationContext
+    val database = remember(applicationContext) {
+        OneHouseDatabase.getInstance(applicationContext)
     }
     val repository = remember(database) { EnergyRepository(database.energyReadingDao()) }
     val viewModel = remember(repository) { EnergyViewModel(repository) }
-    val state by viewModel.state.collectAsState()
+    val state by viewModel.state.collectAsStateWithLifecycle()
+    val analyticsPoints by viewModel.analyticsPoints.collectAsStateWithLifecycle()
+    val smartEnergy by viewModel.smartEnergy.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
 
     LaunchedEffect(repository) {
-        EnergyHistorySeeder(context.applicationContext, repository).seedIfEmpty()
+        EnergyHistorySeeder(applicationContext, repository).seedIfNeeded()
     }
 
     DisposableEffect(viewModel) {
-        onDispose { viewModel.close() }
+        onDispose(viewModel::close)
     }
 
     LaunchedEffect(state.message) {
-        val message = state.message ?: return@LaunchedEffect
-        snackbarHostState.showSnackbar(message)
-        viewModel.consumeMessage()
+        state.message?.let { message ->
+            snackbarHostState.showSnackbar(message)
+            viewModel.consumeMessage()
+        }
     }
 
-    if (state.selectedType != null) {
-        EnergyMeterDetailScreen(
-            state = state,
-            onBack = viewModel::closeMeter,
-            onPeriodSelected = viewModel::selectPeriod,
-            onAddReading = viewModel::addReading,
-            onEditReading = viewModel::editReading,
-            onDeleteReading = viewModel::requestDelete
-        )
-    } else {
-        EnergyDashboardScreen(
-            isLoading = state.isLoading,
-            summaries = state.summaries,
-            onBack = onBack,
-            onMeterSelected = viewModel::openMeter
+    Box(modifier = Modifier.fillMaxSize()) {
+        if (state.selectedType != null) {
+            EnergyMeterDetailScreen(
+                state = state,
+                onBack = viewModel::closeMeter,
+                onPeriodSelected = viewModel::selectPeriod,
+                onAddReading = viewModel::addReading,
+                onEditReading = viewModel::editReading,
+                onDeleteReading = viewModel::requestDelete
+            )
+        } else {
+            EnergyDashboardScreen(
+                isLoading = state.isLoading,
+                summaries = state.summaries,
+                overview = state.overview,
+                analyticsPoints = analyticsPoints,
+                smartEnergy = smartEnergy,
+                onBack = onBack,
+                onMeterSelected = viewModel::openMeter
+            )
+        }
+
+        SnackbarHost(
+            hostState = snackbarHostState,
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .padding(horizontal = 16.dp, vertical = 20.dp)
         )
     }
-
-    SnackbarHost(
-        hostState = snackbarHostState,
-        modifier = Modifier.padding(16.dp)
-    )
 
     if (state.isEditorVisible) {
-        val type = state.selectedType
-        if (type != null) {
-            ReadingEditorDialog(
+        state.selectedType?.let { type ->
+            EnergyReadingDialog(
                 type = type,
                 reading = state.editorReading,
                 onDismiss = viewModel::dismissEditor,
@@ -104,7 +119,7 @@ fun ConsumptionScreen(onBack: (() -> Unit)? = null) {
         AlertDialog(
             onDismissRequest = viewModel::dismissDelete,
             title = { Text("Eliminar lectura") },
-            text = { Text("La lectura manual se eliminará definitivamente de la base de datos.") },
+            text = { Text("La lectura se eliminará definitivamente de la base de datos.") },
             confirmButton = {
                 TextButton(onClick = viewModel::confirmDelete) {
                     Text("Eliminar", color = EnergyRed)
@@ -121,6 +136,9 @@ fun ConsumptionScreen(onBack: (() -> Unit)? = null) {
 private fun EnergyDashboardScreen(
     isLoading: Boolean,
     summaries: List<com.onehouse.app.data.energy.MeterSummary>,
+    overview: com.onehouse.app.data.energy.EnergyOverview,
+    analyticsPoints: List<EnergyAnalyticsPoint>,
+    smartEnergy: SmartEnergyState,
     onBack: (() -> Unit)?,
     onMeterSelected: (com.onehouse.app.data.energy.MeterType) -> Unit
 ) {
@@ -133,10 +151,10 @@ private fun EnergyDashboardScreen(
     ) {
         Spacer(Modifier.height(14.dp))
         if (onBack != null) {
-            RoomHeader("Centro energético", onBack)
+            RoomHeader("Consumos", onBack)
         } else {
             Text(
-                "Centro energético",
+                "Consumos",
                 color = TextoPrincipal,
                 fontSize = 30.sp,
                 fontWeight = FontWeight.Bold,
@@ -145,7 +163,7 @@ private fun EnergyDashboardScreen(
         }
 
         Text(
-            "Consumos, costes y evolución de toda la vivienda",
+            "Consulta el consumo, histórico y coste de cada suministro",
             color = TextoSecundario,
             fontSize = 14.sp
         )
@@ -153,29 +171,56 @@ private fun EnergyDashboardScreen(
 
         if (isLoading) {
             Column(
-                modifier = Modifier.fillMaxWidth().padding(vertical = 48.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 48.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
                 CircularProgressIndicator(color = EnergyBlue)
                 Spacer(Modifier.height(12.dp))
                 Text("Cargando históricos…", color = TextoSecundario)
             }
-        } else {
-            summaries.chunked(2).forEach { rowSummaries ->
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    rowSummaries.forEach { summary ->
-                        EnergySummaryCard(
-                            summary = summary,
-                            modifier = Modifier.weight(1f),
-                            onClick = { onMeterSelected(summary.type) }
-                        )
+        }
+
+        AnimatedVisibility(
+            visible = !isLoading,
+            enter = fadeIn(tween(420)) + slideInVertically(tween(420)) { it / 10 }
+        ) {
+            Column {
+                // Vista simplificada temporal: solo se muestran los contadores.
+                // Se conservan los datos y componentes de analítica para poder
+                // reactivarlos en una entrega futura sin afectar al histórico.
+                Text(
+                    "Suministros",
+                    color = TextoPrincipal,
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.SemiBold
+                )
+                Spacer(Modifier.height(10.dp))
+                val orderedSummaries = summaries.sortedBy { summary ->
+                    when (summary.type) {
+                        com.onehouse.app.data.energy.MeterType.ENDESA -> 0
+                        com.onehouse.app.data.energy.MeterType.AGBAR -> 1
+                        com.onehouse.app.data.energy.MeterType.CLIMATIZATION -> 2
+                        com.onehouse.app.data.energy.MeterType.ACS -> 3
                     }
-                    if (rowSummaries.size == 1) Spacer(Modifier.weight(1f))
                 }
-                Spacer(Modifier.height(12.dp))
+                orderedSummaries.chunked(2).forEach { rowSummaries ->
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        rowSummaries.forEach { summary ->
+                            EnergySummaryCard(
+                                summary = summary,
+                                modifier = Modifier.weight(1f),
+                                onClick = { onMeterSelected(summary.type) }
+                            )
+                        }
+                        if (rowSummaries.size == 1) Spacer(Modifier.weight(1f))
+                    }
+                    Spacer(Modifier.height(12.dp))
+                }
             }
         }
 

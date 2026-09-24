@@ -1,6 +1,11 @@
 package com.onehouse.app.feature.climate
 
-import android.app.Application
+import android.app.AlarmManager
+import android.content.Context
+import android.content.Intent
+import android.net.Uri
+import android.os.Build
+import android.provider.Settings
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -26,9 +31,14 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.ArrowBack
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
@@ -44,6 +54,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import java.time.DayOfWeek
 import java.time.Duration
 import java.time.LocalDateTime
@@ -63,18 +76,37 @@ fun ClimateScheduleScreen(
     }
 
     var state by remember {
-        mutableStateOf(
-            repository.load().takeIf { it.events.isNotEmpty() }
-                ?: ClimateScheduleState(events = defaultClimateEvents())
-        )
+        mutableStateOf(repository.load())
     }
-    var expandedDay by remember { mutableStateOf<DayOfWeek?>(DayOfWeek.MONDAY) }
+    var expandedDay by remember { mutableStateOf<DayOfWeek?>(null) }
     var editingDay by remember { mutableStateOf<DayOfWeek?>(null) }
+    var trace by remember { mutableStateOf(ClimateScheduleExecutionTrace.snapshot(context)) }
+    val lifecycleOwner = LocalLifecycleOwner.current
+
+    DisposableEffect(lifecycleOwner, state) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) {
+                // Al volver de Ajustes de "Alarmas y recordatorios", si el permiso
+                // exacto ya fue concedido, sustituimos inmediatamente el fallback
+                // inexacto por una alarma exacta.
+                if (state.globallyEnabled && canScheduleExactAlarm(context)) {
+                    scheduler.reschedule()
+                }
+                trace = ClimateScheduleExecutionTrace.snapshot(context)
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+    }
 
     fun persist(newState: ClimateScheduleState) {
         state = newState
         repository.save(newState)
+        if (newState.globallyEnabled) {
+            requestExactAlarmAccessIfNeeded(context)
+        }
         scheduler.reschedule()
+        trace = ClimateScheduleExecutionTrace.snapshot(context)
     }
 
     val next = ClimateScheduleEngine.nextExecution(state)
@@ -108,6 +140,10 @@ fun ClimateScheduleScreen(
         Spacer(modifier = Modifier.height(14.dp))
 
         NextEventCard(next = next)
+
+        Spacer(modifier = Modifier.height(10.dp))
+
+        ScheduleExecutionStatusCard(trace = trace)
 
         Spacer(modifier = Modifier.height(22.dp))
 
@@ -185,16 +221,13 @@ private fun ScheduleHeader(onBack: () -> Unit) {
         modifier = Modifier.fillMaxWidth(),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Text(
-            text = "‹",
-            color = ClimateText,
-            fontSize = 40.sp,
-            fontWeight = FontWeight.Light,
-            modifier = Modifier
-                .clip(CircleShape)
-                .clickable(onClick = onBack)
-                .padding(horizontal = 10.dp, vertical = 2.dp)
-        )
+        IconButton(onClick = onBack) {
+            Icon(
+                imageVector = Icons.Rounded.ArrowBack,
+                contentDescription = "Volver",
+                tint = ClimateText
+            )
+        }
 
         Column(
             modifier = Modifier.weight(1f),
@@ -561,17 +594,16 @@ private fun AddScheduleDialog(
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 EditorLine(
                     title = "Hora",
-                    value = "%02d:%02d".format(hour, minute),
-                    onMinus = {
-                        val total = (hour * 60 + minute - 30 + 1440) % 1440
-                        hour = total / 60
-                        minute = total % 60
-                    },
-                    onPlus = {
-                        val total = (hour * 60 + minute + 30) % 1440
-                        hour = total / 60
-                        minute = total % 60
-                    }
+                    value = "%02d".format(hour),
+                    onMinus = { hour = (hour + 23) % 24 },
+                    onPlus = { hour = (hour + 1) % 24 }
+                )
+
+                EditorLine(
+                    title = "Minutos",
+                    value = "%02d".format(minute),
+                    onMinus = { minute = (minute + 55) % 60 },
+                    onPlus = { minute = (minute + 5) % 60 }
                 )
 
                 SelectionRow(
@@ -736,33 +768,33 @@ private fun SelectionRow(
     }
 }
 
-private fun defaultClimateEvents(): List<ClimateScheduleEvent> =
-    listOf(
-        ClimateScheduleEvent(
-            id = 7001,
-            dayOfWeek = DayOfWeek.MONDAY,
-            hour = 8,
-            minute = 0,
-            targetTemperature = 22f,
-            mode = ClimateMode.HEAT
-        ),
-        ClimateScheduleEvent(
-            id = 7002,
-            dayOfWeek = DayOfWeek.MONDAY,
-            hour = 18,
-            minute = 0,
-            targetTemperature = 24f,
-            mode = ClimateMode.COLD,
-            fanSpeed = FanSpeed.HIGH
-        ),
-        ClimateScheduleEvent(
-            id = 7003,
-            dayOfWeek = DayOfWeek.MONDAY,
-            hour = 23,
-            minute = 0,
-            powerOn = false
+@Composable
+private fun ScheduleExecutionStatusCard(trace: ClimateScheduleExecutionTrace.Snapshot) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(ClimateCard, RoundedCornerShape(18.dp))
+            .border(1.dp, ClimateBorder, RoundedCornerShape(18.dp))
+            .padding(14.dp)
+    ) {
+        Text("Estado de ejecución", color = ClimateText, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
+        Spacer(modifier = Modifier.height(6.dp))
+        Text(
+            text = if (trace.nextAlarmAt != null) {
+                "Alarma: ${trace.nextLabel()} · ${if (trace.exact) "exacta" else "inexacta"}"
+            } else {
+                "Alarma: ---"
+            },
+            color = ClimateTextSecondary,
+            fontSize = 12.sp
         )
-    )
+        Text(
+            text = "Último paso: ${trace.lastLabel()}",
+            color = ClimateTextSecondary,
+            fontSize = 12.sp
+        )
+    }
+}
 
 private fun dayLabel(day: DayOfWeek): String =
     day.getDisplayName(TextStyle.FULL, Locale("es", "ES"))
@@ -770,3 +802,21 @@ private fun dayLabel(day: DayOfWeek): String =
 
 private fun formatTemperature(value: Float): String =
     String.format(Locale("es", "ES"), "%.1f °C", value)
+
+
+private fun canScheduleExactAlarm(context: Context): Boolean {
+    if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S) return true
+    return context.getSystemService(AlarmManager::class.java).canScheduleExactAlarms()
+}
+
+private fun requestExactAlarmAccessIfNeeded(context: Context) {
+    if (canScheduleExactAlarm(context)) return
+
+    runCatching {
+        val intent = Intent(
+            Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM,
+            Uri.parse("package:${context.packageName}")
+        ).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        context.startActivity(intent)
+    }
+}

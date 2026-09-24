@@ -13,8 +13,26 @@ import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import java.util.Calendar
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.launch
+
+data class EnergyAnalyticsPoint(
+    val timestamp: Long,
+    val value: Double
+)
+
+enum class SmartEnergyLevel { NORMAL, HIGH, CRITICAL }
+
+data class SmartEnergyState(
+    val monthlyGoalKwh: Double = 350.0,
+    val currentMonthKwh: Double = 0.0,
+    val projectedMonthKwh: Double = 0.0,
+    val goalProgress: Float = 0f,
+    val level: SmartEnergyLevel = SmartEnergyLevel.NORMAL,
+    val alertMessage: String? = null,
+    val recommendation: String = "Añade lecturas para generar recomendaciones personalizadas."
+)
 
 class EnergyViewModel(
     private val repository: EnergyRepository
@@ -25,6 +43,12 @@ class EnergyViewModel(
 
     private val _state = MutableStateFlow(EnergyDashboardState())
     val state: StateFlow<EnergyDashboardState> = _state.asStateFlow()
+
+    private val _analyticsPoints = MutableStateFlow<List<EnergyAnalyticsPoint>>(emptyList())
+    val analyticsPoints: StateFlow<List<EnergyAnalyticsPoint>> = _analyticsPoints.asStateFlow()
+
+    private val _smartEnergy = MutableStateFlow(SmartEnergyState())
+    val smartEnergy: StateFlow<SmartEnergyState> = _smartEnergy.asStateFlow()
 
     init {
         observeReadings()
@@ -118,18 +142,103 @@ class EnergyViewModel(
         readingsJob = scope.launch {
             repository.observeAll().collect { readings ->
                 allReadings = readings
+                val summaries = repository.buildSummaries(readings)
+                val analytics = buildElectricityAnalytics(readings)
+                _analyticsPoints.value = analytics
+                _smartEnergy.value = buildSmartEnergy(analytics)
                 _state.value = _state.value.copy(
                     isLoading = false,
-                    summaries = repository.buildSummaries(readings)
+                    summaries = summaries,
+                    overview = repository.buildOverview(readings, summaries)
                 )
                 rebuildSelectedMeter()
             }
         }
     }
 
+    private fun buildElectricityAnalytics(
+        readings: List<EnergyReadingEntity>,
+        now: Long = System.currentTimeMillis()
+    ): List<EnergyAnalyticsPoint> {
+        val monthStarts = (11 downTo 0).map { offset ->
+            Calendar.getInstance().apply {
+                timeInMillis = now
+                set(Calendar.DAY_OF_MONTH, 1)
+                set(Calendar.HOUR_OF_DAY, 0)
+                set(Calendar.MINUTE, 0)
+                set(Calendar.SECOND, 0)
+                set(Calendar.MILLISECOND, 0)
+                add(Calendar.MONTH, -offset)
+            }.timeInMillis
+        }
+
+        return monthStarts.map { monthStart ->
+            val month = Calendar.getInstance().apply { timeInMillis = monthStart }
+            val yearValue = month.get(Calendar.YEAR)
+            val monthValue = month.get(Calendar.MONTH)
+            val totalKwh = readings.asSequence()
+                .filter { reading ->
+                    val calendar = Calendar.getInstance().apply { timeInMillis = reading.timestamp }
+                    calendar.get(Calendar.YEAR) == yearValue &&
+                        calendar.get(Calendar.MONTH) == monthValue
+                }
+                .sumOf { reading ->
+                    when (MeterType.fromStorage(reading.meterType)) {
+                        MeterType.ENDESA -> reading.consumption ?: 0.0
+                        MeterType.CLIMATIZATION -> (reading.consumption ?: 0.0) * 1_000.0
+                        else -> 0.0
+                    }
+                }
+            EnergyAnalyticsPoint(monthStart, totalKwh)
+        }
+    }
+
+    private fun buildSmartEnergy(
+        analytics: List<EnergyAnalyticsPoint>,
+        now: Long = System.currentTimeMillis()
+    ): SmartEnergyState {
+        val currentMonth = analytics.lastOrNull()?.value ?: 0.0
+        val calendar = Calendar.getInstance().apply { timeInMillis = now }
+        val elapsedDays = calendar.get(Calendar.DAY_OF_MONTH).coerceAtLeast(1)
+        val totalDays = calendar.getActualMaximum(Calendar.DAY_OF_MONTH).coerceAtLeast(elapsedDays)
+        val projected = if (currentMonth > 0.0) currentMonth / elapsedDays * totalDays else 0.0
+
+        val completedMonths = analytics.dropLast(1).map { it.value }.filter { it > 0.0 }
+        val baseline = completedMonths.takeLast(6).average().takeIf { !it.isNaN() && it > 0.0 } ?: 350.0
+        val goal = (baseline * 0.95).coerceAtLeast(100.0)
+        val progress = (projected / goal).toFloat().coerceAtLeast(0f)
+        val level = when {
+            progress >= 1.15f -> SmartEnergyLevel.CRITICAL
+            progress >= 0.95f -> SmartEnergyLevel.HIGH
+            else -> SmartEnergyLevel.NORMAL
+        }
+        val alert = when (level) {
+            SmartEnergyLevel.NORMAL -> null
+            SmartEnergyLevel.HIGH -> "La proyección mensual está cerca del objetivo."
+            SmartEnergyLevel.CRITICAL -> "La proyección supera el objetivo en ${kotlin.math.round((progress - 1f) * 100).toInt()}%."
+        }
+        val recommendation = when {
+            currentMonth <= 0.0 -> "Añade lecturas para generar recomendaciones personalizadas."
+            level == SmartEnergyLevel.CRITICAL -> "Reduce climatización en horas punta y revisa consumos en espera."
+            level == SmartEnergyLevel.HIGH -> "Ajusta un grado la climatización para recuperar margen este mes."
+            projected < goal * 0.8 -> "Buen ritmo: mantén tus hábitos actuales."
+            else -> "El consumo está controlado; concentra cargas fuera de horas punta."
+        }
+        return SmartEnergyState(
+            monthlyGoalKwh = goal,
+            currentMonthKwh = currentMonth,
+            projectedMonthKwh = projected,
+            goalProgress = progress,
+            level = level,
+            alertMessage = alert,
+            recommendation = recommendation
+        )
+    }
+
     private fun rebuildSelectedMeter() {
         val currentState = _state.value
         val type = currentState.selectedType ?: return
+        val selectedTypeReadings = allReadings.filter { it.meterType == type.storageValue }
         val filtered = repository.readingsForPeriod(
             readings = allReadings,
             type = type,
@@ -137,7 +246,12 @@ class EnergyViewModel(
         )
         _state.value = currentState.copy(
             selectedReadings = filtered,
-            chartPoints = repository.buildChartPoints(filtered),
+            allSelectedReadings = selectedTypeReadings,
+            chartPoints = if (currentState.selectedPeriod == EnergyPeriod.ALL) {
+                repository.buildYearlyChartPoints(filtered)
+            } else {
+                repository.buildChartPoints(filtered)
+            },
             statistics = repository.buildStatistics(
                 allReadings = allReadings,
                 type = type,

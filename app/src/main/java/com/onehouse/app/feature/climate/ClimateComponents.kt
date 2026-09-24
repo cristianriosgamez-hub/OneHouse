@@ -63,7 +63,10 @@ enum class ClimateIconType {
     FAN,
     DRY,
     AUTO,
-    POWER
+    POWER,
+    HUMIDITY,
+    THERMOSTAT,
+    AIR_QUALITY
 }
 
 enum class ClimateMode(
@@ -100,6 +103,9 @@ internal fun ClimateVectorIcon(
             ClimateIconType.DRY -> drawDryIcon(color)
             ClimateIconType.AUTO -> drawAutoIcon(color)
             ClimateIconType.POWER -> drawPowerIcon(color)
+            ClimateIconType.HUMIDITY -> drawHumidityIcon(color)
+            ClimateIconType.THERMOSTAT -> drawThermostatIcon(color)
+            ClimateIconType.AIR_QUALITY -> drawAirQualityIcon(color)
         }
     }
 }
@@ -250,6 +256,74 @@ private fun DrawScope.drawAutoIcon(color: Color) {
     )
 }
 
+
+private fun DrawScope.drawHumidityIcon(color: Color) {
+    val cx = size.width / 2f
+    val top = size.height * 0.18f
+    val bottom = size.height * 0.84f
+    val half = size.width * 0.24f
+    val path = Path().apply {
+        moveTo(cx, top)
+        cubicTo(cx - half * 0.25f, top + size.height * 0.16f, cx - half, top + size.height * 0.29f, cx - half, bottom - size.height * 0.16f)
+        cubicTo(cx - half, bottom + size.height * 0.02f, cx - half * 0.45f, bottom, cx, bottom)
+        cubicTo(cx + half * 0.45f, bottom, cx + half, bottom + size.height * 0.02f, cx + half, bottom - size.height * 0.16f)
+        cubicTo(cx + half, top + size.height * 0.29f, cx + half * 0.25f, top + size.height * 0.16f, cx, top)
+        close()
+    }
+    drawPath(path = path, color = color, style = Stroke(width = size.minDimension * 0.075f, cap = StrokeCap.Round))
+    drawArc(
+        color = color,
+        startAngle = 18f,
+        sweepAngle = 112f,
+        useCenter = false,
+        topLeft = Offset(size.width * 0.39f, size.height * 0.49f),
+        size = Size(size.width * 0.27f, size.height * 0.22f),
+        style = Stroke(width = size.minDimension * 0.065f, cap = StrokeCap.Round)
+    )
+}
+
+private fun DrawScope.drawThermostatIcon(color: Color) {
+    val stroke = size.minDimension * 0.075f
+    val cx = size.width * 0.5f
+    drawRoundRect(
+        color = color,
+        topLeft = Offset(size.width * 0.39f, size.height * 0.14f),
+        size = Size(size.width * 0.22f, size.height * 0.50f),
+        cornerRadius = androidx.compose.ui.geometry.CornerRadius(size.width * 0.11f),
+        style = Stroke(width = stroke)
+    )
+    drawLine(
+        color = color,
+        start = Offset(cx, size.height * 0.31f),
+        end = Offset(cx, size.height * 0.67f),
+        strokeWidth = stroke,
+        cap = StrokeCap.Round
+    )
+    drawCircle(
+        color = color,
+        radius = size.minDimension * 0.18f,
+        center = Offset(cx, size.height * 0.72f),
+        style = Stroke(width = stroke)
+    )
+}
+
+private fun DrawScope.drawAirQualityIcon(color: Color) {
+    val stroke = size.minDimension * 0.07f
+    val ys = listOf(0.32f, 0.50f, 0.68f)
+    ys.forEachIndexed { index, y ->
+        val startX = if (index == 1) 0.22f else 0.30f
+        val endX = if (index == 1) 0.82f else 0.74f
+        val path = Path().apply {
+            moveTo(size.width * startX, size.height * y)
+            cubicTo(
+                size.width * 0.42f, size.height * (y - 0.08f),
+                size.width * 0.56f, size.height * (y + 0.08f),
+                size.width * endX, size.height * y
+            )
+        }
+        drawPath(path = path, color = color, style = Stroke(width = stroke, cap = StrokeCap.Round))
+    }
+}
 private fun DrawScope.drawPowerIcon(color: Color) {
     val base = size.minDimension
     val stroke = base * 0.085f
@@ -305,11 +379,11 @@ private fun temperatureColor(temperature: Float): Color {
 @Composable
 internal fun ClimateSystemCard(
     enabled: Boolean,
-    selectedMode: ClimateMode,
+    selectedMode: ClimateMode?,
     onEnabledChange: (Boolean) -> Unit
 ) {
     val activeAccent by animateColorAsState(
-        targetValue = if (enabled) selectedMode.accent else ClimateMuted,
+        targetValue = if (enabled) (selectedMode?.accent ?: ClimateGreen) else ClimateMuted,
         label = "systemCardAccent"
     )
     val cardAlpha by animateFloatAsState(
@@ -318,7 +392,8 @@ internal fun ClimateSystemCard(
     )
 
     val statusText = when {
-        !enabled -> "Sistema detenido"
+        !enabled -> "Detenido"
+        selectedMode == null -> "Sistema encendido"
         selectedMode == ClimateMode.COLD -> "Refrigerando"
         selectedMode == ClimateMode.HEAT -> "Calentando"
         selectedMode == ClimateMode.FAN -> "Ventilando"
@@ -379,7 +454,7 @@ internal fun ClimateSystemCard(
                 contentAlignment = Alignment.Center
             ) {
                 ClimateVectorIcon(
-                    type = if (enabled) selectedMode.iconType else ClimateIconType.POWER,
+                    type = if (enabled) selectedMode?.iconType ?: ClimateIconType.POWER else ClimateIconType.POWER,
                     color = activeAccent.copy(alpha = cardAlpha),
                     modifier = Modifier.size(25.dp)
                 )
@@ -399,7 +474,7 @@ internal fun ClimateSystemCard(
 
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(
-                        text = if (enabled) "Modo ${selectedMode.label}" else "Sistema desactivado",
+                        text = if (enabled) selectedMode?.let { "Modo ${it.label}" } ?: "Encendido" else "Sistema desactivado",
                         color = activeAccent.copy(alpha = cardAlpha),
                         fontSize = 12.sp,
                         fontWeight = FontWeight.Medium
@@ -434,8 +509,8 @@ internal fun ClimateSystemCard(
                 onCheckedChange = onEnabledChange,
                 colors = SwitchDefaults.colors(
                     checkedThumbColor = Color.White,
-                    checkedTrackColor = selectedMode.accent,
-                    checkedBorderColor = selectedMode.accent,
+                    checkedTrackColor = selectedMode?.accent ?: ClimateMuted,
+                    checkedBorderColor = selectedMode?.accent ?: ClimateMuted,
                     uncheckedThumbColor = Color.White,
                     uncheckedTrackColor = ClimateCardSecondary,
                     uncheckedBorderColor = ClimateBorder
@@ -447,17 +522,18 @@ internal fun ClimateSystemCard(
 
 @Composable
 internal fun TemperatureControl(
-    targetTemperature: Float,
+    targetTemperature: Float?,
     enabled: Boolean,
-    mode: ClimateMode,
+    mode: ClimateMode?,
     onDecrease: () -> Unit,
     onIncrease: () -> Unit
 ) {
     PremiumCard {
-        val normalizedTarget = ((targetTemperature - 16f) / 18f).coerceIn(0f, 1f)
+        val safeTargetTemperature = targetTemperature ?: 16f
+        val normalizedTarget = ((safeTargetTemperature - 16f) / 18f).coerceIn(0f, 1f)
 
         val animatedTemperature by animateFloatAsState(
-            targetValue = targetTemperature,
+            targetValue = safeTargetTemperature,
             label = "animatedTemperature"
         )
 
@@ -571,16 +647,16 @@ internal fun TemperatureControl(
                     )
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(
-                        text = String.format("%.1f°", targetTemperature),
+                        text = targetTemperature?.let { String.format("%.1f°", it) } ?: "---",
                         color = activeAccent.copy(alpha = contentAlpha),
                         fontSize = 50.sp,
                         fontWeight = FontWeight.Light
                     )
                     Text(
-                        text = if (enabled) {
-                            "${mode.label} · Consigna general"
-                        } else {
-                            "Control desactivado"
+                        text = when {
+                            targetTemperature == null -> "Esperando consigna KNX"
+                            enabled -> mode?.let { "${it.label} · Consigna general" } ?: "Modo KNX no disponible"
+                            else -> "Control desactivado"
                         },
                         color = activeAccent.copy(alpha = contentAlpha),
                         fontSize = 13.sp,
@@ -670,8 +746,8 @@ private fun TemperatureButton(
 
 @Composable
 internal fun AmbientTemperatures(
-    diningTemperature: Float,
-    suiteTemperature: Float
+    diningTemperature: Float?,
+    suiteTemperature: Float?
 ) {
     Column {
         Text(
@@ -732,7 +808,7 @@ private fun CompactAmbientValue(
     room: String,
     symbol: String,
     accent: Color,
-    temperature: Float,
+    temperature: Float?,
     modifier: Modifier = Modifier
 ) {
     Row(
@@ -764,7 +840,7 @@ private fun CompactAmbientValue(
                 fontSize = 11.sp
             )
             Text(
-                text = String.format("%.1f°", temperature),
+                text = temperature?.let { String.format("%.1f°", it) } ?: "---",
                 color = ClimateText,
                 fontSize = 20.sp,
                 fontWeight = FontWeight.SemiBold
@@ -775,7 +851,7 @@ private fun CompactAmbientValue(
 
 @Composable
 internal fun ClimateModeSelector(
-    selectedMode: ClimateMode,
+    selectedMode: ClimateMode?,
     enabled: Boolean,
     onModeSelected: (ClimateMode) -> Unit
 ) {
@@ -842,7 +918,7 @@ internal fun ClimateModeSelector(
 
 @Composable
 internal fun FanSpeedSelector(
-    selectedSpeed: FanSpeed,
+    selectedSpeed: FanSpeed?,
     enabled: Boolean,
     onSpeedSelected: (FanSpeed) -> Unit
 ) {
@@ -897,18 +973,20 @@ internal fun FanSpeedSelector(
 
 @Composable
 internal fun ClimateInformationCard(
-    fanSpeed: FanSpeed,
-    humidity: Int,
-    selectedMode: ClimateMode,
-    co2Ppm: Int
+    fanSpeed: FanSpeed?,
+    humidity: Int?,
+    selectedMode: ClimateMode?,
+    co2Ppm: Int?
 ) {
     val co2Quality = when {
+        co2Ppm == null -> null
         co2Ppm < 800 -> "Buena"
         co2Ppm < 1200 -> "Mejorable"
         else -> "Alta"
     }
 
     val co2Accent = when {
+        co2Ppm == null -> ClimateMuted
         co2Ppm < 800 -> ClimateGreen
         co2Ppm < 1200 -> ClimateYellow
         else -> ClimateRed
@@ -918,33 +996,33 @@ internal fun ClimateInformationCard(
         Row(modifier = Modifier.fillMaxWidth()) {
             StatusValue(
                 title = "Ventilador",
-                value = fanSpeed.label,
-                symbol = "✣",
+                value = fanSpeed?.label ?: "---",
+                iconType = ClimateIconType.FAN,
                 accent = ClimateGreen,
                 modifier = Modifier.weight(1f)
             )
             StatusDivider()
             StatusValue(
                 title = "Humedad",
-                value = "$humidity %",
-                symbol = "◉",
+                value = humidity?.let { "$it %" } ?: "---",
+                iconType = ClimateIconType.HUMIDITY,
                 accent = ClimateCyan,
                 modifier = Modifier.weight(1f)
             )
             StatusDivider()
             StatusValue(
                 title = "Modo",
-                value = selectedMode.label,
-                symbol = selectedMode.symbol,
-                accent = selectedMode.accent,
+                value = selectedMode?.label ?: "---",
+                iconType = selectedMode?.iconType ?: ClimateIconType.THERMOSTAT,
+                accent = selectedMode?.accent ?: ClimateMuted,
                 modifier = Modifier.weight(1f)
             )
             StatusDivider()
             StatusValue(
                 title = "CO₂",
-                value = "$co2Ppm ppm",
+                value = co2Ppm?.let { "$it ppm" } ?: "---",
                 secondaryValue = co2Quality,
-                symbol = "⌁",
+                iconType = ClimateIconType.AIR_QUALITY,
                 accent = co2Accent,
                 modifier = Modifier.weight(1f)
             )
@@ -966,7 +1044,7 @@ private fun StatusDivider() {
 private fun StatusValue(
     title: String,
     value: String,
-    symbol: String,
+    iconType: ClimateIconType,
     accent: Color,
     modifier: Modifier = Modifier,
     secondaryValue: String? = null
@@ -975,11 +1053,10 @@ private fun StatusValue(
         modifier = modifier,
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        Text(
-            text = symbol,
+        ClimateVectorIcon(
+            type = iconType,
             color = accent,
-            fontSize = 18.sp,
-            fontWeight = FontWeight.Bold
+            modifier = Modifier.size(22.dp)
         )
 
         Spacer(modifier = Modifier.height(6.dp))
