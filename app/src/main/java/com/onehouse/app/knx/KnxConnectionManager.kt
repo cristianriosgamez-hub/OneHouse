@@ -655,7 +655,7 @@ class KnxConnectionManager(
                     direction = KnxTelegramEvent.Direction.SYSTEM,
                     kind = KnxTelegramEvent.Kind.CONNECT,
                     status = KnxTelegramEvent.Status.PENDING,
-                    detail = "CONNECT_REQUEST preparado · destino ${target.host}:${target.port} · UDP local ${ownAddress.hostAddress}:${udpSocket.localPort} · NAT ${if (target.natMode) "ON (HPAI 0.0.0.0:0)" else "OFF"} · ${request.size} bytes · HEX ${request.toDiagnosticHex()} · origen $source"
+                    detail = "CONNECT_REQUEST preparado · destino ${target.host}:${target.port} · UDP origen ${ownAddress.hostAddress}:${udpSocket.localPort} · NAT ${if (target.natMode) "ON" else "OFF"} · HPAI Control ${if (target.natMode) "0.0.0.0:0" else "${ownAddress.hostAddress}:${udpSocket.localPort}"} · HPAI Data ${if (target.natMode) "0.0.0.0:0" else "${ownAddress.hostAddress}:${udpSocket.localPort}"} · ${request.size} bytes · HEX ${request.toDiagnosticHex()} · origen $source"
                 )
                 val sendStartedAt = System.currentTimeMillis()
                 udpSocket.send(DatagramPacket(request, request.size))
@@ -674,7 +674,7 @@ class KnxConnectionManager(
                     direction = KnxTelegramEvent.Direction.SYSTEM,
                     kind = KnxTelegramEvent.Kind.CONNECT,
                     status = KnxTelegramEvent.Status.CONFIRMED,
-                    detail = "Datagrama UDP recibido durante negociación · desde ${response.address?.hostAddress ?: "?"}:${response.port} · ${response.length} bytes · ${responseMillis} ms · HEX ${response.data.copyOf(response.length).toDiagnosticHex()} · origen $source"
+                    detail = "Datagrama UDP recibido durante negociación · desde ${response.address?.hostAddress ?: "?"}:${response.port} · servicio ${KnxProtocol.serviceType(response.data, response.length)?.let { "0x%04X".format(it) } ?: "desconocido"} · ${response.length} bytes · ${responseMillis} ms · HEX ${response.data.copyOf(response.length).toDiagnosticHex()} · origen $source"
                 )
 
                 when (val parsed = KnxProtocol.parseConnectResponse(response.data, response.length)) {
@@ -729,7 +729,7 @@ class KnxConnectionManager(
                 direction = KnxTelegramEvent.Direction.SYSTEM,
                 kind = KnxTelegramEvent.Kind.CONNECT,
                 status = KnxTelegramEvent.Status.ERROR,
-                detail = "CONNECT_RESPONSE timeout · destino ${target.host}:${target.port} · NAT ${if (target.natMode) "ON" else "OFF"} · ${timeoutMillis} ms · origen $source"
+                detail = "CONNECT_RESPONSE timeout · destino ${target.host}:${target.port} · NAT ${if (target.natMode) "ON" else "OFF"} · datagramas recibidos 0 · ${timeoutMillis} ms · origen $source"
             )
             synchronized(lock) { socket?.close() }
             clearSession()

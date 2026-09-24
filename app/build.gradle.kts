@@ -17,7 +17,7 @@ android {
         minSdk = 29
         targetSdk = 36
         versionCode = 151
-        versionName = "1.14.1 REV6 Trazabilidad KNX/IP remota"
+        versionName = "1.14.1 REV7 Negociación KNX/IP HPAI"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }

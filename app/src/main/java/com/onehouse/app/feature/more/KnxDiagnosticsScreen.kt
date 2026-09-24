@@ -248,7 +248,7 @@ fun KnxDiagnosticsScreen(onBack: () -> Unit) {
                         )
                     }
                     Text(
-                        "Prueba actual · conexiones ${sessionStatistics.connections - sessionBaseline.connections} · errores conexión ${sessionStatistics.connectionErrors - sessionBaseline.connectionErrors} · operaciones ${sessionStatistics.telegramsSent - sessionBaseline.telegramsSent} · errores operación ${sessionStatistics.operationErrors - sessionBaseline.operationErrors}",
+                        "Desde abrir Diagnóstico · conexiones ${sessionStatistics.connections - sessionBaseline.connections} · errores conexión ${sessionStatistics.connectionErrors - sessionBaseline.connectionErrors} · operaciones ${sessionStatistics.telegramsSent - sessionBaseline.telegramsSent} · errores operación ${sessionStatistics.operationErrors - sessionBaseline.operationErrors}",
                         color = AzulClaro,
                         fontSize = 12.sp,
                         fontWeight = FontWeight.SemiBold
@@ -268,6 +268,39 @@ fun KnxDiagnosticsScreen(onBack: () -> Unit) {
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         Text("Copiar diagnóstico")
+                    }
+                }
+            }
+
+            val negotiationEvents = events.filter { event ->
+                event.kind == KnxTelegramEvent.Kind.CONNECT &&
+                    (event.detail?.contains("CONNECT_", ignoreCase = true) == true ||
+                        event.detail?.contains("Datagrama UDP recibido durante negociación", ignoreCase = true) == true)
+            }.take(8)
+
+            OneHouseCard {
+                Column(
+                    modifier = Modifier.padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Text("Última negociación KNX/IP", color = TextoPrincipal, fontWeight = FontWeight.Bold, fontSize = 18.sp)
+                    Text(
+                        "Traza real del último intento: CONNECT_REQUEST, HPAI, respuesta UDP o timeout.",
+                        color = TextoSecundario,
+                        fontSize = 12.sp
+                    )
+                    if (negotiationEvents.isEmpty()) {
+                        Text("Aún no hay una negociación registrada en el monitor.", color = TextoSecundario)
+                    } else {
+                        negotiationEvents.asReversed().forEach { event ->
+                            Text(
+                                "${formatDateTime(event.timestampMillis)} · ${event.status.name}",
+                                color = if (event.status == KnxTelegramEvent.Status.ERROR) MaterialTheme.colorScheme.error else AzulClaro,
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.SemiBold
+                            )
+                            Text(event.detail.orEmpty(), color = TextoSecundario, fontSize = 11.sp)
+                        }
                     }
                 }
             }
@@ -320,7 +353,7 @@ fun KnxDiagnosticsScreen(onBack: () -> Unit) {
                         fontWeight = FontWeight.SemiBold
                     )
                     Text(
-                        "Prueba actual · aperturas ${performanceMetrics.tunnelOpenAttempts - performanceBaseline.tunnelOpenAttempts} · reutilizados ${performanceMetrics.tunnelReuses - performanceBaseline.tunnelReuses} · conectados ${performanceMetrics.tunnelConnectSuccesses - performanceBaseline.tunnelConnectSuccesses} · código 36 ${performanceMetrics.tunnelRejected36 - performanceBaseline.tunnelRejected36}",
+                        "Desde abrir Diagnóstico · aperturas ${performanceMetrics.tunnelOpenAttempts - performanceBaseline.tunnelOpenAttempts} · reutilizados ${performanceMetrics.tunnelReuses - performanceBaseline.tunnelReuses} · conectados ${performanceMetrics.tunnelConnectSuccesses - performanceBaseline.tunnelConnectSuccesses} · código 36 ${performanceMetrics.tunnelRejected36 - performanceBaseline.tunnelRejected36}",
                         color = AzulClaro,
                         fontSize = 12.sp,
                         fontWeight = FontWeight.SemiBold
@@ -555,8 +588,8 @@ private fun copyDiagnosticsToClipboard(
         appendLine("OneHouse · Diagnóstico KNX")
         appendLine("Generado: ${formatDateTime(System.currentTimeMillis())}")
         appendLine("Eventos: ${summary.total} · TX ${summary.outgoing} · RX ${summary.incoming} · Sistema ${summary.system} · Errores ${summary.errors}")
-        appendLine("Prueba actual túnel: aperturas ${metrics.tunnelOpenAttempts - metricsBaseline.tunnelOpenAttempts} · reutilizados ${metrics.tunnelReuses - metricsBaseline.tunnelReuses} · conectados ${metrics.tunnelConnectSuccesses - metricsBaseline.tunnelConnectSuccesses} · código36 ${metrics.tunnelRejected36 - metricsBaseline.tunnelRejected36}")
-        appendLine("Prueba actual sesión: conexiones ${session.connections - sessionBaseline.connections} · erroresConexión ${session.connectionErrors - sessionBaseline.connectionErrors} · operaciones ${session.telegramsSent - sessionBaseline.telegramsSent} · erroresOperación ${session.operationErrors - sessionBaseline.operationErrors}")
+        appendLine("Desde abrir Diagnóstico · túnel: aperturas ${metrics.tunnelOpenAttempts - metricsBaseline.tunnelOpenAttempts} · reutilizados ${metrics.tunnelReuses - metricsBaseline.tunnelReuses} · conectados ${metrics.tunnelConnectSuccesses - metricsBaseline.tunnelConnectSuccesses} · código36 ${metrics.tunnelRejected36 - metricsBaseline.tunnelRejected36}")
+        appendLine("Desde abrir Diagnóstico · sesión: conexiones ${session.connections - sessionBaseline.connections} · erroresConexión ${session.connectionErrors - sessionBaseline.connectionErrors} · operaciones ${session.telegramsSent - sessionBaseline.telegramsSent} · erroresOperación ${session.operationErrors - sessionBaseline.operationErrors}")
         appendLine("Histórico túnel: aperturas ${metrics.tunnelOpenAttempts} · reutilizados ${metrics.tunnelReuses} · conectados ${metrics.tunnelConnectSuccesses} · código36 ${metrics.tunnelRejected36} · cierres ${metrics.tunnelDisconnects}")
         appendLine("Histórico sesión: conexiones ${session.connections} · erroresConexión ${session.connectionErrors} · operaciones ${session.telegramsSent} · ACK ${session.gatewayAcks} · erroresOperación ${session.operationErrors} · retransmisiones ${session.retransmissions}")
         appendLine()
