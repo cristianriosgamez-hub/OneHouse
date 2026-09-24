@@ -59,7 +59,8 @@ internal fun EnergyMeterDetailScreen(
     onPeriodSelected: (com.onehouse.app.data.energy.EnergyPeriod) -> Unit,
     onAddReading: () -> Unit,
     onEditReading: (EnergyReadingEntity) -> Unit,
-    onDeleteReading: (EnergyReadingEntity) -> Unit
+    onDeleteReading: (EnergyReadingEntity) -> Unit,
+    acsKnxValue: Double? = null
 ) {
     val type = state.selectedType ?: return
     val accent = accentFor(type)
@@ -108,6 +109,17 @@ internal fun EnergyMeterDetailScreen(
                     )
                     latest?.let {
                         Text(formatDate(it.timestamp), color = TextoSecundario, fontSize = 11.sp)
+                    }
+                    if (type == MeterType.ACS) {
+                        Spacer(Modifier.height(5.dp))
+                        Text("Lectura KNX actual", color = TextoSecundario, fontSize = 11.sp)
+                        Text(
+                            acsKnxValue?.let { "${formatNumber(it)} ${type.unit} · ${formatDate(System.currentTimeMillis())}" }
+                                ?: "Esperando valor KNX · 15/5/67",
+                            color = accent,
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.SemiBold
+                        )
                     }
                 }
             }

@@ -1,0 +1,33 @@
+OneHouse v1.14.1 REV14 — Documentación + Climatización/estados + Consumos
+
+BASE
+- Parte de REV13, congelada como base estable (Wi-Fi y 5G validados).
+- No modifica el transporte KNX/IP estable.
+
+CONSUMOS
+- ENDESA, AGBAR y Climatización: al añadir/editar se introduce solo Consumo del periodo.
+- La lectura acumulada se calcula automáticamente a partir de la lectura acumulada anterior + consumo.
+- ACS: se elimina Consumo del periodo del formulario y se usa Lectura del contador.
+- ACS precarga la lectura KNX actual de 15/5/67 (DPT9, kW).
+- Al guardar ACS, el consumo del periodo se calcula como lectura actual - lectura acumulada anterior.
+- La pantalla de detalle ACS muestra la lectura KNX actual y la fecha actual.
+- 15/5/67 se añade al catálogo KNX y a la carga inicial, por lo que participa en el porcentaje de carga.
+
+CLIMATIZACION / ESTADOS
+- Se conserva la resolución real existente: POWER 5/3/2, temperatura 5/2/3, modo 5/3/4, ventilador 5/3/5 y consigna 5/2/6.
+- No se introducen valores dummy ni se cambia el motor KNX.
+- REV14 deja documentada esta arquitectura para la verificación funcional.
+
+DOCUMENTACION
+- Actualizada la topología real: Siemens KNX/IP -> Ethernet -> TP-Link repetidor -> Wi-Fi -> router Lowi.
+- IP KNX validada/reservada: 192.168.0.12:3671.
+- Remoto validado: UDP 3671 del router hacia 192.168.0.12:3671.
+- REV13 queda identificada como punto estable de retorno.
+
+PRUEBAS RECOMENDADAS
+1. Compilar.
+2. Verificar conexión Wi-Fi y 5G (regresión; no debería cambiar).
+3. ENDESA/AGBAR/Climatización: añadir consumo y comprobar acumulado automático.
+4. ACS: confirmar que aparece el valor KNX de 15/5/67, guardar y comprobar consumo calculado.
+5. Reiniciar app y verificar que 15/5/67 participa en la carga inicial.
+6. Revisar climatización: ON/OFF, temperatura, consigna, modo y Baja/Media/Alta con valores reales.

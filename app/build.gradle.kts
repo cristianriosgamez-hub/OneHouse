@@ -16,8 +16,8 @@ android {
         applicationId = "com.onehouse.app"
         minSdk = 29
         targetSdk = 36
-        versionCode = 152
-        versionName = "1.14.1 REV13 Estable KNX local-remoto"
+        versionCode = 153
+        versionName = "1.14.1 REV14 Documentacion Clima Consumos"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
