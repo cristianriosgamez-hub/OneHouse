@@ -17,7 +17,7 @@ android {
         minSdk = 29
         targetSdk = 36
         versionCode = 151
-        versionName = "1.14.1 REV9 Diagnóstico transporte UDP KNX/IP"
+        versionName = "1.14.1 REV10 Sonda UDP sin filtro de origen"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
