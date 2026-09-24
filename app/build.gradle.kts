@@ -17,7 +17,7 @@ android {
         minSdk = 29
         targetSdk = 36
         versionCode = 151
-        versionName = "1.14.1 REV10 Sonda UDP sin filtro de origen"
+        versionName = "1.14.1 REV12 Diagnóstico sonda visible"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }

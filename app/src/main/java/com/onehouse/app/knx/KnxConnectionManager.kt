@@ -630,6 +630,76 @@ class KnxConnectionManager(
                 state = State.DISCONNECTED
                 ConnectResult.NetworkError("La dirección debe ser IPv4")
             } else {
+                // REV11: la sonda REV10 quedaba situada después de los dos timeouts
+                // normales. En la app real otra parte del ciclo podía cancelar la
+                // apertura justo al terminar esos ~8 s, por lo que la sonda no
+                // llegaba a ejecutarse (en Diagnóstico solo aparecía REV9).
+                //
+                // Para eliminar esa carrera, en ruta REMOTA hacemos PRIMERO una
+                // sonda puramente diagnóstica con socket UDP NO conectado. No toca
+                // LAN ni sustituye el transporte productivo: después continúa REV9
+                // exactamente como antes. Así siempre obtendremos RX_DATAGRAMA o
+                // RX_TIMEOUT antes de que una cancelación tardía pueda ocultar la prueba.
+                if (target.natMode && !cancellation.get()) {
+                    val probeSocket = DatagramSocket()
+                    probeSocket.soTimeout = timeoutMillis
+                    try {
+                        val anyIpv4 = InetAddress.getByName("0.0.0.0") as Inet4Address
+                        val probeRequest = KnxProtocol.buildConnectRequest(
+                            anyIpv4, probeSocket.localPort, natMode = true
+                        )
+                        val destination = InetSocketAddress(targetAddress, target.port)
+                        monitorRepository?.record(
+                            direction = KnxTelegramEvent.Direction.SYSTEM,
+                            kind = KnxTelegramEvent.Kind.CONNECT,
+                            status = KnxTelegramEvent.Status.PENDING,
+                            detail = "REV11 SONDA_UDP_PRIMERO · fase SEND · socket connected=false · local ${probeSocket.localAddress.hostAddress}:${probeSocket.localPort} · destino ${target.host}:${target.port} · HPAI 0.0.0.0:0 · ${probeRequest.size} bytes · origen $source"
+                        )
+                        val startedAt = System.currentTimeMillis()
+                        probeSocket.send(DatagramPacket(probeRequest, probeRequest.size, destination))
+                        val buffer = ByteArray(KnxProtocol.MAX_PACKET_SIZE)
+                        val packet = DatagramPacket(buffer, buffer.size)
+                        probeSocket.receive(packet)
+                        val elapsed = System.currentTimeMillis() - startedAt
+                        val bytes = packet.data.copyOf(packet.length)
+                        val service = KnxProtocol.serviceType(bytes, bytes.size)
+                        monitorRepository?.record(
+                            direction = KnxTelegramEvent.Direction.SYSTEM,
+                            kind = KnxTelegramEvent.Kind.CONNECT,
+                            status = KnxTelegramEvent.Status.CONFIRMED,
+                            detail = "REV11 SONDA_UDP_PRIMERO · fase RX_DATAGRAMA · RESULTADO CLAVE · desde ${packet.address?.hostAddress ?: "?"}:${packet.port} · servicio ${service?.let { "0x%04X".format(it) } ?: "desconocido"} · ${packet.length} bytes · ${elapsed} ms · HEX ${bytes.toDiagnosticHex()} · origen $source"
+                        )
+                        val parsed = KnxProtocol.parseConnectResponse(bytes, bytes.size)
+                        if (parsed is KnxProtocol.ConnectResponse.Accepted) {
+                            runCatching {
+                                val disconnect = KnxProtocol.buildDisconnectRequest(
+                                    channelId = parsed.channelId,
+                                    localAddress = anyIpv4,
+                                    localPort = probeSocket.localPort,
+                                    natMode = true
+                                )
+                                probeSocket.send(DatagramPacket(disconnect, disconnect.size, destination))
+                            }
+                        }
+                    } catch (_: SocketTimeoutException) {
+                        monitorRepository?.record(
+                            direction = KnxTelegramEvent.Direction.SYSTEM,
+                            kind = KnxTelegramEvent.Kind.CONNECT,
+                            status = KnxTelegramEvent.Status.ERROR,
+                            detail = "REV11 SONDA_UDP_PRIMERO · fase RX_TIMEOUT · RESULTADO CLAVE: 0 datagramas UDP recibidos sin filtro de origen · destino ${target.host}:${target.port} · ${timeoutMillis} ms · origen $source"
+                        )
+                    } catch (error: Exception) {
+                        monitorRepository?.record(
+                            direction = KnxTelegramEvent.Direction.SYSTEM,
+                            kind = KnxTelegramEvent.Kind.CONNECT,
+                            status = KnxTelegramEvent.Status.ERROR,
+                            detail = "REV11 SONDA_UDP_PRIMERO · fase ERROR · ${error.javaClass.simpleName}: ${error.localizedMessage ?: "sin detalle"} · destino ${target.host}:${target.port} · origen $source"
+                        )
+                    } finally {
+                        probeSocket.close()
+                    }
+                }
+
                 val udpSocket = DatagramSocket()
                 synchronized(lock) {
                     socket = udpSocket
@@ -723,77 +793,11 @@ class KnxConnectionManager(
                 }
 
                 val received = response ?: run {
-                    // REV10: sonda UDP no conectada, SOLO en remoto y únicamente después de que
-                    // los dos intentos REV8/REV9 hayan agotado su timeout sin recibir ni un byte.
-                    // Un DatagramSocket conectado filtra datagramas cuyo origen no coincide con
-                    // el destino conectado. Esta sonda permite comprobar si el router/gateway
-                    // devuelve la respuesta desde otra IP/puerto. No sustituye el túnel normal:
-                    // si recibe un CONNECT_RESPONSE aceptado, lo cierra inmediatamente para no
-                    // dejar una sesión huérfana y registra la evidencia para la siguiente REV.
-                    if (target.natMode && !cancellation.get()) {
-                        udpSocket.close()
-                        val probeSocket = DatagramSocket()
-                        synchronized(lock) { socket = probeSocket }
-                        probeSocket.soTimeout = timeoutMillis
-                        try {
-                            val probeRequest = KnxProtocol.buildConnectRequest(
-                                ownAddress, probeSocket.localPort, natMode = true
-                            )
-                            val destination = InetSocketAddress(targetAddress, target.port)
-                            monitorRepository?.record(
-                                direction = KnxTelegramEvent.Direction.SYSTEM,
-                                kind = KnxTelegramEvent.Kind.CONNECT,
-                                status = KnxTelegramEvent.Status.PENDING,
-                                detail = "REV10 SONDA_UDP_NO_CONECTADA · fase SEND · socket connected=false · local ${probeSocket.localAddress.hostAddress}:${probeSocket.localPort} · destino ${target.host}:${target.port} · HPAI 0.0.0.0:0 · ${probeRequest.size} bytes · origen $source"
-                            )
-                            probeSocket.send(DatagramPacket(probeRequest, probeRequest.size, destination))
-                            val probeBuffer = ByteArray(KnxProtocol.MAX_PACKET_SIZE)
-                            val probeResponse = DatagramPacket(probeBuffer, probeBuffer.size)
-                            val probeStartedAt = System.currentTimeMillis()
-                            probeSocket.receive(probeResponse)
-                            val probeMillis = System.currentTimeMillis() - probeStartedAt
-                            val probeBytes = probeResponse.data.copyOf(probeResponse.length)
-                            val service = KnxProtocol.serviceType(probeBytes, probeBytes.size)
-                            monitorRepository?.record(
-                                direction = KnxTelegramEvent.Direction.SYSTEM,
-                                kind = KnxTelegramEvent.Kind.CONNECT,
-                                status = KnxTelegramEvent.Status.CONFIRMED,
-                                detail = "REV10 SONDA_UDP_NO_CONECTADA · fase RX_DATAGRAMA · RESULTADO CLAVE: llega UDP sin filtro de origen · desde ${probeResponse.address?.hostAddress ?: "?"}:${probeResponse.port} · servicio ${service?.let { "0x%04X".format(it) } ?: "desconocido"} · ${probeResponse.length} bytes · ${probeMillis} ms · HEX ${probeBytes.toDiagnosticHex()} · origen $source"
-                            )
-
-                            // Si la sonda abrió realmente un túnel, lo cerramos de forma explícita.
-                            val parsedProbe = KnxProtocol.parseConnectResponse(probeBytes, probeBytes.size)
-                            if (parsedProbe is KnxProtocol.ConnectResponse.Accepted) {
-                                runCatching {
-                                    val disconnect = KnxProtocol.buildDisconnectRequest(
-                                        channelId = parsedProbe.channelId,
-                                        localAddress = ownAddress,
-                                        localPort = probeSocket.localPort,
-                                        natMode = true
-                                    )
-                                    probeSocket.send(DatagramPacket(disconnect, disconnect.size, destination))
-                                }
-                            }
-                        } catch (_: SocketTimeoutException) {
-                            monitorRepository?.record(
-                                direction = KnxTelegramEvent.Direction.SYSTEM,
-                                kind = KnxTelegramEvent.Kind.CONNECT,
-                                status = KnxTelegramEvent.Status.ERROR,
-                                detail = "REV10 SONDA_UDP_NO_CONECTADA · fase RX_TIMEOUT · RESULTADO CLAVE: tampoco llega ningún datagrama UDP aceptando cualquier origen · destino ${target.host}:${target.port} · ${timeoutMillis} ms · apunta a red/NAT/port-forwarding/gateway antes que al filtro del socket Android · origen $source"
-                            )
-                        } catch (error: Exception) {
-                            monitorRepository?.record(
-                                direction = KnxTelegramEvent.Direction.SYSTEM,
-                                kind = KnxTelegramEvent.Kind.CONNECT,
-                                status = KnxTelegramEvent.Status.ERROR,
-                                detail = "REV10 SONDA_UDP_NO_CONECTADA · fase ERROR · ${error.javaClass.simpleName}: ${error.localizedMessage ?: "sin detalle"} · destino ${target.host}:${target.port} · origen $source"
-                            )
-                        } finally {
-                            probeSocket.close()
-                        }
-                    } else {
-                        udpSocket.close()
-                    }
+                    // REV11: la sonda sin filtro ya se ejecutó al PRINCIPIO de la
+                    // negociación remota. No repetimos aquí la antigua sonda REV10,
+                    // evitando añadir otros 4 s al ciclo y eliminando la carrera que
+                    // hacía que esa prueba final pudiera quedar sin ejecutar.
+                    udpSocket.close()
                     clearSession()
                     return ConnectResult.Timeout
                 }

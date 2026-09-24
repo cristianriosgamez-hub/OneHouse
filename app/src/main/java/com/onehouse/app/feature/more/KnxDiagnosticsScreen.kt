@@ -272,11 +272,20 @@ fun KnxDiagnosticsScreen(onBack: () -> Unit) {
                 }
             }
 
-            val negotiationEvents = events.filter { event ->
+            // REV12: la REV11 sí ejecutaba la sonda UDP prioritaria, pero esta tarjeta
+            // no la mostraba porque el filtro histórico solo aceptaba textos con
+            // "CONNECT_". La sonda se registra como "REV11 SONDA_UDP_PRIMERO", por lo
+            // que quedaba invisible aunque se hubiera ejecutado correctamente.
+            //
+            // Buscamos en todo el historial ligero (120 eventos), no solo en los 30
+            // usados por el resumen de pantalla, para que el resultado de la sonda no
+            // desaparezca si después se generan varios eventos del transporte REV9.
+            val negotiationEvents = monitorRepository.recent(120).filter { event ->
                 event.kind == KnxTelegramEvent.Kind.CONNECT &&
                     (event.detail?.contains("CONNECT_", ignoreCase = true) == true ||
+                        event.detail?.contains("SONDA_UDP_PRIMERO", ignoreCase = true) == true ||
                         event.detail?.contains("Datagrama UDP recibido durante negociación", ignoreCase = true) == true)
-            }.take(8)
+            }.take(12)
 
             OneHouseCard {
                 Column(
