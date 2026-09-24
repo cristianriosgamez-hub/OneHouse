@@ -219,7 +219,9 @@ class SettingsViewModel(
         }
 
         val port = portText.toIntOrNull()
-        return if (error == null && port != null) KnxEndpoint(host, port) else null
+        return if (error == null && port != null) KnxEndpoint(
+            host, port, natMode = selectedRoute == ConnectionRoute.REMOTE
+        ) else null
     }
 
     private fun failTest(message: String) {

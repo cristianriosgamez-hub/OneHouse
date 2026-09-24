@@ -333,7 +333,7 @@ class KnxBulkStateReader(context: Context) : Closeable {
         val port = (if (local) settings.localPort else settings.remotePort).trim().toIntOrNull()
         require(host.isNotBlank()) { "Dirección KNX/IP no configurada" }
         require(port != null && port in 1..65535) { "Puerto KNX/IP no válido" }
-        KnxEndpoint(host, port)
+        KnxEndpoint(host, port, natMode = !local)
     }
 
     fun cancel() {

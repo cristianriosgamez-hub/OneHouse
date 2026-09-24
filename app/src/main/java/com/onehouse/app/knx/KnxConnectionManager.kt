@@ -191,8 +191,10 @@ class KnxConnectionManager(
         synchronized(lock) { connectingEndpoint = endpoint }
 
         val currentCancellation = cancelled
+        val connectCompleted = AtomicBoolean(false)
         val thread = Thread {
             val result = openTunnel(endpoint, currentCancellation, source)
+            connectCompleted.set(true)
             recordConnectResult(result, endpoint, source)
 
             if (!currentCancellation.get()) {
@@ -218,6 +220,10 @@ class KnxConnectionManager(
         }
 
         return Closeable {
+            // Cerrar el handle de una petición ya completada NO debe cerrar el
+            // socket compartido. Hacerlo provocaba recvfrom/EBADF y estados
+            // "Conectado" sin tráfico al cambiar de pantalla o de red.
+            if (connectCompleted.get()) return@Closeable
             currentCancellation.set(true)
             val joinedCallbacks = synchronized(lock) {
                 connectingEndpoint = null
@@ -642,7 +648,9 @@ class KnxConnectionManager(
                     }
 
                 localAddress = ownAddress
-                val request = KnxProtocol.buildConnectRequest(ownAddress, udpSocket.localPort)
+                val request = KnxProtocol.buildConnectRequest(
+                    ownAddress, udpSocket.localPort, natMode = target.natMode
+                )
                 udpSocket.send(DatagramPacket(request, request.size))
 
                 val responseBuffer = ByteArray(KnxProtocol.MAX_PACKET_SIZE)
@@ -660,7 +668,8 @@ class KnxConnectionManager(
                                 val disconnect = KnxProtocol.buildDisconnectRequest(
                                     channelId = parsed.channelId,
                                     localAddress = ownAddress,
-                                    localPort = udpSocket.localPort
+                                    localPort = udpSocket.localPort,
+                                    natMode = target.natMode
                                 )
                                 udpSocket.send(DatagramPacket(disconnect, disconnect.size))
                             }
@@ -739,6 +748,7 @@ class KnxConnectionManager(
         val udpSocket: DatagramSocket?
         val currentChannel: Int?
         val ownAddress: Inet4Address?
+        val currentEndpoint: KnxEndpoint?
 
         stopPassiveReceiver()
         synchronized(lock) {
@@ -748,6 +758,7 @@ class KnxConnectionManager(
             udpSocket = socket
             currentChannel = channelId
             ownAddress = localAddress
+            currentEndpoint = endpoint
             state = if (udpSocket != null && !udpSocket.isClosed) {
                 State.DISCONNECTING
             } else {
@@ -766,7 +777,8 @@ class KnxConnectionManager(
                 val packet = KnxProtocol.buildDisconnectRequest(
                     channelId = currentChannel,
                     localAddress = ownAddress,
-                    localPort = udpSocket.localPort
+                    localPort = udpSocket.localPort,
+                    natMode = currentEndpoint?.natMode == true
                 )
                 udpSocket.send(DatagramPacket(packet, packet.size))
             }
@@ -824,8 +836,12 @@ internal object KnxProtocol {
     const val TUNNELLING_REQUEST_SERVICE = TUNNELLING_REQUEST
     const val TUNNELLING_ACK_SERVICE = TUNNELLING_ACK
 
-    fun buildConnectRequest(localAddress: Inet4Address, localPort: Int): ByteArray {
-        val hpai = buildHpai(localAddress, localPort)
+    fun buildConnectRequest(
+        localAddress: Inet4Address,
+        localPort: Int,
+        natMode: Boolean = false
+    ): ByteArray {
+        val hpai = buildHpai(localAddress, localPort, natMode)
         return byteArrayOf(
             0x06, 0x10,
             0x02, 0x05,
@@ -840,7 +856,8 @@ internal object KnxProtocol {
     fun buildDisconnectRequest(
         channelId: Int,
         localAddress: Inet4Address,
-        localPort: Int
+        localPort: Int,
+        natMode: Boolean = false
     ): ByteArray = byteArrayOf(
         0x06, 0x10,
         ((DISCONNECT_REQUEST ushr 8) and 0xFF).toByte(),
@@ -848,7 +865,7 @@ internal object KnxProtocol {
         0x00, 0x10,
         (channelId and 0xFF).toByte(),
         0x00,
-        *buildHpai(localAddress, localPort)
+        *buildHpai(localAddress, localPort, natMode)
     )
 
 
@@ -1027,13 +1044,20 @@ internal object KnxProtocol {
         }
     }
 
-    private fun buildHpai(localAddress: Inet4Address, localPort: Int): ByteArray {
-        val ip = localAddress.address
+    private fun buildHpai(
+        localAddress: Inet4Address,
+        localPort: Int,
+        natMode: Boolean = false
+    ): ByteArray {
+        // KNXnet/IP NAT mode anuncia 0.0.0.0:0. El servidor debe usar la
+        // dirección/puerto de origen UDP observados tras la traducción NAT.
+        val ip = if (natMode) byteArrayOf(0, 0, 0, 0) else localAddress.address
+        val advertisedPort = if (natMode) 0 else localPort
         return byteArrayOf(
             0x08, 0x01,
             ip[0], ip[1], ip[2], ip[3],
-            ((localPort ushr 8) and 0xFF).toByte(),
-            (localPort and 0xFF).toByte()
+            ((advertisedPort ushr 8) and 0xFF).toByte(),
+            (advertisedPort and 0xFF).toByte()
         )
     }
 

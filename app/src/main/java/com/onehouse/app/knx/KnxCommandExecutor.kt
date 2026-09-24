@@ -422,7 +422,7 @@ class KnxCommandExecutor(context: Context) : Closeable {
         require(host.isNotBlank()) { "Configura la dirección KNX/IP $route" }
         val port = portText.toIntOrNull()
         require(port != null && port in 1..65535) { "Configura un puerto KNX/IP válido para la ruta $route" }
-        KnxEndpoint(host, port)
+        KnxEndpoint(host, port, natMode = !useLocal)
     }
 
     override fun close() {

@@ -1,0 +1,42 @@
+OneHouse v1.14.1 REV3 - PRUEBA CONTROLADA KNX/IP REMOTO NAT + SOCKET
+=====================================================================
+
+OBJETIVO
+- Corregir la negociación KNXnet/IP cuando OneHouse usa la ruta REMOTA a través de NAT.
+- Evitar que el cierre tardío de un handle de conexión ya completado cierre el socket compartido,
+  causa compatible con el error recvfrom/EBADF observado y con estados "Conectado" sin tráfico.
+- Mantener el comportamiento LOCAL sin NAT.
+
+CAMBIOS
+1. KnxEndpoint incorpora natMode (false por defecto).
+2. Ruta LOCAL: conserva HPAI normal (IP/puerto local reales).
+3. Ruta REMOTA: usa KNXnet/IP NAT mode en CONNECT_REQUEST y DISCONNECT_REQUEST,
+   anunciando HPAI 0.0.0.0:0 para que el gateway use el origen UDP traducido por NAT.
+4. Bulk reader, command executor y prueba de conexión marcan NAT únicamente en ruta REMOTA.
+5. Protección del ciclo de vida: cerrar el Closeable de una conexión que YA terminó no cierra
+   el DatagramSocket/túnel compartido. La cancelación durante CONNECTING se mantiene.
+
+PRUEBA DE HOY DESDE OFICINA
+A) Desactivar Wi-Fi del Xiaomi y usar datos móviles.
+B) Configuración -> Probar conexión.
+   Esperado: ruta Remota y destino 37.223.129.90:3671.
+C) Si conecta, dejar cargar estados KNX. No accionar cargas físicas si no hay nadie en vivienda.
+D) Capturar pantalla si aparece Timeout, rechazo, EBADF u otro mensaje.
+E) Repetir 2-3 veces entrando/saliendo de Configuración para comprobar que no aparece EBADF.
+
+PRUEBA LOCAL CUANDO ESTES EN CASA
+A) Wi-Fi conectado -> destino local actual 192.168.0.16:3671.
+B) Confirmar conexión y carga hasta 100%.
+C) Cerrar/abrir y cambiar Wi-Fi/datos/Wi-Fi; verificar que no queda "Conectado" con 0 estados.
+D) Probar una luz y confirmar orden + estado real.
+
+IMPORTANTE
+- No modifica direcciones de grupo KNX, luces, clima, escenas ni automatizaciones.
+- No modifica la IP remota guardada ni reglas del router.
+- Mantener UDP 3671 redirigido a la IP KNX actual 192.168.0.16 mientras dure esta prueba.
+- Esta entrega es una prueba controlada de compatibilidad NAT del interfaz KNX/IP existente.
+
+VALIDACION EN ESTE ENTORNO
+- Se ha revisado estáticamente el flujo y las llamadas modificadas.
+- No ha sido posible ejecutar Gradle aquí porque el wrapper necesita descargar Gradle y este
+  entorno no tiene acceso de red a services.gradle.org. Compilar en Android Studio antes de instalar.

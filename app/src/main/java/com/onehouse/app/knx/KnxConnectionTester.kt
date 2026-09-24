@@ -72,5 +72,7 @@ object KnxConnectionTester {
  */
 data class KnxEndpoint(
     val host: String,
-    val port: Int
+    val port: Int,
+    /** Usa KNXnet/IP NAT mode: HPAI 0.0.0.0:0 para que el gateway responda al origen UDP real. */
+    val natMode: Boolean = false
 )
