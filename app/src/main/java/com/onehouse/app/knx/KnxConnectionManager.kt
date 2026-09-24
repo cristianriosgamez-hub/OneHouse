@@ -9,6 +9,7 @@ import java.net.Inet4Address
 import java.net.InetAddress
 import java.net.InetSocketAddress
 import java.net.SocketTimeoutException
+import java.net.PortUnreachableException
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.locks.ReentrantLock
@@ -647,7 +648,9 @@ class KnxConnectionManager(
 
                 localAddress = ownAddress
 
-                // REV8: en remoto conservamos primero el modo NAT estándar de KNXnet/IP
+                // REV9: mantenemos intacto el comportamiento de REV8 y ampliamos únicamente
+                // la instrumentación de transporte UDP para distinguir socket, envío y recepción.
+                // En remoto conservamos primero el modo NAT estándar de KNXnet/IP
                 // (HPAI 0.0.0.0:0). Solo si no vuelve NINGÚN datagrama hacemos un
                 // segundo intento de compatibilidad anunciando el endpoint UDP local.
                 // En LAN no cambia absolutamente nada: se ejecuta un único intento.
@@ -671,7 +674,13 @@ class KnxConnectionManager(
                         direction = KnxTelegramEvent.Direction.SYSTEM,
                         kind = KnxTelegramEvent.Kind.CONNECT,
                         status = KnxTelegramEvent.Status.PENDING,
-                        detail = "REV8 intento ${attemptIndex + 1}/${attemptModes.size} · modo $modeLabel · CONNECT_REQUEST preparado · destino ${target.host}:${target.port} · UDP origen ${ownAddress.hostAddress}:${udpSocket.localPort} · HPAI Control $advertisedEndpoint · HPAI Data $advertisedEndpoint · ${request.size} bytes · HEX ${request.toDiagnosticHex()} · origen $source"
+                        detail = "REV9 TRANSPORTE · fase SOCKET_OK · intento ${attemptIndex + 1}/${attemptModes.size} · modo $modeLabel · socket conectado ${udpSocket.isConnected} · local ${ownAddress.hostAddress}:${udpSocket.localPort} · remoto ${udpSocket.inetAddress?.hostAddress ?: target.host}:${udpSocket.port} · HPAI Control $advertisedEndpoint · HPAI Data $advertisedEndpoint · origen $source"
+                    )
+                    monitorRepository?.record(
+                        direction = KnxTelegramEvent.Direction.SYSTEM,
+                        kind = KnxTelegramEvent.Kind.CONNECT,
+                        status = KnxTelegramEvent.Status.PENDING,
+                        detail = "REV9 TRANSPORTE · fase REQUEST_PREPARADO · intento ${attemptIndex + 1}/${attemptModes.size} · modo $modeLabel · ${request.size} bytes · HEX ${request.toDiagnosticHex()} · origen $source"
                     )
                     val sendStartedAt = System.currentTimeMillis()
                     udpSocket.send(DatagramPacket(request, request.size))
@@ -679,7 +688,7 @@ class KnxConnectionManager(
                         direction = KnxTelegramEvent.Direction.SYSTEM,
                         kind = KnxTelegramEvent.Kind.CONNECT,
                         status = KnxTelegramEvent.Status.PENDING,
-                        detail = "REV8 intento ${attemptIndex + 1}/${attemptModes.size} · modo $modeLabel · CONNECT_REQUEST enviado · esperando CONNECT_RESPONSE · timeout ${timeoutMillis} ms · origen $source"
+                        detail = "REV9 TRANSPORTE · fase SEND_OK · intento ${attemptIndex + 1}/${attemptModes.size} · modo $modeLabel · ${request.size} bytes enviados a ${target.host}:${target.port} · esperando cualquier datagrama UDP / CONNECT_RESPONSE · timeout ${timeoutMillis} ms · origen $source"
                     )
 
                     try {
@@ -691,17 +700,24 @@ class KnxConnectionManager(
                             direction = KnxTelegramEvent.Direction.SYSTEM,
                             kind = KnxTelegramEvent.Kind.CONNECT,
                             status = KnxTelegramEvent.Status.CONFIRMED,
-                            detail = "REV8 intento ${attemptIndex + 1}/${attemptModes.size} · modo $modeLabel · datagrama UDP recibido · desde ${candidate.address?.hostAddress ?: "?"}:${candidate.port} · servicio ${KnxProtocol.serviceType(candidate.data, candidate.length)?.let { "0x%04X".format(it) } ?: "desconocido"} · ${candidate.length} bytes · ${responseMillis} ms · HEX ${candidate.data.copyOf(candidate.length).toDiagnosticHex()} · origen $source"
+                            detail = "REV9 TRANSPORTE · fase RX_DATAGRAMA · intento ${attemptIndex + 1}/${attemptModes.size} · modo $modeLabel · desde ${candidate.address?.hostAddress ?: "?"}:${candidate.port} · servicio ${KnxProtocol.serviceType(candidate.data, candidate.length)?.let { "0x%04X".format(it) } ?: "desconocido"} · ${candidate.length} bytes · ${responseMillis} ms · HEX ${candidate.data.copyOf(candidate.length).toDiagnosticHex()} · origen $source"
                         )
                         response = candidate
                         effectiveNatMode = attemptNatMode
                         break
+                    } catch (error: PortUnreachableException) {
+                        monitorRepository?.record(
+                            direction = KnxTelegramEvent.Direction.SYSTEM,
+                            kind = KnxTelegramEvent.Kind.CONNECT,
+                            status = if (attemptIndex < attemptModes.lastIndex) KnxTelegramEvent.Status.PENDING else KnxTelegramEvent.Status.ERROR,
+                            detail = "REV9 TRANSPORTE · fase RX_ICMP_PORT_UNREACHABLE · intento ${attemptIndex + 1}/${attemptModes.size} · modo $modeLabel · destino ${target.host}:${target.port} · ${error.localizedMessage ?: "sin detalle"} · ${if (attemptIndex < attemptModes.lastIndex) "se probará compatibilidad HPAI" else "sin más variantes"} · origen $source"
+                        )
                     } catch (_: SocketTimeoutException) {
                         monitorRepository?.record(
                             direction = KnxTelegramEvent.Direction.SYSTEM,
                             kind = KnxTelegramEvent.Kind.CONNECT,
                             status = if (attemptIndex < attemptModes.lastIndex) KnxTelegramEvent.Status.PENDING else KnxTelegramEvent.Status.ERROR,
-                            detail = "REV8 intento ${attemptIndex + 1}/${attemptModes.size} · modo $modeLabel · timeout · datagramas recibidos 0 · ${timeoutMillis} ms · ${if (attemptIndex < attemptModes.lastIndex) "se probará compatibilidad HPAI" else "sin más variantes"} · origen $source"
+                            detail = "REV9 TRANSPORTE · fase RX_TIMEOUT · intento ${attemptIndex + 1}/${attemptModes.size} · modo $modeLabel · datagramas recibidos 0 · socket conectado ${udpSocket.isConnected} · local ${ownAddress.hostAddress}:${udpSocket.localPort} · remoto ${target.host}:${target.port} · ${timeoutMillis} ms · ${if (attemptIndex < attemptModes.lastIndex) "se probará compatibilidad HPAI" else "sin más variantes"} · origen $source"
                         )
                     }
                 }
@@ -741,7 +757,7 @@ class KnxConnectionManager(
                                 direction = KnxTelegramEvent.Direction.SYSTEM,
                                 kind = KnxTelegramEvent.Kind.CONNECT,
                                 status = KnxTelegramEvent.Status.CONFIRMED,
-                                detail = "REV8 túnel aceptado · modo ${if (effectiveNatMode) "NAT_ESTANDAR" else if (target.natMode) "COMPAT_HPAI_LOCAL" else "LOCAL"} · canal ${parsed.channelId} · origen $source"
+                                detail = "REV9 TRANSPORTE · fase CONNECT_RESPONSE_OK · túnel aceptado · modo ${if (effectiveNatMode) "NAT_ESTANDAR" else if (target.natMode) "COMPAT_HPAI_LOCAL" else "LOCAL"} · canal ${parsed.channelId} · origen $source"
                             )
                             ConnectResult.Success(
                                 deviceAddress = received.address.hostAddress ?: target.host,
