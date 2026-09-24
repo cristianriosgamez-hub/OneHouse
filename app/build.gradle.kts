@@ -17,7 +17,7 @@ android {
         minSdk = 29
         targetSdk = 36
         versionCode = 151
-        versionName = "1.14.1 REV4 Documentación técnica"
+        versionName = "1.14.1 REV5 Diagnóstico KNX/IP"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }

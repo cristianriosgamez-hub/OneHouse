@@ -651,11 +651,31 @@ class KnxConnectionManager(
                 val request = KnxProtocol.buildConnectRequest(
                     ownAddress, udpSocket.localPort, natMode = target.natMode
                 )
+                monitorRepository?.record(
+                    direction = KnxTelegramEvent.Direction.SYSTEM,
+                    kind = KnxTelegramEvent.Kind.CONNECT,
+                    status = KnxTelegramEvent.Status.PENDING,
+                    detail = "CONNECT_REQUEST preparado · destino ${target.host}:${target.port} · UDP local ${ownAddress.hostAddress}:${udpSocket.localPort} · NAT ${if (target.natMode) "ON (HPAI 0.0.0.0:0)" else "OFF"} · ${request.size} bytes · origen $source"
+                )
+                val sendStartedAt = System.currentTimeMillis()
                 udpSocket.send(DatagramPacket(request, request.size))
+                monitorRepository?.record(
+                    direction = KnxTelegramEvent.Direction.SYSTEM,
+                    kind = KnxTelegramEvent.Kind.CONNECT,
+                    status = KnxTelegramEvent.Status.PENDING,
+                    detail = "CONNECT_REQUEST enviado · esperando CONNECT_RESPONSE · timeout ${timeoutMillis} ms · origen $source"
+                )
 
                 val responseBuffer = ByteArray(KnxProtocol.MAX_PACKET_SIZE)
                 val response = DatagramPacket(responseBuffer, responseBuffer.size)
                 udpSocket.receive(response)
+                val responseMillis = System.currentTimeMillis() - sendStartedAt
+                monitorRepository?.record(
+                    direction = KnxTelegramEvent.Direction.SYSTEM,
+                    kind = KnxTelegramEvent.Kind.CONNECT,
+                    status = KnxTelegramEvent.Status.CONFIRMED,
+                    detail = "Datagrama UDP recibido durante negociación · desde ${response.address?.hostAddress ?: "?"}:${response.port} · ${response.length} bytes · ${responseMillis} ms · origen $source"
+                )
 
                 when (val parsed = KnxProtocol.parseConnectResponse(response.data, response.length)) {
                     is KnxProtocol.ConnectResponse.Accepted -> {
@@ -705,10 +725,22 @@ class KnxConnectionManager(
                 }
             }
         } catch (_: SocketTimeoutException) {
+            monitorRepository?.record(
+                direction = KnxTelegramEvent.Direction.SYSTEM,
+                kind = KnxTelegramEvent.Kind.CONNECT,
+                status = KnxTelegramEvent.Status.ERROR,
+                detail = "CONNECT_RESPONSE timeout · destino ${target.host}:${target.port} · NAT ${if (target.natMode) "ON" else "OFF"} · ${timeoutMillis} ms · origen $source"
+            )
             synchronized(lock) { socket?.close() }
             clearSession()
             ConnectResult.Timeout
         } catch (error: Exception) {
+            monitorRepository?.record(
+                direction = KnxTelegramEvent.Direction.SYSTEM,
+                kind = KnxTelegramEvent.Kind.CONNECT,
+                status = KnxTelegramEvent.Status.ERROR,
+                detail = "Fallo durante negociación KNX/IP · ${error.javaClass.simpleName}: ${error.localizedMessage ?: "sin detalle"} · destino ${target.host}:${target.port} · origen $source"
+            )
             synchronized(lock) { socket?.close() }
             clearSession()
             if (cancellation.get()) {
