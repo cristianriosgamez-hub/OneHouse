@@ -655,7 +655,7 @@ class KnxConnectionManager(
                     direction = KnxTelegramEvent.Direction.SYSTEM,
                     kind = KnxTelegramEvent.Kind.CONNECT,
                     status = KnxTelegramEvent.Status.PENDING,
-                    detail = "CONNECT_REQUEST preparado · destino ${target.host}:${target.port} · UDP local ${ownAddress.hostAddress}:${udpSocket.localPort} · NAT ${if (target.natMode) "ON (HPAI 0.0.0.0:0)" else "OFF"} · ${request.size} bytes · origen $source"
+                    detail = "CONNECT_REQUEST preparado · destino ${target.host}:${target.port} · UDP local ${ownAddress.hostAddress}:${udpSocket.localPort} · NAT ${if (target.natMode) "ON (HPAI 0.0.0.0:0)" else "OFF"} · ${request.size} bytes · HEX ${request.toDiagnosticHex()} · origen $source"
                 )
                 val sendStartedAt = System.currentTimeMillis()
                 udpSocket.send(DatagramPacket(request, request.size))
@@ -674,7 +674,7 @@ class KnxConnectionManager(
                     direction = KnxTelegramEvent.Direction.SYSTEM,
                     kind = KnxTelegramEvent.Kind.CONNECT,
                     status = KnxTelegramEvent.Status.CONFIRMED,
-                    detail = "Datagrama UDP recibido durante negociación · desde ${response.address?.hostAddress ?: "?"}:${response.port} · ${response.length} bytes · ${responseMillis} ms · origen $source"
+                    detail = "Datagrama UDP recibido durante negociación · desde ${response.address?.hostAddress ?: "?"}:${response.port} · ${response.length} bytes · ${responseMillis} ms · HEX ${response.data.copyOf(response.length).toDiagnosticHex()} · origen $source"
                 )
 
                 when (val parsed = KnxProtocol.parseConnectResponse(response.data, response.length)) {
@@ -852,6 +852,8 @@ private const val DEFAULT_IDLE_DISCONNECT_MILLIS = 90_000L
 private const val MAX_SAFE_TUNNEL_IDLE_MILLIS = 60_000L
 private const val PASSIVE_RECEIVE_TIMEOUT_MILLIS = 40
 private const val PASSIVE_RECEIVER_RETRY_MILLIS = 4L
+
+private fun ByteArray.toDiagnosticHex(): String = joinToString("") { byte -> "%02X".format(byte.toInt() and 0xFF) }
 
 internal object KnxProtocol {
     const val DEFAULT_TIMEOUT_MILLIS = 4_000

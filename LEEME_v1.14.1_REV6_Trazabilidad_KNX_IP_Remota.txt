@@ -1,0 +1,28 @@
+OneHouse v1.14.1 REV6 - Trazabilidad KNX/IP remota
+
+Objetivo
+Aislar la negociación KNXnet/IP remota sin modificar el comportamiento funcional local ni la lógica de luces, persianas, clima o carga de estados.
+
+Cambios
+- CONNECT_REQUEST: el diagnóstico registra ahora el paquete hexadecimal exacto enviado.
+- Respuesta UDP: si llega cualquier datagrama durante la negociación, se registra origen, puerto, longitud, latencia y HEX exacto.
+- Diagnóstico KNX: separa "Prueba actual" de "Histórico acumulado" para conexiones/errores/operaciones.
+- Métricas del motor: muestra también aperturas, reutilizaciones, conexiones y código 36 producidos desde que se abrió esta pantalla de diagnóstico.
+- Copiar diagnóstico incluye prueba actual + histórico, útil para comparar una única prueba 5G sin confundirla con ejecuciones anteriores.
+- Documentación técnica actualizada con REV6.
+
+Prueba recomendada en oficina
+1. Abrir OneHouse con datos móviles (5G/4G), Wi-Fi desactivado.
+2. Abrir Más > Diagnóstico KNX antes de realizar la prueba, para fijar el inicio de "Prueba actual".
+3. Volver a Configuración y ejecutar la conexión remota a 37.223.129.90:3671.
+4. Volver a Más > Diagnóstico KNX y pulsar Actualizar.
+5. Pulsar "Copiar diagnóstico" y conservar el texto completo.
+
+Qué buscamos
+- CONNECT_REQUEST enviado con NAT ON y HPAI 0.0.0.0:0.
+- Si no vuelve ningún datagrama: el problema queda antes de CONNECT_RESPONSE (NAT/router/gateway/ruta UDP).
+- Si vuelve un datagrama: su HEX permitirá identificar servicio KNXnet/IP, status y contenido real.
+- Si aparece código 36: se analizará como rechazo explícito del gateway, distinto de un timeout.
+
+Precaución
+Esta entrega no cambia direcciones KNX, DPT, estados, comandos ni automatizaciones. El cambio es de diagnóstico/trazabilidad para no introducir regresiones en la ruta local ya validada.

@@ -85,7 +85,9 @@ fun KnxDiagnosticsScreen(onBack: () -> Unit) {
     var events by remember { mutableStateOf(monitorRepository.recent(30)) }
     var monitorSummary by remember { mutableStateOf(monitorRepository.summary()) }
     var sessionStatistics by remember { mutableStateOf(sessionStatisticsRepository.snapshot()) }
+    val sessionBaseline = remember { sessionStatisticsRepository.snapshot() }
     var performanceMetrics by remember { mutableStateOf(KnxPerformanceMetrics.snapshot()) }
+    val performanceBaseline = remember { KnxPerformanceMetrics.snapshot() }
     var filter by remember { mutableStateOf("") }
     var testingAddress by remember { mutableStateOf<String?>(null) }
 
@@ -246,17 +248,23 @@ fun KnxDiagnosticsScreen(onBack: () -> Unit) {
                         )
                     }
                     Text(
-                        "Sesión persistente · conexiones ${sessionStatistics.connections} · errores conexión ${sessionStatistics.connectionErrors} · operaciones ${sessionStatistics.telegramsSent} · errores operación ${sessionStatistics.operationErrors}",
+                        "Prueba actual · conexiones ${sessionStatistics.connections - sessionBaseline.connections} · errores conexión ${sessionStatistics.connectionErrors - sessionBaseline.connectionErrors} · operaciones ${sessionStatistics.telegramsSent - sessionBaseline.telegramsSent} · errores operación ${sessionStatistics.operationErrors - sessionBaseline.operationErrors}",
+                        color = AzulClaro,
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                    Text(
+                        "Histórico acumulado · conexiones ${sessionStatistics.connections} · errores conexión ${sessionStatistics.connectionErrors} · operaciones ${sessionStatistics.telegramsSent} · errores operación ${sessionStatistics.operationErrors}",
                         color = TextoSecundario,
                         fontSize = 12.sp
                     )
                     Text(
-                        "ACK gateway ${sessionStatistics.gatewayAcks} · último/media ${sessionStatistics.lastAckMillis?.let { "$it ms" } ?: "—"} / ${sessionStatistics.averageAckMillis?.let { "$it ms" } ?: "—"}",
+                        "ACK gateway histórico ${sessionStatistics.gatewayAcks} · último/media ${sessionStatistics.lastAckMillis?.let { "$it ms" } ?: "—"} / ${sessionStatistics.averageAckMillis?.let { "$it ms" } ?: "—"}",
                         color = TextoSecundario,
                         fontSize = 12.sp
                     )
                     OutlinedButton(
-                        onClick = { copyDiagnosticsToClipboard(context, monitorRepository, performanceMetrics, sessionStatistics) },
+                        onClick = { copyDiagnosticsToClipboard(context, monitorRepository, performanceMetrics, performanceBaseline, sessionStatistics, sessionBaseline) },
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         Text("Copiar diagnóstico")
@@ -312,7 +320,13 @@ fun KnxDiagnosticsScreen(onBack: () -> Unit) {
                         fontWeight = FontWeight.SemiBold
                     )
                     Text(
-                        "Código 36: ${performanceMetrics.tunnelRejected36} · cierres: ${performanceMetrics.tunnelDisconnects}",
+                        "Prueba actual · aperturas ${performanceMetrics.tunnelOpenAttempts - performanceBaseline.tunnelOpenAttempts} · reutilizados ${performanceMetrics.tunnelReuses - performanceBaseline.tunnelReuses} · conectados ${performanceMetrics.tunnelConnectSuccesses - performanceBaseline.tunnelConnectSuccesses} · código 36 ${performanceMetrics.tunnelRejected36 - performanceBaseline.tunnelRejected36}",
+                        color = AzulClaro,
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                    Text(
+                        "Código 36 histórico: ${performanceMetrics.tunnelRejected36} · cierres: ${performanceMetrics.tunnelDisconnects}",
                         color = TextoSecundario
                     )
                     Text(
@@ -532,15 +546,19 @@ private fun copyDiagnosticsToClipboard(
     context: Context,
     monitorRepository: KnxTelegramMonitorRepository,
     metrics: KnxPerformanceMetrics.Snapshot,
-    session: KnxSessionStatisticsRepository.Snapshot
+    metricsBaseline: KnxPerformanceMetrics.Snapshot,
+    session: KnxSessionStatisticsRepository.Snapshot,
+    sessionBaseline: KnxSessionStatisticsRepository.Snapshot
 ) {
     val summary = monitorRepository.summary()
     val text = buildString {
         appendLine("OneHouse · Diagnóstico KNX")
         appendLine("Generado: ${formatDateTime(System.currentTimeMillis())}")
         appendLine("Eventos: ${summary.total} · TX ${summary.outgoing} · RX ${summary.incoming} · Sistema ${summary.system} · Errores ${summary.errors}")
-        appendLine("Túnel: aperturas ${metrics.tunnelOpenAttempts} · reutilizados ${metrics.tunnelReuses} · conectados ${metrics.tunnelConnectSuccesses} · código36 ${metrics.tunnelRejected36} · cierres ${metrics.tunnelDisconnects}")
-        appendLine("Persistente: conexiones ${session.connections} · erroresConexión ${session.connectionErrors} · operaciones ${session.telegramsSent} · ACK ${session.gatewayAcks} · erroresOperación ${session.operationErrors} · retransmisiones ${session.retransmissions}")
+        appendLine("Prueba actual túnel: aperturas ${metrics.tunnelOpenAttempts - metricsBaseline.tunnelOpenAttempts} · reutilizados ${metrics.tunnelReuses - metricsBaseline.tunnelReuses} · conectados ${metrics.tunnelConnectSuccesses - metricsBaseline.tunnelConnectSuccesses} · código36 ${metrics.tunnelRejected36 - metricsBaseline.tunnelRejected36}")
+        appendLine("Prueba actual sesión: conexiones ${session.connections - sessionBaseline.connections} · erroresConexión ${session.connectionErrors - sessionBaseline.connectionErrors} · operaciones ${session.telegramsSent - sessionBaseline.telegramsSent} · erroresOperación ${session.operationErrors - sessionBaseline.operationErrors}")
+        appendLine("Histórico túnel: aperturas ${metrics.tunnelOpenAttempts} · reutilizados ${metrics.tunnelReuses} · conectados ${metrics.tunnelConnectSuccesses} · código36 ${metrics.tunnelRejected36} · cierres ${metrics.tunnelDisconnects}")
+        appendLine("Histórico sesión: conexiones ${session.connections} · erroresConexión ${session.connectionErrors} · operaciones ${session.telegramsSent} · ACK ${session.gatewayAcks} · erroresOperación ${session.operationErrors} · retransmisiones ${session.retransmissions}")
         appendLine()
         append(monitorRepository.exportText())
     }
