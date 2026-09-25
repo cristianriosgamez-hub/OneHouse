@@ -100,26 +100,26 @@ internal fun EnergyMeterDetailScreen(
                 }
                 Spacer(Modifier.width(13.dp))
                 Column(modifier = Modifier.weight(1f)) {
-                    Text("Última lectura", color = TextoSecundario, fontSize = 11.sp)
-                    Text(
-                        latest?.meterValue?.let { "${formatNumber(it)} ${type.unit}" } ?: "Sin lectura",
-                        color = TextoPrincipal,
-                        fontSize = 24.sp,
-                        fontWeight = FontWeight.Bold
-                    )
-                    latest?.let {
-                        Text(formatDate(it.timestamp), color = TextoSecundario, fontSize = 11.sp)
-                    }
                     if (type == MeterType.ACS) {
-                        Spacer(Modifier.height(5.dp))
                         Text("Lectura KNX actual", color = TextoSecundario, fontSize = 11.sp)
                         Text(
-                            acsKnxValue?.let { "${formatNumber(it)} ${type.unit} · ${formatDate(System.currentTimeMillis())}" }
+                            acsKnxValue?.let { "${formatNumberFixed2(it)} ${type.unit} · ${formatDate(System.currentTimeMillis())}" }
                                 ?: "Esperando valor KNX · 15/5/67",
                             color = accent,
-                            fontSize = 13.sp,
+                            fontSize = 18.sp,
                             fontWeight = FontWeight.SemiBold
                         )
+                    } else {
+                        Text("Última lectura", color = TextoSecundario, fontSize = 11.sp)
+                        Text(
+                            latest?.meterValue?.let { "${formatNumber(it)} ${type.unit}" } ?: "Sin lectura",
+                            color = TextoPrincipal,
+                            fontSize = 24.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                        latest?.let {
+                            Text(formatDate(it.timestamp), color = TextoSecundario, fontSize = 11.sp)
+                        }
                     }
                 }
             }

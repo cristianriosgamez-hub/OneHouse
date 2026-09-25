@@ -16,8 +16,8 @@ android {
         applicationId = "com.onehouse.app"
         minSdk = 29
         targetSdk = 36
-        versionCode = 153
-        versionName = "1.14.1 REV14 Documentacion Clima Consumos"
+        versionCode = 154
+        versionName = "1.14.1 REV15 Ajustes Visuales ACS"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }

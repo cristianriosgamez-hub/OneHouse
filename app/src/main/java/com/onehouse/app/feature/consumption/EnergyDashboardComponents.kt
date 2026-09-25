@@ -468,6 +468,12 @@ internal fun formatNumber(value: Double): String {
 }
 internal fun plainNumber(value: Double): String =
     java.math.BigDecimal.valueOf(value).stripTrailingZeros().toPlainString().replace('.', ',')
+internal fun formatNumberFixed2(value: Double): String {
+    val symbols = java.text.DecimalFormatSymbols(Locale.getDefault())
+    return java.text.DecimalFormat("0.00", symbols).apply { isGroupingUsed = false }.format(value)
+}
+internal fun plainNumberFixed2(value: Double): String =
+    java.math.BigDecimal.valueOf(value).setScale(2, java.math.RoundingMode.HALF_UP).toPlainString().replace('.', ',')
 internal fun String.toNormalizedDoubleOrNull(): Double? =
     trim().takeIf { it.isNotEmpty() }?.replace(',', '.')?.toDoubleOrNull()
 

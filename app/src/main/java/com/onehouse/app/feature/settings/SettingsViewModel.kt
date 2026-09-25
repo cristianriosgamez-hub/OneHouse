@@ -161,7 +161,7 @@ class SettingsViewModel(
                 }
                 KnxConnectionTester.Result.Timeout -> {
                     finalStatus = KnxConnectionStatus.FAILED
-                    finalMessage = "Sin respuesta KNX/IP en ${endpoint.host}:${endpoint.port}. Revisa Más > Diagnóstico KNX para ver la negociación."
+                    finalMessage = "Sin respuesta KNX/IP en ${endpoint.host}:${endpoint.port}."
                 }
                 is KnxConnectionTester.Result.Rejected -> {
                     finalStatus = KnxConnectionStatus.FAILED

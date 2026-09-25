@@ -44,7 +44,7 @@ internal fun EnergyReadingDialog(
         )
     }
     var meterText by remember(reading, acsKnxValue) {
-        mutableStateOf(reading?.meterValue?.let(::plainNumber) ?: if (type == MeterType.ACS) acsKnxValue?.let(::plainNumber).orEmpty() else "")
+        mutableStateOf(reading?.meterValue?.let(::plainNumber) ?: if (type == MeterType.ACS) acsKnxValue?.let(::plainNumberFixed2).orEmpty() else "")
     }
     var consumptionText by remember(reading) {
         mutableStateOf(reading?.consumption?.let(::plainNumber).orEmpty())
