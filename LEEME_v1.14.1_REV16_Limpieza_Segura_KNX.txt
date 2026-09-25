@@ -1,0 +1,42 @@
+OneHouse v1.14.1 REV16 - Limpieza segura KNX
+================================================
+
+BASE
+- Parte de REV15, validada como estable: compilación OK, Wi-Fi/local OK, 5G/remoto OK, ACS/Consumos/UI OK.
+
+OBJETIVO
+- Retirar instrumentación temporal usada durante la investigación de la conexión remota sin modificar el comportamiento funcional validado.
+
+CAMBIOS
+1. Eliminada la sonda UDP experimental REV11/SONDA_UDP_PRIMERO que se ejecutaba antes de la negociación remota.
+2. Eliminados volcados HEX y trazas de laboratorio REV9/REV11 del camino de apertura del túnel.
+3. Se mantiene un diagnóstico compacto y útil: apertura, respuesta, timeout, ICMP Port Unreachable, túnel conectado/rechazado y origen de la apertura.
+4. Se mantiene intacto KNXnet/IP NAT mode productivo (HPAI 0.0.0.0:0) para remoto.
+5. Se mantiene por prudencia el fallback remoto COMPAT_HPAI_LOCAL tras timeout del intento NAT estándar.
+6. Se mantienen protección de ciclo de vida del socket/EBADF, túnel compartido, scheduleDisconnect, CONNECTION_TEST, BULK_STATE_READER, receptor pasivo, selección LOCAL/REMOTE, motor paralelo y carga inicial.
+7. Documentación técnica actualizada con la configuración validada:
+   - KNX local: 192.168.0.12:3671
+   - Reserva DHCP/MAC: 6A:FF:7A:14:47:9E
+   - Siemens KNX/IP -> Ethernet -> TP-Link repetidor -> Wi-Fi -> router Lowi
+   - Remoto: UDP 3671 -> 192.168.0.12:3671
+8. No se modifican Consumos, ACS, climatización, luces, persianas, escenas ni direcciones KNX.
+
+VERSION
+- versionCode: 155
+- versionName: 1.14.1 REV16 Limpieza segura KNX
+
+PRUEBAS DE REGRESION OBLIGATORIAS
+A) Wi-Fi/local
+- Abrir OneHouse en la Wi-Fi doméstica.
+- Confirmar Conectado y carga KNX correcta.
+- Encender/apagar una luz y comprobar estado real.
+
+B) 5G/remoto
+- Desactivar Wi-Fi y dejar datos móviles.
+- Confirmar ruta Remota y conexión KNX.
+- Confirmar carga de estados.
+- Encender/apagar una luz y comprobar estado real.
+
+CRITERIO
+- Si A y B son correctas, REV16 puede sustituir a REV15 como nueva base estable.
+- Si aparece cualquier regresión, volver a REV15 y no continuar con más limpiezas hasta analizarla.

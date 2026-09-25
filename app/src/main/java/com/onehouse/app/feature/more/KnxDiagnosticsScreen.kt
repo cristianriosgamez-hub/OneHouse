@@ -272,11 +272,6 @@ fun KnxDiagnosticsScreen(onBack: () -> Unit) {
                 }
             }
 
-            // REV13: se retiran de la interfaz las tarjetas temporales de investigación
-            // (traza de negociación y métricas internas). La instrumentación interna y, sobre
-            // todo, el transporte KNX/IP validado en REV12 se mantienen intactos para no
-            // alterar el comportamiento local/remoto que ya ha sido verificado.
-
             OutlinedTextField(
                 value = filter,
                 onValueChange = { filter = it },
