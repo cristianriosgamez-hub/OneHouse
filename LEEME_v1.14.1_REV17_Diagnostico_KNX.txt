@@ -1,0 +1,80 @@
+OneHouse v1.14.1 REV17 - Diagnóstico KNX
+======================================
+
+BASE Y VERSION
+- Base: OneHousev1.14.1_REV16_Limpieza_Segura_KNX(ESTABLE).zip aportado por el usuario.
+- versionCode: 156. versionName: 1.14.1 REV17 Diagnóstico KNX.
+- REV16 sigue siendo la referencia estable hasta validar REV17 en la instalación.
+
+INSTALACION
+1. Conserva una copia del proyecto REV16.
+2. Cierra cualquier compilación en curso.
+3. Copia el contenido de la carpeta OneHouse de este ZIP sobre la raíz de tu
+   proyecto OneHouse (donde están settings.gradle.kts y la carpeta app).
+   Fusiona carpetas y sustituye solamente los archivos incluidos.
+4. Sincroniza Gradle y compila app. No borres datos ni reinstales desde cero:
+   conserva las direcciones configuradas y preferencias.
+
+CAMBIO LIMITADO AL DIAGNOSTICO
+- Mando/escritura sin valor: MANDO, con explicación neutra. La falta de respuesta
+  a GroupValueRead no se interpreta como un fallo.
+- Lluvia sin valor: ESPERANDO EVENTO. Se reconoce la GA 15/0/21 y la dirección
+  global de Lluvia configurada en la app, también en los objetos por estancia.
+- El catálogo original tiene 15/0/15 como valor predeterminado de Lluvia; se
+  conserva sin cambios. Esta revisión no modifica ni migra ninguna dirección.
+- Lectura/estado sin valor: conserva SIN RESPUESTA y explica que se espera una
+  respuesta de lectura. Los objetos mixtos, como Bloqueo PIR, siguen en este grupo.
+- No se considera automáticamente por evento a todo sensor o alarma. Viento,
+  luminosidad, CO2, temperaturas, inundación y demás estados siguen verificables
+  salvo que compartan una GA explícitamente identificada como Lluvia.
+- Con valor: VALOR RECIBIDO. Puede proceder de GroupValueResponse o de un
+  GroupValueWrite espontáneo; no se presenta como prueba de respuesta a lectura.
+- Probar lectura conserva su ejecución. Si se envió correctamente pero no llegó
+  valor, el mensaje distingue mando, evento y estado. Los fallos reales de
+  conexión/transporte se siguen mostrando.
+- La documentación técnica integrada describe la nueva interpretación.
+
+ALCANCE CONSERVADO
+- Sin cambios en motor KNX, Wi-Fi/5G, NAT, túnel local/remoto, reintentos,
+  receptor pasivo, carga inicial, porcentajes, repositorios de estado ni contadores.
+- Sin valores inventados ni estados marcados como cargados por esta revisión.
+- Se mantienen los botones de lectura, ON y OFF y la actividad reciente.
+- Los indicadores de carga de Inicio y el historial de errores no se recalculan:
+  este parche corrige exclusivamente la interpretación en Diagnóstico KNX.
+
+ARCHIVOS INCLUIDOS (rutas relativas a OneHouse)
+- app/build.gradle.kts
+- app/src/main/java/com/onehouse/app/feature/more/KnxDiagnosticsScreen.kt
+- app/src/main/java/com/onehouse/app/feature/more/KnxDiagnosticReadPolicy.kt (nuevo)
+- app/src/main/java/com/onehouse/app/feature/more/TechnicalDocumentationScreen.kt
+- app/src/test/java/com/onehouse/app/feature/more/KnxDiagnosticReadPolicyTest.kt (nuevo)
+- Este LEEME.
+
+VERIFICACION EN EL ENTORNO DE DESARROLLO
+- assembleDebug: BUILD SUCCESSFUL. APK debug generado correctamente.
+- testDebugUnitTest: 11 pruebas, 0 fallos y 0 errores (4 nuevas de diagnóstico
+  y 7 existentes). Compilación realizada sin descargar dependencias.
+- Pruebas físicas del bus KNX y revisión visual en el teléfono: pendientes.
+- Comparación SHA-256 con el ZIP base: únicamente se modifican los tres archivos
+  existentes listados arriba; los demás archivos fuente son idénticos a REV16.
+
+PRUEBAS EN LA INSTALACION (PENDIENTES)
+1. Wi-Fi: abrir, completar carga KNX y entrar en Más > Diagnóstico KNX.
+2. Sin valor recibido, mandos de luces 1/1/x, persianas 2/1/x y clima
+   5/2/1, 5/2/2, 5/2/4, 5/2/5 deben mostrar MANDO, nunca SIN RESPUESTA.
+3. Lluvia 15/0/21 sin evento debe mostrar ESPERANDO EVENTO y último valor ---.
+   Cuando llegue un cambio real, comprobar VALOR RECIBIDO, valor, origen y APCI.
+   No debe inventarse un valor de ausencia de lluvia antes del primer telegrama.
+4. Estados 1/2/x, 2/2/x, 5/3/2, 5/3/4, 5/3/5 y 5/2/6: comprobar que muestran
+   valor real al recibirlo y que una GA de estado sin valor sigue SIN RESPUESTA.
+5. Bloqueo PIR 5/5/1 (lectura y mando) debe conservar la expectativa de lectura.
+6. Probar lectura sobre mando y Lluvia: sin respuesta de aplicación, mensaje
+   neutro; un fallo real de red debe seguir siendo visible.
+7. Encender/apagar una luz y comprobar su estado real por Wi-Fi y después por 5G.
+8. Comprobar carga inicial, ACS/Consumos, clima y persianas como en REV16.
+
+VOLVER A REV16
+- Restaurar los tres archivos existentes desde la copia de REV16 y retirar los
+  dos archivos nuevos de política/pruebas. No se ha migrado configuración.
+- Android puede impedir instalar versionCode 155 encima de 156; para mantener
+  datos, compilar el código restaurado con un versionCode superior al instalado.

@@ -69,7 +69,8 @@ private data class DiagnosticObject(
     val dpt: String,
     val address: String,
     val kind: String,
-    val canWriteBoolean: Boolean
+    val canWriteBoolean: Boolean,
+    val readPolicy: KnxDiagnosticReadPolicy = KnxDiagnosticReadPolicy.STATE
 )
 
 @Composable
@@ -107,6 +108,9 @@ fun KnxDiagnosticsScreen(onBack: () -> Unit) {
     }
 
     val objects = remember {
+        // Lluvia is event-driven in the validated installation. Include the
+        // configured global address and the confirmed GA used by room objects.
+        val eventAddresses = setOf(KnxAddressBook.Terrace.RAINING, "15/0/21")
         val globalObjects = KnxAddressBook.entries.map { entry ->
             DiagnosticObject(
                 room = entry.room,
@@ -146,7 +150,9 @@ fun KnxDiagnosticsScreen(onBack: () -> Unit) {
                 reads + writes
             }
         }
-        (globalObjects + roomObjects).distinctBy { listOf(it.room, it.name, it.address, it.kind) }
+        (globalObjects + roomObjects)
+            .map { it.copy(readPolicy = diagnosticReadPolicy(it.kind, it.address, eventAddresses)) }
+            .distinctBy { listOf(it.room, it.name, it.address, it.kind) }
     }
 
     val invalidAddresses = objects.map { it.address }
@@ -195,7 +201,8 @@ fun KnxDiagnosticsScreen(onBack: () -> Unit) {
                 Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Text("Resumen de la instalación", color = TextoPrincipal, fontWeight = FontWeight.Bold, fontSize = 18.sp)
                     Text("Objetos de OneHouse: ${objects.size}", color = TextoSecundario)
-                    Text("Direcciones con respuesta: ${states.keys.count { address -> objects.any { it.address == address } }}", color = TextoSecundario)
+                    Text("Direcciones con valor recibido: ${states.keys.count { address -> objects.any { it.address == address } }}", color = TextoSecundario)
+                    Text("Mando y eventos pueden no responder a lecturas. Un valor recibido puede proceder de una respuesta o de un telegrama espontáneo.", color = TextoSecundario, fontSize = 12.sp)
                     Text("Telegramas recientes: ${events.size}", color = TextoSecundario)
                     Text(
                         text = when {
@@ -294,7 +301,7 @@ fun KnxDiagnosticsScreen(onBack: () -> Unit) {
                                 Text("${item.room} · ${item.category}", color = TextoSecundario, fontSize = 13.sp)
                             }
                             Text(
-                                text = if (state != null) "● OK" else "○ SIN RESPUESTA",
+                                text = item.readPolicy.label(state != null),
                                 color = if (state != null) AzulClaro else TextoSecundario,
                                 fontWeight = FontWeight.Bold,
                                 fontSize = 12.sp
@@ -302,6 +309,7 @@ fun KnxDiagnosticsScreen(onBack: () -> Unit) {
                         }
                         Text("${item.kind}: ${item.address}", color = TextoPrincipal)
                         Text("DPT: ${item.dpt}", color = TextoSecundario)
+                        Text(item.readPolicy.explanation, color = TextoSecundario, fontSize = 12.sp)
                         if (state == null) {
                             Text("Último valor: ---", color = TextoSecundario)
                         } else {
@@ -414,7 +422,7 @@ private fun executeDiagnosticCommand(
         val message = when (result) {
             is KnxCommandExecutor.Result.Success -> when (type) {
                 KnxCommandType.READ -> result.busValue?.let { "Respuesta: $it" }
-                    ?: "Lectura enviada; sin respuesta confirmada"
+                    ?: item.readPolicy.readWithoutValueMessage()
                 KnxCommandType.ON -> "Orden ON enviada y verificada"
                 KnxCommandType.OFF -> "Orden OFF enviada y verificada"
                 else -> "Operación KNX completada"

@@ -16,8 +16,8 @@ android {
         applicationId = "com.onehouse.app"
         minSdk = 29
         targetSdk = 36
-        versionCode = 155
-        versionName = "1.14.1 REV16 Limpieza segura KNX"
+        versionCode = 156
+        versionName = "1.14.1 REV17 Diagnóstico KNX"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
