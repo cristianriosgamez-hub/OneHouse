@@ -1,0 +1,78 @@
+OneHouse 1.14.1 REV19 - Carga KNX
+versionCode 158
+
+BASE EXACTA
+ZIP REV18 facilitado por el usuario, compilado por el usuario sin errores.
+Se han extraido sus archivos reales y contrastado todos los fuentes app/src
+y app/build.gradle.kts con la entrega anterior: coinciden.
+
+APLICAR SOLO_CAMBIOS
+Guardar una copia de REV18. Extraer este ZIP sobre la raiz de ese proyecto
+(junto a settings.gradle.kts y la carpeta app), reemplazando los archivos.
+Sincronizar y compilar con Android Studio. Instalar como actualizacion usando
+la firma habitual, sin desinstalar ni borrar datos.
+Este paquete es incremental SOBRE REV18, no un proyecto independiente.
+El LEEME REV18 queda como historial; este documento prevalece para la carga.
+
+QUE SE HA CORREGIDO
+1. Estado de electrovalvula 2/4/1 incluido en carga inicial y refresco periodico.
+   La lista se deduplica: si ya estaba importado, no se consulta dos veces.
+   Se elimina la consulta adicional de REV18 al abrir Mantenimiento.
+   El progreso lo identifica como Estado electrovalvula de agua.
+2. Las ordenes generales NO se leen ni cuentan como estados pendientes:
+   1/1/50, 2/1/50, 2/1/53, 5/5/3, 5/5/13, 5/5/14 y mando de agua 2/3/1.
+   Esto tambien se aplica si el proyecto importado las incluye entre lecturas.
+   Permanecen disponibles como mandos. No se ejecuta ninguna orden al cargar.
+3. Lluvia (GA configurada y 15/0/21) se escucha por evento, sin lecturas
+   periodicas ni reintentos GroupValueRead. Aparece separada del porcentaje.
+   Sin telegrama muestra Esperando evento. Se elimina la antigua suposicion
+   de lluvia seca del progreso, Inicio y Terraza.
+4. El porcentaje es estados de lectura realmente recibidos / estados de
+   lectura esperados. Ni finalizar la ronda ni agotar timeouts da el 100%.
+   Los telegramas tardios recuperan el progreso sin reiniciar la aplicacion.
+   Un evento recibido actualiza el sensor, pero no aumenta ese porcentaje.
+5. El recuento de lecturas del apartado de copias usa la misma exclusion
+   de mandos y eventos que el lector. Version y documentacion actualizadas.
+
+NUMERO DE LECTURAS
+No se fija artificialmente en 36 o 37: se calcula con el proyecto importado
+y las direcciones configuradas, eliminando duplicados. Se incorpora 2/4/1
+si faltaba y se retira Lluvia del conjunto consultado, manteniendola visible
+como evento. Por eso el total puede mantenerse aunque cambie su composicion.
+100% significa todas las lecturas requeridas recibidas; puede coexistir con
+Lluvia esperando evento, que queda indicada aparte y sin estado inventado.
+
+AUDITORIA DE MANDOS - ETS BACARDI, LINEA 3.15 (PLANTA 6, PUERTA 7)
+1/1/50: Todas las luces; objetos de conmutacion, mando de grupo.
+2/1/50: Todas las persianas; objetos de movimiento, mando de grupo.
+5/5/13: Todo Luces; objeto central de conmutacion, no feedback agregado.
+5/5/14: LUCES y CLIMA; objeto central de conmutacion, no feedback agregado.
+5/5/3 y 2/1/53: alternativas presentes en la antigua configuracion;
+no se necesitan para leer el estado de los botones generales.
+2/3/1: mando de electrovalvula. 2/4/1: su feedback con lectura habilitada.
+Los estados individuales de luces, posiciones de persianas y clima ya
+forman parte de la carga. No se inventa una GA global de feedback.
+REV18 no contiene un boton independiente llamado Encender todo; esta
+entrega audita las GAs generales sin anadir nuevas acciones a la interfaz.
+
+SE CONSERVA
+Todas las mejoras visuales y de estadisticas de REV18 y sus mandos.
+Apagado general mantiene 0 a 5/5/14, incluida su actuacion sobre el agua,
+como pidio el usuario. Agua conserva provisionalmente 0=cerrada, 1=abierta.
+Sin cambios en transporte KNX, Wi-Fi/5G, seleccion local/remota, tuneles,
+NAT, conexion, escritura de telegramas, datos guardados y programacion.
+No se han enviado ordenes a la vivienda durante este trabajo.
+
+VALIDACION EN TELEFONO PENDIENTE
+Se incluyen seis pruebas nuevas de seleccion y progreso de carga, junto con
+las pruebas de regresion anteriores. assembleDebug y testDebugUnitTest:
+BUILD SUCCESSFUL; 25 pruebas, 0 fallos y 0 errores.
+El ZIP se verifica por SHA-256 contra
+los archivos del proyecto compilado.
+- Arrancar y comprobar Estado electrovalvula de agua en Carga KNX.
+- Confirmar que los mandos generales no aparecen como SIN RESPUESTA.
+- Sin evento de lluvia: Esperando evento, sin inventar Sin lluvia.
+- Si falta 2/4/1 u otra lectura requerida: porcentaje inferior al 100%.
+- Cuando llega un estado pendiente, comprobar actualizacion del progreso.
+- Verificar mandos, estados y funcionamiento por Wi-Fi y datos moviles.
+Las pruebas locales de compilacion no sustituyen esta validacion fisica.

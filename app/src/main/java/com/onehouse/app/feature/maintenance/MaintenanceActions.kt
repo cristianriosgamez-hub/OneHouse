@@ -21,7 +21,7 @@ internal object MaintenanceAddresses {
     val generalOff = MaintenanceBitScene("5/5/3", "5/5/14")
     val closeBlinds = MaintenanceBitScene("2/1/50", "2/1/53")
     const val VALVE_COMMAND = "2/3/1"
-    const val VALVE_STATE = "2/4/1"
+    const val VALVE_STATE = com.onehouse.app.knx.KnxStartupReadPolicy.VALVE_STATE
 
     fun lightsOffPlan() = lightsOff.plan(false)
     // The user explicitly retained the legacy central call, including the valve channel.

@@ -54,11 +54,7 @@ import com.onehouse.app.feature.rooms.detail.RoomHeader
 import com.onehouse.app.knx.KnxAddressBook
 import com.onehouse.app.knx.KnxHomeStateRepository
 import com.onehouse.app.knx.KnxCommandExecutor
-import com.onehouse.app.knx.KnxCommand
-import com.onehouse.app.knx.KnxCommandType
-import com.onehouse.app.knx.KnxGroupAddress
 import com.onehouse.app.knx.StateFreshness
-import androidx.compose.runtime.LaunchedEffect
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlin.coroutines.resume
@@ -92,13 +88,7 @@ fun MaintenanceScreen(onBack: () -> Unit) {
     val valveStates by executor.stateFlow.collectAsStateWithLifecycle()
     val valveOpen = valveStates[MaintenanceAddresses.VALVE_STATE]
         ?.takeIf(StateFreshness::isTrusted)?.booleanValue
-    // This screen owns one read; global initial loading remains unchanged.
-    val valveReader = remember { KnxCommandExecutor(context.applicationContext) }
-    DisposableEffect(valveReader) { onDispose { valveReader.close() } }
-    LaunchedEffect(valveReader) {
-        valveReader.execute(KnxCommand(KnxCommandType.READ,
-            KnxGroupAddress.parse(MaintenanceAddresses.VALVE_STATE), "1.001")) { }
-    }
+    // REV19: valve feedback is included in the shared startup/periodic reads.
     DisposableEffect(executor) { onDispose { executor.close() } }
     val scope = rememberCoroutineScope()
     var busy by remember { mutableStateOf(false) }
