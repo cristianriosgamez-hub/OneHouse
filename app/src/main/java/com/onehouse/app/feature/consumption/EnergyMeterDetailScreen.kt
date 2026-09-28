@@ -27,6 +27,7 @@ import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -65,6 +66,15 @@ internal fun EnergyMeterDetailScreen(
     val type = state.selectedType ?: return
     val accent = accentFor(type)
     val latest = state.summaries.firstOrNull { it.type == type }?.latestReading
+    // Int.MIN_VALUE means default/latest; null explicitly means all years.
+    // Keep a user's selection when a reading is edited or added.
+    var yearSelection by rememberSaveable(type) { mutableStateOf<Int?>(Int.MIN_VALUE) }
+    val selectedYear = if (yearSelection == Int.MIN_VALUE) {
+        state.allSelectedReadings.maxOfOrNull { readingYear(it.timestamp) }
+    } else yearSelection
+    val selectedStatistics = remember(state.allSelectedReadings, selectedYear) {
+        selectedYearStatistics(state.allSelectedReadings, selectedYear)
+    }
 
     Column(
         modifier = Modifier
@@ -101,14 +111,17 @@ internal fun EnergyMeterDetailScreen(
                 Spacer(Modifier.width(13.dp))
                 Column(modifier = Modifier.weight(1f)) {
                     if (type == MeterType.ACS) {
-                        Text("Lectura KNX actual", color = TextoSecundario, fontSize = 11.sp)
+                        Text("Lectura actual", color = TextoSecundario, fontSize = 11.sp)
                         Text(
-                            acsKnxValue?.let { "${formatNumberFixed2(it)} ${type.unit} · ${formatDate(System.currentTimeMillis())}" }
-                                ?: "Esperando valor KNX · 15/5/67",
-                            color = accent,
-                            fontSize = 18.sp,
-                            fontWeight = FontWeight.SemiBold
+                            acsKnxValue?.let { "${formatNumberFixed2(it)} ${type.unit}" }
+                                ?: "Esperando lectura",
+                            color = TextoPrincipal,
+                            fontSize = 24.sp,
+                            fontWeight = FontWeight.Bold
                         )
+                        if (acsKnxValue != null) {
+                            Text(formatDate(System.currentTimeMillis()), color = TextoSecundario, fontSize = 11.sp)
+                        }
                     } else {
                         Text("Última lectura", color = TextoSecundario, fontSize = 11.sp)
                         Text(
@@ -192,10 +205,12 @@ internal fun EnergyMeterDetailScreen(
         }
 
         Spacer(Modifier.height(14.dp))
-        StatisticsPanel(type, state)
+        StatisticsPanel(type, selectedStatistics, selectedYear)
         Spacer(Modifier.height(14.dp))
         ReadingsPanel(
             readings = state.allSelectedReadings,
+            selectedYear = selectedYear,
+            onYearSelected = { yearSelection = it },
             onEdit = onEditReading,
             onDelete = onDeleteReading
         )
@@ -204,8 +219,7 @@ internal fun EnergyMeterDetailScreen(
 }
 
 @Composable
-private fun StatisticsPanel(type: MeterType, state: EnergyDashboardState) {
-    val stats = state.statistics
+private fun StatisticsPanel(type: MeterType, stats: com.onehouse.app.data.energy.EnergyStatistics, year: Int?) {
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -214,6 +228,7 @@ private fun StatisticsPanel(type: MeterType, state: EnergyDashboardState) {
             .padding(18.dp)
     ) {
         Text("Estadísticas", color = TextoPrincipal, fontSize = 19.sp, fontWeight = FontWeight.SemiBold)
+        Text(year?.let { "Año $it" } ?: "Todos los años", color = TextoSecundario, fontSize = 11.sp)
         Spacer(Modifier.height(14.dp))
         Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
             DetailStat("Total", formatNumber(stats.totalConsumption), type.unit, Modifier.weight(1f))
@@ -228,7 +243,7 @@ private fun StatisticsPanel(type: MeterType, state: EnergyDashboardState) {
             DetailStat("Mínimo", stats.minimum?.let(::formatNumber) ?: "—", type.unit, Modifier.weight(1f))
         }
         Spacer(Modifier.height(12.dp))
-        TrendLabel(stats.variationPercent)
+        if (year != null) TrendLabel(stats.variationPercent)
     }
 }
 
@@ -254,10 +269,11 @@ private fun DetailStat(title: String, value: String, unit: String, modifier: Mod
 @Composable
 private fun ReadingsPanel(
     readings: List<EnergyReadingEntity>,
+    selectedYear: Int?,
+    onYearSelected: (Int?) -> Unit,
     onEdit: (EnergyReadingEntity) -> Unit,
     onDelete: (EnergyReadingEntity) -> Unit
 ) {
-    var selectedYear by remember(readings) { mutableStateOf<Int?>(null) }
     var yearMenuExpanded by remember { mutableStateOf(false) }
     val years = remember(readings) {
         readings.asSequence()
@@ -314,7 +330,7 @@ private fun ReadingsPanel(
                     DropdownMenuItem(
                         text = { Text("Todos") },
                         onClick = {
-                            selectedYear = null
+                            onYearSelected(null)
                             yearMenuExpanded = false
                         }
                     )
@@ -322,7 +338,7 @@ private fun ReadingsPanel(
                         DropdownMenuItem(
                             text = { Text(year.toString()) },
                             onClick = {
-                                selectedYear = year
+                                onYearSelected(year)
                                 yearMenuExpanded = false
                             }
                         )

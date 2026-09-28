@@ -444,7 +444,9 @@ private fun KnxLoadProgressDialog(
                                     KnxLoadKind.OTHER -> "Otro"
                                 }
                                 Text(
-                                    text = "$kindLabel · ${element.key.name}",
+                                    text = if (element.addresses.contains(com.onehouse.app.knx.KnxAddressBook.Consumption.ACS_ACCUMULATED)) {
+                                        "Consumos · ACS acumulado"
+                                    } else "$kindLabel · ${element.key.name}",
                                     color = TextoSecundario,
                                     style = MaterialTheme.typography.bodySmall
                                 )

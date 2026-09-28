@@ -1,0 +1,100 @@
+OneHouse 1.14.1 REV18 - Interfaz y mantenimiento
+Fecha: 28/09/2026. versionCode 157.
+
+INSTALACION DEL PAQUETE SOLO_CAMBIOS
+1. Guardar una copia del proyecto REV17 estable.
+2. Descomprimir este ZIP sobre la raiz del proyecto REV17, donde estan
+   settings.gradle.kts y la carpeta app. Aceptar reemplazar los archivos.
+3. Sincronizar Gradle y compilar assembleDebug en Android Studio.
+4. Instalar como actualizacion conservando la firma habitual. No desinstalar
+   la aplicacion ni borrar sus datos: se conservan lecturas y configuracion.
+El ZIP contiene solo fuentes modificadas/nuevas, pruebas y este LEEME.
+No contiene APK, SDK, credenciales, caches, proyecto ETS ni archivos generados.
+La base se ha contrastado por SHA-256 con el ZIP REV17 aportado por el usuario.
+REV17 sigue siendo la referencia estable hasta validar REV18 en el telefono.
+
+CAMBIOS INCLUIDOS
+- Retirada la fila Ultima prueba de Estado del sistema.
+- Mas deja de sumar dos veces el margen superior de la barra del sistema.
+- Documentacion tecnica respeta barras superior e inferior del telefono.
+- Retirado Estado real KNX de tarjetas de temperatura, CO2, humedad,
+  inundacion e incendio. Se conserva la indicacion de datos pendientes.
+- Climatizacion: resumen de Humedad y CO2 a media anchura cada uno;
+  retirados los indicadores duplicados de Ventilador y Modo.
+- Nuevo horario: hora destacada, botones mayores, opciones distribuidas
+  en filas, cuerpo desplazable y botones Guardar/Cancelar accesibles.
+  Sin cambios en horarios guardados, rangos, pasos ni ejecucion programada.
+- Carga KNX: la GA configurada de ACS aparece como Consumos / ACS acumulado.
+  No se modifican objetivos, lecturas, porcentajes ni reglas de carga.
+- ACS: lectura en blanco y fecha debajo, con la misma jerarquia visual que
+  los otros contadores. Se mantienen su origen, unidades y color del grafico.
+- Estadisticas vinculadas al selector de ano de Ultimas lecturas: total,
+  coste cuando procede, media, maximo, minimo y variacion contra ese ano - 1.
+  Por defecto se usa el ano mas reciente disponible. La seleccion se conserva
+  al actualizar lecturas. Todos calcula todo el historico sin comparativa anual.
+  Valores nulos no se confunden con consumo cero. No se usa lectura acumulada
+  como consumo. El selector Ano/Historico del grafico conserva su funcion.
+- Mantenimiento ejecuta ordenes reales, muestra resultado del envio y evita
+  pulsaciones simultaneas. Sensores y valvula muestran datos recibidos;
+  la ausencia de datos no se convierte en un estado normal/abierto inventado.
+- Version y documentacion interna actualizadas.
+
+MANTENIMIENTO: LLAMADAS IMPLEMENTADAS
+Apagado luces:          0 a 1/1/50
+Apagado general:        0 a 5/5/14 (llamada antigua conservada)
+Apagado clima:          0 al mando configurado; por defecto 5/2/2
+                       verificacion en estado configurado, por defecto 5/3/2
+Cerrar persianas:       1 a 2/1/50
+Electrovalvula ON:      1 a 2/3/1
+Electrovalvula OFF:     0 a 2/3/1
+Estado electrovalvula: 2/4/1
+Inundacion:             estados configurados; por defecto 5/4/1
+Incendio:               estado configurado; por defecto 5/4/2
+
+Las llamadas denominadas escenas en la aplicacion antigua son escrituras
+de 1 bit, no numeros de escena DPT 17/18. No se envian ambas alternativas.
+La pantalla usa el ejecutor KNX existente, sin modificar su comportamiento.
+La valvula se observa directamente en la cache central y se consulta una vez
+al abrir Mantenimiento. Esta consulta no cambia la carga inicial global.
+ON/OFF siguen disponibles tras terminar el envio aunque no llegue feedback.
+Una orden enviada NO equivale a una actuacion fisica verificada.
+
+CONTRASTE ETS Y DECISIONES
+Fuente: Bacardi.knxproj aportado el 28/09/2026. Revision de la linea 3.15,
+objetos enlazados y aplicaciones de fabricante incluidas en el proyecto.
+- 1/1/50 enlaza objetos Switch object de 3.15.1 y 3.15.2: apagado con 0.
+- 2/1/50 enlaza Movement object in manual mode de 3.15.3: bajada con 1,
+  coherente con el mando DOWN ya empleado por la aplicacion.
+- 5/5/14 enlaza Central object / Switch all channels de 3.15.1 y 3.15.2.
+  Se mantiene la llamada 0 de la aplicacion antigua.
+- 5/5/3 y 2/1/53 existen en el proyecto, pero no tienen enlaces en 3.15;
+  no se usan para estos botones.
+- 2/3/1 enlaza el objeto de conmutacion del canal 4 de 3.15.2;
+  2/4/1 enlaza su objeto de feedback con lectura habilitada.
+- El parametro Central function del canal 4 (P-1177) esta habilitado (1).
+  Por eso Apagado general tambien alcanza la electrovalvula. El usuario
+  pidio expresamente conservar esta llamada antigua tras conocer el alcance.
+  El boton indica que incluye la valvula de agua.
+- Polaridad fisica del agua PROVISIONAL por indicacion del usuario:
+  0 = cerrada y 1 = abierta. Validarla con el suministro real; no se da por
+  demostrada solo por la etiqueta ON/OFF o el nombre de la direccion ETS.
+
+NO MODIFICADO
+Motor KNX, transporte, Wi-Fi/5G, tuneles, NAT, carga inicial global,
+repositorios de estado, programacion autonoma, base de datos y configuracion.
+Diagnostico REV17 conservado. No se han enviado ordenes a la vivienda
+durante la revision ni las pruebas de compilacion.
+
+COMPROBACIONES Y PRUEBA EN INSTALACION
+assembleDebug y testDebugUnitTest: BUILD SUCCESSFUL.
+19 pruebas ejecutadas, 0 fallos y 0 errores.
+Comparacion SHA-256 con REV17: ningun archivo del paquete knx modificado.
+- Revisar en telefono margenes, formulario y tarjetas, tambien con texto grande.
+- Estadisticas: seleccionar 2022 y otro ano con consumos distintos; contrastar
+  total, media, extremos y comparacion. Volver a Todos y al ultimo ano.
+- Probar cada mando de mantenimiento observando el equipo fisico.
+- Probar ON/OFF del agua y confirmar feedback 2/4/1 y polaridad acordada.
+- Tener presente que Apagado general tambien actua sobre el agua.
+- Comprobar luces, persianas y clima, recepcion de sensores y diagnostico,
+  tanto por Wi-Fi como por datos moviles. No se ha probado en un telefono
+  ni en la instalacion real desde este entorno.

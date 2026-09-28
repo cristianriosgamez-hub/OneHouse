@@ -203,9 +203,7 @@ fun ClimateScreen(onBack: () -> Unit) {
         Spacer(Modifier.height(16.dp))
 
         ClimateInformationCard(
-            fanSpeed = selectedFanSpeed,
             humidity = humidity,
-            selectedMode = selectedMode,
             co2Ppm = co2Ppm
         )
         Spacer(Modifier.height(14.dp))
