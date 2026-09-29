@@ -196,13 +196,13 @@ private fun KnxExteriorSensorsCard(
                 symbol = when (raining) {
                     true -> "☂"
                     false -> "☀"
-                    null -> "—"
+                    null -> "☀"
                 },
                 label = "Lluvia",
                 value = when (raining) {
                     true -> "Lluvia"
                     false -> "Sin lluvia"
-                    null -> "Esperando evento"
+                    null -> "Sin lluvia"
                 },
                 alarm = raining == true
             )

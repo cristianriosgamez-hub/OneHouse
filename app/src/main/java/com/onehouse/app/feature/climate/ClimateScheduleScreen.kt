@@ -592,13 +592,13 @@ private fun AddScheduleDialog(
         title = {
             Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 Text("Nuevo horario", fontWeight = FontWeight.SemiBold)
-                Text(dayLabel(day), color = ClimateBlue, fontSize = 15.sp)
+                Text(dayLabel(day), color = ClimateBlue, fontSize = 13.sp)
             }
         },
         text = {
             Column(
                 modifier = Modifier.heightIn(max = 440.dp).verticalScroll(rememberScrollState()),
-                verticalArrangement = Arrangement.spacedBy(20.dp)
+                verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
                 Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                     ScheduleTimePart("Hora", hour, Modifier.weight(1f),
@@ -666,7 +666,7 @@ private fun AddScheduleDialog(
                 colors = ButtonDefaults.buttonColors(
                     containerColor = ClimateBlue
                 ),
-                modifier = Modifier.heightIn(min = 48.dp)
+                modifier = Modifier.heightIn(min = 44.dp)
             ) {
                 Text("Guardar")
             }
@@ -686,8 +686,8 @@ private fun ScheduleTimePart(title: String, value: Int, modifier: Modifier, onMi
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
-        Text(title, color = ClimateTextSecondary, fontSize = 12.sp)
-        Text("%02d".format(value), color = ClimateText, fontSize = 32.sp, fontWeight = FontWeight.Bold)
+        Text(title, color = ClimateTextSecondary, fontSize = 11.sp)
+        Text("%02d".format(value), color = ClimateText, fontSize = 28.sp, fontWeight = FontWeight.Bold)
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
             EditorButton("−", onMinus)
             EditorButton("+", onPlus)
@@ -709,14 +709,14 @@ private fun EditorLine(
         Text(
             text = title,
             color = ClimateTextSecondary,
-            fontSize = 12.sp
+            fontSize = 11.sp
         )
         Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
         EditorButton("−", onMinus)
         Text(
             text = value,
             color = ClimateText,
-            fontSize = 24.sp,
+            fontSize = 21.sp,
             fontWeight = FontWeight.SemiBold,
             textAlign = TextAlign.Center,
             modifier = Modifier.weight(1f)
@@ -733,7 +733,7 @@ private fun EditorButton(
 ) {
     Box(
         modifier = Modifier
-            .size(48.dp)
+            .size(44.dp)
             .background(ClimateBlue.copy(alpha = 0.14f), RoundedCornerShape(10.dp))
             .clickable(onClick = onClick),
         contentAlignment = Alignment.Center
@@ -741,7 +741,7 @@ private fun EditorButton(
         Text(
             text = text,
             color = ClimateBlue,
-            fontSize = 19.sp,
+            fontSize = 17.sp,
             fontWeight = FontWeight.SemiBold
         )
     }
@@ -758,7 +758,7 @@ private fun SelectionRow(
         Text(
             text = title,
             color = ClimateTextSecondary,
-            fontSize = 12.sp
+            fontSize = 11.sp
         )
         Spacer(modifier = Modifier.height(6.dp))
         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -769,7 +769,7 @@ private fun SelectionRow(
                 Text(
                     text = option,
                     color = if (active) ClimateText else ClimateTextSecondary,
-                    fontSize = 12.sp,
+                    fontSize = 11.sp,
                     textAlign = TextAlign.Center,
                     fontWeight = if (active) FontWeight.SemiBold else FontWeight.Normal,
                     modifier = Modifier
@@ -784,7 +784,7 @@ private fun SelectionRow(
                             RoundedCornerShape(9.dp)
                         )
                         .clickable { onSelected(option) }
-                        .padding(horizontal = 6.dp, vertical = 16.dp)
+                        .padding(horizontal = 6.dp, vertical = 13.dp)
                 )
             }
            }

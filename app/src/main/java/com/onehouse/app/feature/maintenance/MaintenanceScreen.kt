@@ -216,11 +216,12 @@ private fun ValveCard(open: Boolean?, busy: Boolean, onChange: (Boolean) -> Unit
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             IconBox(Icons.Rounded.Settings, Blue)
-            Spacer(Modifier.size(16.dp))
+            Spacer(Modifier.size(12.dp))
             Column(modifier = Modifier.weight(1f)) {
-                Text("Electroválvula de agua", color = TextoPrincipal, fontSize = 17.sp, fontWeight = FontWeight.SemiBold)
-                Text("Control de la válvula principal", color = TextoSecundario, fontSize = 12.sp)
+                Text("Electroválvula de agua", color = TextoPrincipal, fontSize = 15.sp, fontWeight = FontWeight.SemiBold, maxLines = 2)
+                Text("Control válvula principal", color = TextoSecundario, fontSize = 11.sp, maxLines = 2)
             }
+            Spacer(Modifier.width(8.dp))
             Row(modifier = Modifier.border(1.dp, BordeTarjeta, RoundedCornerShape(13.dp))) {
                 OutlinedButton(onClick = { onChange(true) }, enabled = !busy) { Text("ON") }
                 OutlinedButton(onClick = { onChange(false) }, enabled = !busy) { Text("OFF") }

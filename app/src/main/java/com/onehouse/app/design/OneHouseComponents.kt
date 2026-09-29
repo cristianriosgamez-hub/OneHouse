@@ -364,19 +364,26 @@ fun OneHouseFingerprintRow(
 ) {
     OneHouseCard(modifier = modifier.fillMaxWidth(), onClick = onClick) {
         Row(
-            modifier = Modifier.padding(horizontal = 16.dp, vertical = 11.dp),
-            verticalAlignment = Alignment.CenterVertically
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 11.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = if (title.isBlank() && subtitle.isBlank()) Arrangement.Center else Arrangement.Start
         ) {
             Image(
                 painter = painterResource(R.drawable.fingerprint_modern),
                 contentDescription = "Acceso con huella",
                 modifier = Modifier.size(42.dp)
             )
-            Spacer(modifier = Modifier.width(12.dp))
-            Column {
-                Text(text = title, color = TextoPrincipal, style = MaterialTheme.typography.titleMedium)
-                Spacer(modifier = Modifier.height(3.dp))
-                Text(text = subtitle, color = AzulClaro, style = MaterialTheme.typography.bodySmall)
+            if (title.isNotBlank() || subtitle.isNotBlank()) {
+                Spacer(modifier = Modifier.width(12.dp))
+                Column {
+                    if (title.isNotBlank()) {
+                        Text(text = title, color = TextoPrincipal, style = MaterialTheme.typography.titleMedium)
+                    }
+                    if (subtitle.isNotBlank()) {
+                        if (title.isNotBlank()) Spacer(modifier = Modifier.height(3.dp))
+                        Text(text = subtitle, color = AzulClaro, style = MaterialTheme.typography.bodySmall)
+                    }
+                }
             }
         }
     }

@@ -16,8 +16,8 @@ android {
         applicationId = "com.onehouse.app"
         minSdk = 29
         targetSdk = 36
-        versionCode = 158
-        versionName = "1.14.1 REV19 Carga KNX"
+        versionCode = 159
+        versionName = "1.14.1 REV20 Cierre UI y lluvia"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }

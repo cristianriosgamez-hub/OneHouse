@@ -456,7 +456,7 @@ private fun KnxLoadProgressDialog(
                                 )
                             }
                             val elementStatus = when {
-                                element.waitingEventCount > 0 -> "Esperando evento"
+                                element.waitingEventCount > 0 -> "☀ Sin lluvia"
                                 element.fullyReceived -> "✓ ${element.receivedCount}/${element.addresses.size}"
                                 element.pendingCount > 0 -> "… ${element.receivedCount}/${element.addresses.size}"
                                 element.noResponseCount > 0 -> "${element.receivedCount}/${element.addresses.size}"
