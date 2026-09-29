@@ -1,0 +1,39 @@
+OneHouse 1.14.1 REV20 - Cierre UI y lluvia
+versionCode 159
+
+BASE
+REV19 Carga KNX facilitada por el usuario y revisada antes de aplicar cambios.
+
+REVISION REV19
+- Se conserva la correccion estructural de REV19: mandos generales excluidos de lecturas, feedback de electrovalvula 2/4/1 incluido y lluvia tratada como evento (sin GroupValueRead).
+- Se conserva el porcentaje real: solo los estados de lectura recibidos hacen avanzar la carga. Los timeouts no inventan un 100%.
+- La lluvia sigue fuera del denominador de la carga, por lo que su ausencia no bloquea el 100%.
+
+CAMBIOS REV20
+1. Mantenimiento - Electrovalvula de agua
+- Reajustado el encabezado para evitar el corte incorrecto del titulo junto a ON/OFF.
+- Se compactan titulo/subtitulo y espacios sin cambiar la logica KNX ni los mandos.
+
+2. Terraza - Lluvia
+- El sensor sigue siendo por evento y no se consulta al arrancar.
+- Mientras no llegue un evento de lluvia, la interfaz vuelve a mostrar sol y "Sin lluvia", como se habia definido anteriormente.
+- Un telegrama real de lluvia sigue teniendo prioridad y muestra el estado de alarma correspondiente.
+
+3. Carga KNX - Lluvia
+- Se elimina el texto "Esperando evento" para lluvia en el detalle de carga.
+- Si no ha llegado evento se muestra "☀ Sin lluvia".
+- La lluvia no cuenta como lectura requerida ni impide alcanzar el 100% cuando todas las lecturas reales han respondido.
+
+4. Login - Huella
+- "Acceso alternativo" pasa a "Acceso por huella".
+- Se eliminan de la tarjeta los textos "Iniciar sesion con huella" y "Toca para identificarte".
+- Se conserva solo el icono de huella como control pulsable; la disponibilidad y mensajes de error biometricos siguen funcionando.
+
+5. Programacion de clima
+- Se mantiene el diseño y funcionamiento del dialogo Nuevo horario.
+- Se reducen ligeramente tipografias, botones y espaciados del editor para que resulte mas compacto en el telefono.
+- No se cambia la logica de horarios, temperatura, modo ni ventilador.
+
+VERSION
+versionCode 159
+versionName: 1.14.1 REV20 Cierre UI y lluvia

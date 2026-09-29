@@ -219,7 +219,7 @@ private fun ValveCard(open: Boolean?, busy: Boolean, onChange: (Boolean) -> Unit
             IconBox(Icons.Rounded.Settings, Blue)
             Spacer(Modifier.size(12.dp))
             Column(modifier = Modifier.weight(1f)) {
-                Text("Electroválvula de agua", color = TextoPrincipal, fontSize = 15.sp, fontWeight = FontWeight.SemiBold, maxLines = 2)
+                Text("Electroválvula", color = TextoPrincipal, fontSize = 15.sp, fontWeight = FontWeight.SemiBold, maxLines = 1)
                 Text("Control válvula principal", color = TextoSecundario, fontSize = 11.sp, maxLines = 2)
             }
             Spacer(Modifier.width(8.dp))

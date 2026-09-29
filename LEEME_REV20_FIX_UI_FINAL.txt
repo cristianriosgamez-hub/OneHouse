@@ -1,0 +1,14 @@
+OneHouse v1.14.1 - REV20 FIX UI FINAL
+
+Cambios incluidos sobre REV20 FIX de compilación:
+
+1. Login / Acceso por huella
+- Se elimina completamente la tarjeta/rectángulo grande que rodeaba la huella.
+- Se mantiene únicamente el icono de huella centrado bajo “Acceso por huella”.
+- La huella continúa siendo pulsable y conserva la autenticación biométrica existente.
+
+2. Mantenimiento / Electroválvula
+- El título “Electroválvula de agua” pasa a “Electroválvula”.
+- Se mantiene “Control válvula principal” y los botones ON/OFF sin cambios funcionales.
+
+Este ZIP contiene únicamente los ficheros a sustituir.
