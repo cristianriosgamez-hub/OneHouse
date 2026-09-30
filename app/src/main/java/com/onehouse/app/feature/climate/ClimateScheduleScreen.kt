@@ -83,7 +83,6 @@ fun ClimateScheduleScreen(
     }
     var expandedDay by remember { mutableStateOf<DayOfWeek?>(null) }
     var editingDay by remember { mutableStateOf<DayOfWeek?>(null) }
-    var trace by remember { mutableStateOf(ClimateScheduleExecutionTrace.snapshot(context)) }
     val lifecycleOwner = LocalLifecycleOwner.current
 
     DisposableEffect(lifecycleOwner, state) {
@@ -95,7 +94,6 @@ fun ClimateScheduleScreen(
                 if (state.globallyEnabled && canScheduleExactAlarm(context)) {
                     scheduler.reschedule()
                 }
-                trace = ClimateScheduleExecutionTrace.snapshot(context)
             }
         }
         lifecycleOwner.lifecycle.addObserver(observer)
@@ -109,7 +107,6 @@ fun ClimateScheduleScreen(
             requestExactAlarmAccessIfNeeded(context)
         }
         scheduler.reschedule()
-        trace = ClimateScheduleExecutionTrace.snapshot(context)
     }
 
     val next = ClimateScheduleEngine.nextExecution(state)
@@ -143,10 +140,6 @@ fun ClimateScheduleScreen(
         Spacer(modifier = Modifier.height(14.dp))
 
         NextEventCard(next = next)
-
-        Spacer(modifier = Modifier.height(10.dp))
-
-        ScheduleExecutionStatusCard(trace = trace)
 
         Spacer(modifier = Modifier.height(22.dp))
 
@@ -790,34 +783,6 @@ private fun SelectionRow(
            }
           }
         }
-    }
-}
-
-@Composable
-private fun ScheduleExecutionStatusCard(trace: ClimateScheduleExecutionTrace.Snapshot) {
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .background(ClimateCard, RoundedCornerShape(18.dp))
-            .border(1.dp, ClimateBorder, RoundedCornerShape(18.dp))
-            .padding(14.dp)
-    ) {
-        Text("Estado de ejecución", color = ClimateText, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
-        Spacer(modifier = Modifier.height(6.dp))
-        Text(
-            text = if (trace.nextAlarmAt != null) {
-                "Alarma: ${trace.nextLabel()} · ${if (trace.exact) "exacta" else "inexacta"}"
-            } else {
-                "Alarma: ---"
-            },
-            color = ClimateTextSecondary,
-            fontSize = 12.sp
-        )
-        Text(
-            text = "Último paso: ${trace.lastLabel()}",
-            color = ClimateTextSecondary,
-            fontSize = 12.sp
-        )
     }
 }
 

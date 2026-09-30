@@ -16,8 +16,8 @@ android {
         applicationId = "com.onehouse.app"
         minSdk = 29
         targetSdk = 36
-        versionCode = 160
-        versionName = "1.14.1 REV21 Clima Auto UI"
+        versionCode = 161
+        versionName = "1.14.1 REV22 Limpieza Final"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }

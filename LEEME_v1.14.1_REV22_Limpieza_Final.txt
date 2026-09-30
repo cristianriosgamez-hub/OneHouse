@@ -1,0 +1,31 @@
+OneHouse v1.14.1 - REV22 Limpieza Final
+
+Base: REV21 Clima Auto UI validada por el usuario.
+
+Cambios de esta entrega:
+1. Programación de climatización
+   - Eliminada de la interfaz la tarjeta "Estado de ejecución" (Alarma / Último paso).
+   - Se mantiene intacta la lógica interna de programación, alarmas y ejecución en segundo plano.
+
+2. Documentación técnica
+   - Actualizada al estado real de REV22.
+   - Refleja las validaciones realizadas: carga KNX 36 GA, Wi-Fi/5G, Auto de climatización y Backup/Restore.
+   - Eliminadas referencias de REV18/REV19 que figuraban como pendientes de validación.
+
+3. Backup automático Android
+   - android:allowBackup pasa a false.
+   - El Backup/Restore propio de OneHouse permanece sin cambios y es el mecanismo controlado de copia/restauración.
+
+Versión:
+- versionCode: 161
+- versionName: 1.14.1 REV22 Limpieza Final
+
+IMPORTANTE:
+- No se modifica el motor KNX.
+- No se modifican las 36 GA de carga.
+- No se modifican las velocidades 25/37/100.
+- No se modifica la lógica Auto de climatización.
+- No se modifica el Backup/Restore propio de OneHouse.
+
+Validación:
+No se ha podido ejecutar Gradle en el entorno de generación porque el wrapper intenta descargar Gradle 9.5.0 desde services.gradle.org y el entorno no dispone de acceso de red. Compilar en Android Studio tras sustituir los archivos.
