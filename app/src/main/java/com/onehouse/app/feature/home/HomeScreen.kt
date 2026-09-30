@@ -896,7 +896,7 @@ private fun FavoriteRooms(
                 OneHouseSceneCard(
                     name = room.name,
                     symbol = if (room.name == "Terraza") {
-                        if (raining == true) "🌧" else if (raining == false) "☀" else "—"
+                        if (raining == true) "🌧" else "☀"
                     } else room.symbol,
                     modifier = Modifier.weight(1f),
                     onClick = { onFavoriteSelected(room.name) }

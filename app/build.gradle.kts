@@ -16,8 +16,8 @@ android {
         applicationId = "com.onehouse.app"
         minSdk = 29
         targetSdk = 36
-        versionCode = 159
-        versionName = "1.14.1 REV20 Cierre UI y lluvia"
+        versionCode = 160
+        versionName = "1.14.1 REV21 Clima Auto UI"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }

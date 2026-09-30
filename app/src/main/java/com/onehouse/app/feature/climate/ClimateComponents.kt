@@ -973,6 +973,8 @@ internal fun FanSpeedSelector(
 
 @Composable
 internal fun ClimateInformationCard(
+    exteriorTemperature: String,
+    exteriorCondition: String,
     humidity: Int?,
     co2Ppm: Int?
 ) {
@@ -992,6 +994,15 @@ internal fun ClimateInformationCard(
 
     PremiumCard {
         Row(modifier = Modifier.fillMaxWidth()) {
+            StatusValue(
+                title = "Exterior",
+                value = exteriorTemperature.ifBlank { "---" },
+                secondaryValue = exteriorCondition.takeIf { it.isNotBlank() },
+                iconType = ClimateIconType.THERMOSTAT,
+                accent = ClimateBlue,
+                modifier = Modifier.weight(1f)
+            )
+            StatusDivider()
             StatusValue(
                 title = "Humedad",
                 value = humidity?.let { "$it %" } ?: "---",
