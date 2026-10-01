@@ -268,7 +268,9 @@ private object PeriodicKnxStateRefresh {
         KnxAddressBook.Terrace.LUMINOSITY,
         KnxAddressBook.Terrace.EXCESSIVE_WIND,
         KnxAddressBook.Terrace.WIND_SPEED,
-        KnxAddressBook.Terrace.RAINING
+        KnxAddressBook.Terrace.RAINING,
+        KnxAddressBook.Consumption.ACS_ACCUMULATED,
+        KnxStartupReadPolicy.VALVE_STATE
     ).distinct()
 
     fun ensureStarted(context: Context, devices: List<ImportedKnxDevice>) {

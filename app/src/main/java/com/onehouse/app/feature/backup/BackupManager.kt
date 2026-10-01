@@ -358,10 +358,8 @@ class BackupManager(context: Context) {
             }
         }
 
-        return (KnxHomeStateRepository.initialLoadExplicitStateAddresses() + projectAddresses)
-            .map(String::trim)
-            .filter(String::isNotBlank)
-            .distinct()
+        return com.onehouse.app.knx.KnxStartupReadPolicy.readable(
+            KnxHomeStateRepository.initialLoadExplicitStateAddresses() + projectAddresses)
             .size
     }
 

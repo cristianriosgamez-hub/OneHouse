@@ -122,7 +122,7 @@ fun ClimateScreen(onBack: () -> Unit) {
             .padding(horizontal = 16.dp)
     ) {
         Spacer(Modifier.height(14.dp))
-        ClimateHeader(exteriorWeather = exteriorWeather, onBack = onBack)
+        ClimateHeader(onBack = onBack)
         Spacer(Modifier.height(18.dp))
 
         AmbientTemperatures(
@@ -203,9 +203,9 @@ fun ClimateScreen(onBack: () -> Unit) {
         Spacer(Modifier.height(16.dp))
 
         ClimateInformationCard(
-            fanSpeed = selectedFanSpeed,
+            exteriorTemperature = exteriorWeather.temperature,
+            exteriorCondition = exteriorWeather.condition,
             humidity = humidity,
-            selectedMode = selectedMode,
             co2Ppm = co2Ppm
         )
         Spacer(Modifier.height(14.dp))
@@ -232,7 +232,7 @@ private fun String?.toFanSpeed(): FanSpeed? = when (this?.trim()?.lowercase()) {
 }
 
 @Composable
-private fun ClimateHeader(exteriorWeather: WeatherUiState, onBack: () -> Unit) {
+private fun ClimateHeader(onBack: () -> Unit) {
     Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
         IconButton(onClick = onBack) {
             Icon(
@@ -244,26 +244,9 @@ private fun ClimateHeader(exteriorWeather: WeatherUiState, onBack: () -> Unit) {
         Column(modifier = Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally) {
             Text("Climatización", color = ClimateText, fontSize = 24.sp, fontWeight = FontWeight.Bold)
             Spacer(Modifier.height(7.dp))
-            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.Center) {
-                Text("Sistema centralizado", color = ClimateTextSecondary, fontSize = 12.sp)
-                Spacer(Modifier.size(9.dp))
-                Box(
-                    modifier = Modifier
-                        .background(
-                            Brush.horizontalGradient(listOf(ClimateCyan.copy(alpha = 0.14f), ClimateBlue.copy(alpha = 0.10f))),
-                            RoundedCornerShape(50)
-                        )
-                        .border(1.dp, ClimateCyan.copy(alpha = 0.24f), RoundedCornerShape(50))
-                        .padding(horizontal = 10.dp, vertical = 5.dp)
-                ) {
-                    Text(
-                        "${exteriorWeather.conditionSymbol}  ${exteriorWeather.temperature}",
-                        color = ClimateText,
-                        fontSize = 12.sp,
-                        fontWeight = FontWeight.Medium
-                    )
-                }
-            }
+            Text("Sistema centralizado", color = ClimateTextSecondary, fontSize = 12.sp)
         }
+        // Equilibra visualmente la flecha de volver para mantener el título centrado.
+        Spacer(Modifier.size(48.dp))
     }
 }

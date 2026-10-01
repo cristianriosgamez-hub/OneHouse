@@ -69,7 +69,8 @@ private data class DiagnosticObject(
     val dpt: String,
     val address: String,
     val kind: String,
-    val canWriteBoolean: Boolean
+    val canWriteBoolean: Boolean,
+    val readPolicy: KnxDiagnosticReadPolicy = KnxDiagnosticReadPolicy.STATE
 )
 
 @Composable
@@ -85,7 +86,9 @@ fun KnxDiagnosticsScreen(onBack: () -> Unit) {
     var events by remember { mutableStateOf(monitorRepository.recent(30)) }
     var monitorSummary by remember { mutableStateOf(monitorRepository.summary()) }
     var sessionStatistics by remember { mutableStateOf(sessionStatisticsRepository.snapshot()) }
+    val sessionBaseline = remember { sessionStatisticsRepository.snapshot() }
     var performanceMetrics by remember { mutableStateOf(KnxPerformanceMetrics.snapshot()) }
+    val performanceBaseline = remember { KnxPerformanceMetrics.snapshot() }
     var filter by remember { mutableStateOf("") }
     var testingAddress by remember { mutableStateOf<String?>(null) }
 
@@ -105,6 +108,9 @@ fun KnxDiagnosticsScreen(onBack: () -> Unit) {
     }
 
     val objects = remember {
+        // Lluvia is event-driven in the validated installation. Include the
+        // configured global address and the confirmed GA used by room objects.
+        val eventAddresses = setOf(KnxAddressBook.Terrace.RAINING, "15/0/21")
         val globalObjects = KnxAddressBook.entries.map { entry ->
             DiagnosticObject(
                 room = entry.room,
@@ -144,7 +150,9 @@ fun KnxDiagnosticsScreen(onBack: () -> Unit) {
                 reads + writes
             }
         }
-        (globalObjects + roomObjects).distinctBy { listOf(it.room, it.name, it.address, it.kind) }
+        (globalObjects + roomObjects)
+            .map { it.copy(readPolicy = diagnosticReadPolicy(it.kind, it.address, eventAddresses)) }
+            .distinctBy { listOf(it.room, it.name, it.address, it.kind) }
     }
 
     val invalidAddresses = objects.map { it.address }
@@ -193,7 +201,8 @@ fun KnxDiagnosticsScreen(onBack: () -> Unit) {
                 Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Text("Resumen de la instalación", color = TextoPrincipal, fontWeight = FontWeight.Bold, fontSize = 18.sp)
                     Text("Objetos de OneHouse: ${objects.size}", color = TextoSecundario)
-                    Text("Direcciones con respuesta: ${states.keys.count { address -> objects.any { it.address == address } }}", color = TextoSecundario)
+                    Text("Direcciones con valor recibido: ${states.keys.count { address -> objects.any { it.address == address } }}", color = TextoSecundario)
+                    Text("Mando y eventos pueden no responder a lecturas. Un valor recibido puede proceder de una respuesta o de un telegrama espontáneo.", color = TextoSecundario, fontSize = 12.sp)
                     Text("Telegramas recientes: ${events.size}", color = TextoSecundario)
                     Text(
                         text = when {
@@ -246,114 +255,26 @@ fun KnxDiagnosticsScreen(onBack: () -> Unit) {
                         )
                     }
                     Text(
-                        "Sesión persistente · conexiones ${sessionStatistics.connections} · errores conexión ${sessionStatistics.connectionErrors} · operaciones ${sessionStatistics.telegramsSent} · errores operación ${sessionStatistics.operationErrors}",
+                        "Desde abrir Diagnóstico · conexiones ${sessionStatistics.connections - sessionBaseline.connections} · errores conexión ${sessionStatistics.connectionErrors - sessionBaseline.connectionErrors} · operaciones ${sessionStatistics.telegramsSent - sessionBaseline.telegramsSent} · errores operación ${sessionStatistics.operationErrors - sessionBaseline.operationErrors}",
+                        color = AzulClaro,
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                    Text(
+                        "Histórico acumulado · conexiones ${sessionStatistics.connections} · errores conexión ${sessionStatistics.connectionErrors} · operaciones ${sessionStatistics.telegramsSent} · errores operación ${sessionStatistics.operationErrors}",
                         color = TextoSecundario,
                         fontSize = 12.sp
                     )
                     Text(
-                        "ACK gateway ${sessionStatistics.gatewayAcks} · último/media ${sessionStatistics.lastAckMillis?.let { "$it ms" } ?: "—"} / ${sessionStatistics.averageAckMillis?.let { "$it ms" } ?: "—"}",
+                        "ACK gateway histórico ${sessionStatistics.gatewayAcks} · último/media ${sessionStatistics.lastAckMillis?.let { "$it ms" } ?: "—"} / ${sessionStatistics.averageAckMillis?.let { "$it ms" } ?: "—"}",
                         color = TextoSecundario,
                         fontSize = 12.sp
                     )
                     OutlinedButton(
-                        onClick = { copyDiagnosticsToClipboard(context, monitorRepository, performanceMetrics, sessionStatistics) },
+                        onClick = { copyDiagnosticsToClipboard(context, monitorRepository, performanceMetrics, performanceBaseline, sessionStatistics, sessionBaseline) },
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         Text("Copiar diagnóstico")
-                    }
-                }
-            }
-
-            OneHouseCard {
-                Column(
-                    modifier = Modifier.padding(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    Text("Métricas del motor KNX", color = TextoPrincipal, fontWeight = FontWeight.Bold, fontSize = 18.sp)
-                    Text(
-                        "Medición interna de la ruta actual de estados KNX.",
-                        color = TextoSecundario,
-                        fontSize = 12.sp
-                    )
-                    Text("Estados aceptados: ${performanceMetrics.acceptedStateUpdates}", color = TextoSecundario)
-                    Text("Estados duplicados: ${performanceMetrics.duplicateStateUpdates}", color = TextoSecundario)
-                    Text(
-                        "Caché · último / media / máximo: " +
-                            "${formatMicros(performanceMetrics.lastCacheUpdateMicros)} / " +
-                            "${formatMicros(performanceMetrics.averageCacheUpdateMicros)} / " +
-                            formatMicros(performanceMetrics.maxCacheUpdateMicros),
-                        color = TextoSecundario
-                    )
-                    Text(
-                        "Observers · último / media / máximo: " +
-                            "${formatMicros(performanceMetrics.lastObserverDispatchMicros)} / " +
-                            "${formatMicros(performanceMetrics.averageObserverDispatchMicros)} / " +
-                            formatMicros(performanceMetrics.maxObserverDispatchMicros),
-                        color = TextoSecundario
-                    )
-                    Text(
-                        "Motor paralelo v1.12.1 · eventos: ${performanceMetrics.parallelEventsReceived}",
-                        color = AzulClaro,
-                        fontWeight = FontWeight.SemiBold
-                    )
-                    Text(
-                        "EventBus · último / media / máximo: " +
-                            "${formatMicros(performanceMetrics.lastParallelDispatchMicros)} / " +
-                            "${formatMicros(performanceMetrics.averageParallelDispatchMicros)} / " +
-                            formatMicros(performanceMetrics.maxParallelDispatchMicros),
-                        color = TextoSecundario
-                    )
-                    Text(
-                        "Túnel v1.12.1.5 · aperturas / reutilizados / conectados: " +
-                            "${performanceMetrics.tunnelOpenAttempts} / " +
-                            "${performanceMetrics.tunnelReuses} / " +
-                            performanceMetrics.tunnelConnectSuccesses,
-                        color = AzulClaro,
-                        fontWeight = FontWeight.SemiBold
-                    )
-                    Text(
-                        "Código 36: ${performanceMetrics.tunnelRejected36} · cierres: ${performanceMetrics.tunnelDisconnects}",
-                        color = TextoSecundario
-                    )
-                    Text(
-                        "Origen aperturas: ${formatSourceCounts(performanceMetrics.tunnelOpenAttemptsBySource)}",
-                        color = TextoSecundario,
-                        fontSize = 12.sp
-                    )
-                    Text(
-                        "Origen reutilizaciones: ${formatSourceCounts(performanceMetrics.tunnelReusesBySource)}",
-                        color = TextoSecundario,
-                        fontSize = 12.sp
-                    )
-                    Text(
-                        "Origen código 36: ${formatSourceCounts(performanceMetrics.tunnelRejected36BySource)}",
-                        color = if (performanceMetrics.tunnelRejected36 == 0L) TextoSecundario else MaterialTheme.colorScheme.error,
-                        fontSize = 12.sp
-                    )
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        Button(
-                            onClick = {
-                                performanceMetrics = KnxPerformanceMetrics.snapshot()
-                                sessionStatistics = sessionStatisticsRepository.snapshot()
-                            },
-                            modifier = Modifier.weight(1f)
-                        ) {
-                            Text("Actualizar")
-                        }
-                        OutlinedButton(
-                            onClick = {
-                                KnxPerformanceMetrics.clear()
-                                sessionStatisticsRepository.clear()
-                                performanceMetrics = KnxPerformanceMetrics.snapshot()
-                                sessionStatistics = sessionStatisticsRepository.snapshot()
-                            },
-                            modifier = Modifier.weight(1f)
-                        ) {
-                            Text("Limpiar")
-                        }
                     }
                 }
             }
@@ -380,7 +301,7 @@ fun KnxDiagnosticsScreen(onBack: () -> Unit) {
                                 Text("${item.room} · ${item.category}", color = TextoSecundario, fontSize = 13.sp)
                             }
                             Text(
-                                text = if (state != null) "● OK" else "○ SIN RESPUESTA",
+                                text = item.readPolicy.label(state != null),
                                 color = if (state != null) AzulClaro else TextoSecundario,
                                 fontWeight = FontWeight.Bold,
                                 fontSize = 12.sp
@@ -388,6 +309,7 @@ fun KnxDiagnosticsScreen(onBack: () -> Unit) {
                         }
                         Text("${item.kind}: ${item.address}", color = TextoPrincipal)
                         Text("DPT: ${item.dpt}", color = TextoSecundario)
+                        Text(item.readPolicy.explanation, color = TextoSecundario, fontSize = 12.sp)
                         if (state == null) {
                             Text("Último valor: ---", color = TextoSecundario)
                         } else {
@@ -500,7 +422,7 @@ private fun executeDiagnosticCommand(
         val message = when (result) {
             is KnxCommandExecutor.Result.Success -> when (type) {
                 KnxCommandType.READ -> result.busValue?.let { "Respuesta: $it" }
-                    ?: "Lectura enviada; sin respuesta confirmada"
+                    ?: item.readPolicy.readWithoutValueMessage()
                 KnxCommandType.ON -> "Orden ON enviada y verificada"
                 KnxCommandType.OFF -> "Orden OFF enviada y verificada"
                 else -> "Operación KNX completada"
@@ -532,15 +454,19 @@ private fun copyDiagnosticsToClipboard(
     context: Context,
     monitorRepository: KnxTelegramMonitorRepository,
     metrics: KnxPerformanceMetrics.Snapshot,
-    session: KnxSessionStatisticsRepository.Snapshot
+    metricsBaseline: KnxPerformanceMetrics.Snapshot,
+    session: KnxSessionStatisticsRepository.Snapshot,
+    sessionBaseline: KnxSessionStatisticsRepository.Snapshot
 ) {
     val summary = monitorRepository.summary()
     val text = buildString {
         appendLine("OneHouse · Diagnóstico KNX")
         appendLine("Generado: ${formatDateTime(System.currentTimeMillis())}")
         appendLine("Eventos: ${summary.total} · TX ${summary.outgoing} · RX ${summary.incoming} · Sistema ${summary.system} · Errores ${summary.errors}")
-        appendLine("Túnel: aperturas ${metrics.tunnelOpenAttempts} · reutilizados ${metrics.tunnelReuses} · conectados ${metrics.tunnelConnectSuccesses} · código36 ${metrics.tunnelRejected36} · cierres ${metrics.tunnelDisconnects}")
-        appendLine("Persistente: conexiones ${session.connections} · erroresConexión ${session.connectionErrors} · operaciones ${session.telegramsSent} · ACK ${session.gatewayAcks} · erroresOperación ${session.operationErrors} · retransmisiones ${session.retransmissions}")
+        appendLine("Desde abrir Diagnóstico · túnel: aperturas ${metrics.tunnelOpenAttempts - metricsBaseline.tunnelOpenAttempts} · reutilizados ${metrics.tunnelReuses - metricsBaseline.tunnelReuses} · conectados ${metrics.tunnelConnectSuccesses - metricsBaseline.tunnelConnectSuccesses} · código36 ${metrics.tunnelRejected36 - metricsBaseline.tunnelRejected36}")
+        appendLine("Desde abrir Diagnóstico · sesión: conexiones ${session.connections - sessionBaseline.connections} · erroresConexión ${session.connectionErrors - sessionBaseline.connectionErrors} · operaciones ${session.telegramsSent - sessionBaseline.telegramsSent} · erroresOperación ${session.operationErrors - sessionBaseline.operationErrors}")
+        appendLine("Histórico túnel: aperturas ${metrics.tunnelOpenAttempts} · reutilizados ${metrics.tunnelReuses} · conectados ${metrics.tunnelConnectSuccesses} · código36 ${metrics.tunnelRejected36} · cierres ${metrics.tunnelDisconnects}")
+        appendLine("Histórico sesión: conexiones ${session.connections} · erroresConexión ${session.connectionErrors} · operaciones ${session.telegramsSent} · ACK ${session.gatewayAcks} · erroresOperación ${session.operationErrors} · retransmisiones ${session.retransmissions}")
         appendLine()
         append(monitorRepository.exportText())
     }

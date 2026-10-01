@@ -27,24 +27,22 @@ data class KnxLoadProgressSnapshot(
     val targets: Map<String, KnxLoadTarget> = emptyMap(),
     val receivedAddresses: Set<String> = emptySet(),
     val noResponseAddresses: Set<String> = emptySet(),
-    /** GAs resueltas por una regla explícita de OneHouse sin telegrama de respuesta. */
-    val assumedAddresses: Set<String> = emptySet(),
     val currentAddress: String? = null,
     val finished: Boolean = false
 ) {
-    val total: Int get() = targets.size
-    val received: Int get() = receivedAddresses.size
+    val eventAddresses: Set<String> get() = targets.keys.filterTo(mutableSetOf(), KnxStartupReadPolicy::isEvent)
+    val waitingEventAddresses: Set<String> get() = eventAddresses - receivedAddresses
+    val total: Int get() = (targets.keys - eventAddresses).size
+    val received: Int get() = (receivedAddresses.intersect(targets.keys) - eventAddresses).size
     val noResponse: Int get() = noResponseAddresses.size
-    val assumed: Int get() = assumedAddresses.size
-    val completed: Int get() = (receivedAddresses + assumedAddresses).size
-    val resolved: Int get() = (receivedAddresses + assumedAddresses + noResponseAddresses).size
+    val completed: Int get() = received
+    val resolved: Int get() = ((receivedAddresses + noResponseAddresses).intersect(targets.keys) - eventAddresses).size
     val pending: Int get() = (total - resolved).coerceAtLeast(0)
     /**
      * Porcentaje REAL de estados recibidos.
      *
-     * Una GA sin respuesta no cuenta como cargada salvo que exista una regla
-     * explícita y documentada para resolverla. Actualmente solo Lluvia de Terraza
-     * puede resolverse como "sin lluvia" tras agotar sus reintentos.
+     * Solo cuenta estados de lectura realmente recibidos. Los eventos se
+     * muestran aparte y su silencio nunca se interpreta como un valor.
      */
     val percent: Int
         get() = when {
@@ -83,7 +81,10 @@ object KnxLoadProgressRepository {
         val received = current.targets.keys.filterTo(mutableSetOf()) { address ->
             states[address]?.let(StateFreshness::isTrusted) == true
         }
-        mutableProgress.value = current.copy(receivedAddresses = received)
+        mutableProgress.value = current.copy(
+            receivedAddresses = received,
+            noResponseAddresses = current.noResponseAddresses - received
+        )
     }
 
     /**
@@ -92,8 +93,7 @@ object KnxLoadProgressRepository {
      * lectura adicional: únicamente corrige la fotografía de progreso usando
      * el mismo telegrama que ya ha aceptado la caché KNX central.
      *
-     * También sustituye una resolución asumida (actualmente lluvia seca) por
-     * una respuesta real si esa GA termina enviando un telegrama posteriormente.
+     * Los eventos recibidos después de la carga también actualizan su indicador.
      */
     @Synchronized
     fun reconcileAcceptedState(state: KnxStateRepository.State) {
@@ -105,14 +105,9 @@ object KnxLoadProgressRepository {
         if (!StateFreshness.isTrusted(state)) return
         if (address in current.receivedAddresses) return
 
-        // Solo hay algo que reconciliar si al cerrar la carga la dirección quedó
-        // sin respuesta o fue resuelta mediante una regla explícita.
-        if (address !in current.noResponseAddresses && address !in current.assumedAddresses) return
-
         mutableProgress.value = current.copy(
             receivedAddresses = current.receivedAddresses + address,
-            noResponseAddresses = current.noResponseAddresses - address,
-            assumedAddresses = current.assumedAddresses - address
+            noResponseAddresses = current.noResponseAddresses - address
         )
     }
 
@@ -123,25 +118,16 @@ object KnxLoadProgressRepository {
         val received = current.targets.keys.filterTo(mutableSetOf()) { address ->
             states[address]?.let(StateFreshness::isTrusted) == true
         }
-        val unresolved = finalNoResponse
+        val unresolved = (finalNoResponse + current.targets.keys)
             .asSequence()
             .filter { it in current.targets }
             .filterNot { it in received }
+            .filterNot(KnxStartupReadPolicy::isEvent)
             .toSet()
-
-        // En esta instalación el objeto de lluvia no responde cuando está seco.
-        // Es una excepción deliberada: tras agotar todos los reintentos, ausencia
-        // de telegrama en ESTA GA se interpreta como "sin lluvia". No se aplica
-        // esta regla a ningún otro sensor.
-        val assumedDry = unresolved.filterTo(mutableSetOf()) { address ->
-            address == KnxAddressBook.Terrace.RAINING
-        }
-        val realNoResponse = unresolved - assumedDry
 
         mutableProgress.value = current.copy(
             receivedAddresses = received,
-            assumedAddresses = assumedDry,
-            noResponseAddresses = realNoResponse,
+            noResponseAddresses = unresolved,
             currentAddress = null,
             finished = true
         )
@@ -217,6 +203,7 @@ object KnxLoadProgressRepository {
     }
 
     private fun explicitDescriptor(address: String): Triple<String, KnxLoadKind, String> = when (address) {
+        KnxStartupReadPolicy.VALVE_STATE -> Triple("Mantenimiento", KnxLoadKind.OTHER, "Estado electroválvula de agua")
         KnxAddressBook.Climate.POWER_STATE ->
             Triple("Climatización", KnxLoadKind.CLIMATE, "Encendido / apagado")
         KnxAddressBook.Climate.CURRENT_TEMPERATURE ->

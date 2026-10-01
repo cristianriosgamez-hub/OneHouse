@@ -311,11 +311,9 @@ internal fun RoomSensorValueCard(
             Spacer(Modifier.size(14.dp))
             Column(modifier = Modifier.weight(1f)) {
                 Text(title, color = TextoPrincipal, fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
-                Text(
-                    if (value == null) waitingLabel else "Estado real KNX",
-                    color = TextoSecundario,
-                    fontSize = 11.sp
-                )
+                if (value == null) {
+                    Text(waitingLabel, color = TextoSecundario, fontSize = 11.sp)
+                }
             }
             Text(
                 value?.let { "$it $unit".trim() } ?: "--",
@@ -341,7 +339,6 @@ internal fun RoomFloodSensorCard(floodDetected: Boolean?) {
                 Spacer(Modifier.size(14.dp))
                 Column(modifier = Modifier.weight(1f)) {
                     Text("Sensor de inundación", color = TextoPrincipal, fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
-                    Text("Estado real KNX", color = TextoSecundario, fontSize = 11.sp)
                 }
                 Text(
                     when (floodDetected) {
@@ -390,7 +387,6 @@ internal fun RoomFireSensorCard(fireDetected: Boolean?) {
             Spacer(Modifier.size(14.dp))
             Column(modifier = Modifier.weight(1f)) {
                 Text("Sensor de incendio", color = TextoPrincipal, fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
-                Text("Estado real KNX", color = TextoSecundario, fontSize = 11.sp)
             }
             Text(
                 when (fireDetected) {

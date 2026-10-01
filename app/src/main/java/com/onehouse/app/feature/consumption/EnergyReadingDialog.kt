@@ -32,6 +32,7 @@ import java.util.Date
 internal fun EnergyReadingDialog(
     type: MeterType,
     reading: EnergyReadingEntity?,
+    acsKnxValue: Double? = null,
     onDismiss: () -> Unit,
     onSave: (EnergyReadingEntity) -> Unit
 ) {
@@ -42,8 +43,8 @@ internal fun EnergyReadingDialog(
                 ?: inputDateFormat.format(Date())
         )
     }
-    var meterText by remember(reading) {
-        mutableStateOf(reading?.meterValue?.let(::plainNumber).orEmpty())
+    var meterText by remember(reading, acsKnxValue) {
+        mutableStateOf(reading?.meterValue?.let(::plainNumber) ?: if (type == MeterType.ACS) acsKnxValue?.let(::plainNumberFixed2).orEmpty() else "")
     }
     var consumptionText by remember(reading) {
         mutableStateOf(reading?.consumption?.let(::plainNumber).orEmpty())
@@ -86,31 +87,30 @@ internal fun EnergyReadingDialog(
                     singleLine = true
                 )
 
-                OutlinedTextField(
-                    value = meterText,
-                    onValueChange = {
-                        meterText = it
-                        errorMessage = null
-                    },
-                    label = { Text("Lectura del contador (${type.unit})") },
-                    keyboardOptions = KeyboardOptions(
-                        keyboardType = KeyboardType.Decimal
-                    ),
-                    singleLine = true
-                )
-
-                OutlinedTextField(
-                    value = consumptionText,
-                    onValueChange = {
-                        consumptionText = it
-                        errorMessage = null
-                    },
-                    label = { Text("Consumo del periodo (${type.unit})") },
-                    keyboardOptions = KeyboardOptions(
-                        keyboardType = KeyboardType.Decimal
-                    ),
-                    singleLine = true
-                )
+                if (type == MeterType.ACS) {
+                    OutlinedTextField(
+                        value = meterText,
+                        onValueChange = {
+                            meterText = it
+                            errorMessage = null
+                        },
+                        label = { Text("Lectura del contador (${type.unit})") },
+                        supportingText = { Text("Valor actual recibido de KNX · 15/5/67") },
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                        singleLine = true
+                    )
+                } else {
+                    OutlinedTextField(
+                        value = consumptionText,
+                        onValueChange = {
+                            consumptionText = it
+                            errorMessage = null
+                        },
+                        label = { Text("Consumo del periodo (${type.unit})") },
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                        singleLine = true
+                    )
+                }
 
                 if (type != MeterType.ACS && type != MeterType.CLIMATIZATION) {
                     OutlinedTextField(
@@ -160,16 +160,16 @@ internal fun EnergyReadingDialog(
 
                     errorMessage = when {
                         timestamp == null -> "La fecha no es válida."
-                        meterText.isNotBlank() && meterValue == null ->
+                        type == MeterType.ACS && meterText.isNotBlank() && meterValue == null ->
                             "La lectura del contador no es válida."
-                        consumptionText.isNotBlank() && consumption == null ->
+                        type != MeterType.ACS && consumptionText.isNotBlank() && consumption == null ->
                             "El consumo del periodo no es válido."
                         type != MeterType.ACS &&
                             type != MeterType.CLIMATIZATION &&
                             costText.isNotBlank() && cost == null ->
                             "El coste no es válido."
-                        meterValue == null && consumption == null ->
-                            "Introduce la lectura del contador o el consumo del periodo."
+                        type == MeterType.ACS && meterValue == null -> "Introduce la lectura del contador."
+                        type != MeterType.ACS && consumption == null -> "Introduce el consumo del periodo."
                         meterValue != null && meterValue < 0.0 ->
                             "La lectura no puede ser negativa."
                         consumption != null && consumption < 0.0 ->

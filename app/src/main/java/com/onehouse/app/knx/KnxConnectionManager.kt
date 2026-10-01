@@ -9,6 +9,7 @@ import java.net.Inet4Address
 import java.net.InetAddress
 import java.net.InetSocketAddress
 import java.net.SocketTimeoutException
+import java.net.PortUnreachableException
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.locks.ReentrantLock
@@ -642,34 +643,87 @@ class KnxConnectionManager(
                     ?: run {
                         udpSocket.close()
                         state = State.DISCONNECTED
-                        return ConnectResult.NetworkError(
-                            "No se pudo obtener la dirección IPv4 local"
-                        )
+                        return ConnectResult.NetworkError("No se pudo obtener la dirección IPv4 local")
                     }
 
                 localAddress = ownAddress
-                val request = KnxProtocol.buildConnectRequest(
-                    ownAddress, udpSocket.localPort, natMode = target.natMode
-                )
-                udpSocket.send(DatagramPacket(request, request.size))
 
-                val responseBuffer = ByteArray(KnxProtocol.MAX_PACKET_SIZE)
-                val response = DatagramPacket(responseBuffer, responseBuffer.size)
-                udpSocket.receive(response)
+                // Transporte productivo: en remoto se intenta primero KNXnet/IP NAT mode
+                // (HPAI 0.0.0.0:0). Se conserva temporalmente el fallback HPAI local
+                // tras timeout sin respuesta. En LAN se ejecuta un único intento estándar.
+                val attemptModes = if (target.natMode) listOf(true, false) else listOf(false)
+                var response: DatagramPacket? = null
+                var effectiveNatMode = target.natMode
 
-                when (val parsed = KnxProtocol.parseConnectResponse(response.data, response.length)) {
+                for ((attemptIndex, attemptNatMode) in attemptModes.withIndex()) {
+                    if (cancellation.get()) {
+                        udpSocket.close()
+                        clearSession()
+                        return ConnectResult.Cancelled
+                    }
+
+                    val modeLabel = if (attemptNatMode) "NAT_ESTANDAR" else if (target.natMode) "COMPAT_HPAI_LOCAL" else "LOCAL"
+                    val request = KnxProtocol.buildConnectRequest(
+                        ownAddress, udpSocket.localPort, natMode = attemptNatMode
+                    )
+                    monitorRepository?.record(
+                        direction = KnxTelegramEvent.Direction.SYSTEM,
+                        kind = KnxTelegramEvent.Kind.CONNECT,
+                        status = KnxTelegramEvent.Status.PENDING,
+                        detail = "Apertura túnel KNX/IP · modo $modeLabel · destino ${target.host}:${target.port} · origen $source"
+                    )
+                    val sendStartedAt = System.currentTimeMillis()
+                    udpSocket.send(DatagramPacket(request, request.size))
+
+                    try {
+                        val responseBuffer = ByteArray(KnxProtocol.MAX_PACKET_SIZE)
+                        val candidate = DatagramPacket(responseBuffer, responseBuffer.size)
+                        udpSocket.receive(candidate)
+                        val responseMillis = System.currentTimeMillis() - sendStartedAt
+                        monitorRepository?.record(
+                            direction = KnxTelegramEvent.Direction.SYSTEM,
+                            kind = KnxTelegramEvent.Kind.CONNECT,
+                            status = KnxTelegramEvent.Status.CONFIRMED,
+                            detail = "Respuesta KNX/IP recibida · modo $modeLabel · ${responseMillis} ms · origen $source"
+                        )
+                        response = candidate
+                        effectiveNatMode = attemptNatMode
+                        break
+                    } catch (error: PortUnreachableException) {
+                        monitorRepository?.record(
+                            direction = KnxTelegramEvent.Direction.SYSTEM,
+                            kind = KnxTelegramEvent.Kind.CONNECT,
+                            status = if (attemptIndex < attemptModes.lastIndex) KnxTelegramEvent.Status.PENDING else KnxTelegramEvent.Status.ERROR,
+                            detail = "ICMP Port Unreachable · modo $modeLabel · destino ${target.host}:${target.port} · ${error.localizedMessage ?: "sin detalle"} · origen $source"
+                        )
+                    } catch (_: SocketTimeoutException) {
+                        monitorRepository?.record(
+                            direction = KnxTelegramEvent.Direction.SYSTEM,
+                            kind = KnxTelegramEvent.Kind.CONNECT,
+                            status = if (attemptIndex < attemptModes.lastIndex) KnxTelegramEvent.Status.PENDING else KnxTelegramEvent.Status.ERROR,
+                            detail = "Timeout al abrir túnel ${target.host}:${target.port} · modo $modeLabel · origen $source"
+                        )
+                    }
+                }
+
+                val received = response ?: run {
+                    udpSocket.close()
+                    clearSession()
+                    return ConnectResult.Timeout
+                }
+
+                when (val parsed = KnxProtocol.parseConnectResponse(received.data, received.length)) {
                     is KnxProtocol.ConnectResponse.Accepted -> {
+                        // Conservamos el modo que realmente consiguió respuesta para
+                        // que DISCONNECT_REQUEST anuncie el mismo tipo de HPAI.
+                        synchronized(lock) { endpoint = target.copy(natMode = effectiveNatMode) }
                         if (cancellation.get()) {
-                            // Si la cancelación llega después de que el gateway haya
-                            // concedido canal, lo liberamos explícitamente. Cerrar solo
-                            // el socket UDP puede dejar el canal retenido temporalmente
-                            // en algunos interfaces KNX/IP y provocar código 36.
                             runCatching {
                                 val disconnect = KnxProtocol.buildDisconnectRequest(
                                     channelId = parsed.channelId,
                                     localAddress = ownAddress,
                                     localPort = udpSocket.localPort,
-                                    natMode = target.natMode
+                                    natMode = effectiveNatMode
                                 )
                                 udpSocket.send(DatagramPacket(disconnect, disconnect.size))
                             }
@@ -683,8 +737,14 @@ class KnxConnectionManager(
                             lastTunnelActivityMillis = System.currentTimeMillis()
                             startPassiveReceiver(udpSocket, parsed.channelId)
                             KnxPerformanceMetrics.recordTunnelConnectSuccess(source)
+                            monitorRepository?.record(
+                                direction = KnxTelegramEvent.Direction.SYSTEM,
+                                kind = KnxTelegramEvent.Kind.CONNECT,
+                                status = KnxTelegramEvent.Status.CONFIRMED,
+                                detail = "Túnel KNX/IP conectado · modo ${if (effectiveNatMode) "NAT_ESTANDAR" else if (target.natMode) "COMPAT_HPAI_LOCAL" else "LOCAL"} · canal ${parsed.channelId} · origen $source"
+                            )
                             ConnectResult.Success(
-                                deviceAddress = response.address.hostAddress ?: target.host,
+                                deviceAddress = received.address.hostAddress ?: target.host,
                                 channelId = parsed.channelId
                             )
                         }
@@ -704,20 +764,17 @@ class KnxConnectionManager(
                     }
                 }
             }
-        } catch (_: SocketTimeoutException) {
-            synchronized(lock) { socket?.close() }
-            clearSession()
-            ConnectResult.Timeout
         } catch (error: Exception) {
+            monitorRepository?.record(
+                direction = KnxTelegramEvent.Direction.SYSTEM,
+                kind = KnxTelegramEvent.Kind.CONNECT,
+                status = KnxTelegramEvent.Status.ERROR,
+                detail = "Fallo durante negociación KNX/IP · ${error.javaClass.simpleName}: ${error.localizedMessage ?: "sin detalle"} · destino ${target.host}:${target.port} · origen $source"
+            )
             synchronized(lock) { socket?.close() }
             clearSession()
-            if (cancellation.get()) {
-                ConnectResult.Cancelled
-            } else {
-                ConnectResult.NetworkError(
-                    error.localizedMessage ?: error.javaClass.simpleName
-                )
-            }
+            if (cancellation.get()) ConnectResult.Cancelled
+            else ConnectResult.NetworkError(error.localizedMessage ?: error.javaClass.simpleName)
         }
     }
 
@@ -820,6 +877,7 @@ private const val DEFAULT_IDLE_DISCONNECT_MILLIS = 90_000L
 private const val MAX_SAFE_TUNNEL_IDLE_MILLIS = 60_000L
 private const val PASSIVE_RECEIVE_TIMEOUT_MILLIS = 40
 private const val PASSIVE_RECEIVER_RETRY_MILLIS = 4L
+
 
 internal object KnxProtocol {
     const val DEFAULT_TIMEOUT_MILLIS = 4_000

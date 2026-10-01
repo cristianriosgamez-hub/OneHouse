@@ -78,14 +78,12 @@ class KnxBulkStateReader(context: Context) : Closeable {
             }
         }
 
-        val addresses = (extraReadAddresses + importedAddresses)
-            .map(String::trim)
-            .filter(String::isNotBlank)
-            .distinct()
+        val trackedAddresses = KnxStartupReadPolicy.tracked(extraReadAddresses + importedAddresses)
+        val addresses = KnxStartupReadPolicy.readable(trackedAddresses)
 
         if (trackInitialLoadProgress) {
             KnxLoadProgressRepository.begin(
-                KnxLoadProgressRepository.buildTargets(devices, addresses)
+                KnxLoadProgressRepository.buildTargets(devices, trackedAddresses)
             )
             KnxLoadProgressRepository.syncReceived(stateRepository.snapshot())
         }

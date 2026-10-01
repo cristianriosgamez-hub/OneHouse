@@ -17,11 +17,13 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -54,6 +56,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.DialogProperties
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
@@ -80,7 +83,6 @@ fun ClimateScheduleScreen(
     }
     var expandedDay by remember { mutableStateOf<DayOfWeek?>(null) }
     var editingDay by remember { mutableStateOf<DayOfWeek?>(null) }
-    var trace by remember { mutableStateOf(ClimateScheduleExecutionTrace.snapshot(context)) }
     val lifecycleOwner = LocalLifecycleOwner.current
 
     DisposableEffect(lifecycleOwner, state) {
@@ -92,7 +94,6 @@ fun ClimateScheduleScreen(
                 if (state.globallyEnabled && canScheduleExactAlarm(context)) {
                     scheduler.reschedule()
                 }
-                trace = ClimateScheduleExecutionTrace.snapshot(context)
             }
         }
         lifecycleOwner.lifecycle.addObserver(observer)
@@ -106,7 +107,6 @@ fun ClimateScheduleScreen(
             requestExactAlarmAccessIfNeeded(context)
         }
         scheduler.reschedule()
-        trace = ClimateScheduleExecutionTrace.snapshot(context)
     }
 
     val next = ClimateScheduleEngine.nextExecution(state)
@@ -140,10 +140,6 @@ fun ClimateScheduleScreen(
         Spacer(modifier = Modifier.height(14.dp))
 
         NextEventCard(next = next)
-
-        Spacer(modifier = Modifier.height(10.dp))
-
-        ScheduleExecutionStatusCard(trace = trace)
 
         Spacer(modifier = Modifier.height(22.dp))
 
@@ -581,30 +577,30 @@ private fun AddScheduleDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
+        modifier = Modifier.widthIn(max = 560.dp).fillMaxWidth().padding(horizontal = 16.dp),
+        properties = DialogProperties(usePlatformDefaultWidth = false),
         containerColor = ClimateCardSecondary,
         titleContentColor = ClimateText,
         textContentColor = ClimateTextSecondary,
         title = {
-            Text(
-                text = "Nuevo horario · ${dayLabel(day)}",
-                fontWeight = FontWeight.SemiBold
-            )
+            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Text("Nuevo horario", fontWeight = FontWeight.SemiBold)
+                Text(dayLabel(day), color = ClimateBlue, fontSize = 13.sp)
+            }
         },
         text = {
-            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                EditorLine(
-                    title = "Hora",
-                    value = "%02d".format(hour),
-                    onMinus = { hour = (hour + 23) % 24 },
-                    onPlus = { hour = (hour + 1) % 24 }
-                )
-
-                EditorLine(
-                    title = "Minutos",
-                    value = "%02d".format(minute),
-                    onMinus = { minute = (minute + 55) % 60 },
-                    onPlus = { minute = (minute + 5) % 60 }
-                )
+            Column(
+                modifier = Modifier.heightIn(max = 440.dp).verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    ScheduleTimePart("Hora", hour, Modifier.weight(1f),
+                        onMinus = { hour = (hour + 23) % 24 },
+                        onPlus = { hour = (hour + 1) % 24 })
+                    ScheduleTimePart("Minutos", minute, Modifier.weight(1f),
+                        onMinus = { minute = (minute + 55) % 60 },
+                        onPlus = { minute = (minute + 5) % 60 })
+                }
 
                 SelectionRow(
                     title = "Orden",
@@ -662,7 +658,8 @@ private fun AddScheduleDialog(
                 },
                 colors = ButtonDefaults.buttonColors(
                     containerColor = ClimateBlue
-                )
+                ),
+                modifier = Modifier.heightIn(min = 44.dp)
             ) {
                 Text("Guardar")
             }
@@ -676,32 +673,49 @@ private fun AddScheduleDialog(
 }
 
 @Composable
+private fun ScheduleTimePart(title: String, value: Int, modifier: Modifier, onMinus: () -> Unit, onPlus: () -> Unit) {
+    Column(
+        modifier = modifier.background(ClimateCard, RoundedCornerShape(18.dp)).padding(8.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        Text(title, color = ClimateTextSecondary, fontSize = 11.sp)
+        Text("%02d".format(value), color = ClimateText, fontSize = 28.sp, fontWeight = FontWeight.Bold)
+        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+            EditorButton("−", onMinus)
+            EditorButton("+", onPlus)
+        }
+    }
+}
+
+@Composable
 private fun EditorLine(
     title: String,
     value: String,
     onMinus: () -> Unit,
     onPlus: () -> Unit
 ) {
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        verticalAlignment = Alignment.CenterVertically
+    Column(
+        modifier = Modifier.fillMaxWidth().background(ClimateCard, RoundedCornerShape(18.dp)).padding(12.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
         Text(
             text = title,
             color = ClimateTextSecondary,
-            fontSize = 12.sp,
-            modifier = Modifier.weight(1f)
+            fontSize = 11.sp
         )
+        Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
         EditorButton("−", onMinus)
         Text(
             text = value,
             color = ClimateText,
-            fontSize = 16.sp,
+            fontSize = 21.sp,
             fontWeight = FontWeight.SemiBold,
             textAlign = TextAlign.Center,
-            modifier = Modifier.width(78.dp)
+            modifier = Modifier.weight(1f)
         )
         EditorButton("+", onPlus)
+        }
     }
 }
 
@@ -712,7 +726,7 @@ private fun EditorButton(
 ) {
     Box(
         modifier = Modifier
-            .size(34.dp)
+            .size(44.dp)
             .background(ClimateBlue.copy(alpha = 0.14f), RoundedCornerShape(10.dp))
             .clickable(onClick = onClick),
         contentAlignment = Alignment.Center
@@ -720,7 +734,7 @@ private fun EditorButton(
         Text(
             text = text,
             color = ClimateBlue,
-            fontSize = 19.sp,
+            fontSize = 17.sp,
             fontWeight = FontWeight.SemiBold
         )
     }
@@ -737,20 +751,22 @@ private fun SelectionRow(
         Text(
             text = title,
             color = ClimateTextSecondary,
-            fontSize = 12.sp
+            fontSize = 11.sp
         )
         Spacer(modifier = Modifier.height(6.dp))
-        Row(
-            horizontalArrangement = Arrangement.spacedBy(6.dp)
-        ) {
-            options.forEach { option ->
+        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+          options.chunked(3).forEach { group ->
+           Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            group.forEach { option ->
                 val active = option == selected
                 Text(
                     text = option,
                     color = if (active) ClimateText else ClimateTextSecondary,
-                    fontSize = 10.sp,
+                    fontSize = 11.sp,
+                    textAlign = TextAlign.Center,
                     fontWeight = if (active) FontWeight.SemiBold else FontWeight.Normal,
                     modifier = Modifier
+                        .weight(1f)
                         .background(
                             if (active) ClimateBlue.copy(alpha = 0.23f) else ClimateCard,
                             RoundedCornerShape(9.dp)
@@ -761,38 +777,12 @@ private fun SelectionRow(
                             RoundedCornerShape(9.dp)
                         )
                         .clickable { onSelected(option) }
-                        .padding(horizontal = 8.dp, vertical = 7.dp)
+                        .padding(horizontal = 6.dp, vertical = 13.dp)
                 )
             }
+           }
+          }
         }
-    }
-}
-
-@Composable
-private fun ScheduleExecutionStatusCard(trace: ClimateScheduleExecutionTrace.Snapshot) {
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .background(ClimateCard, RoundedCornerShape(18.dp))
-            .border(1.dp, ClimateBorder, RoundedCornerShape(18.dp))
-            .padding(14.dp)
-    ) {
-        Text("Estado de ejecución", color = ClimateText, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
-        Spacer(modifier = Modifier.height(6.dp))
-        Text(
-            text = if (trace.nextAlarmAt != null) {
-                "Alarma: ${trace.nextLabel()} · ${if (trace.exact) "exacta" else "inexacta"}"
-            } else {
-                "Alarma: ---"
-            },
-            color = ClimateTextSecondary,
-            fontSize = 12.sp
-        )
-        Text(
-            text = "Último paso: ${trace.lastLabel()}",
-            color = ClimateTextSecondary,
-            fontSize = 12.sp
-        )
     }
 }
 

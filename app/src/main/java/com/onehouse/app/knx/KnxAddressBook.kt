@@ -33,7 +33,8 @@ object KnxAddressBook {
         Entry("terrace_luminosity", "Terraza", "Luminosidad", "Sensor", "9.004", "Lectura", "15/0/11"),
         Entry("terrace_excessive_wind", "Terraza", "Viento excesivo", "Alarma", "1.005", "Lectura", "15/0/13"),
         Entry("terrace_wind_speed", "Terraza", "Velocidad del viento", "Sensor", "9.005", "Lectura", "15/0/14"),
-        Entry("terrace_raining", "Terraza", "Lluvia", "Sensor", "1.005", "Lectura", "15/0/15")
+        Entry("terrace_raining", "Terraza", "Lluvia", "Sensor", "1.005", "Lectura", "15/0/15"),
+        Entry("acs_accumulated", "Consumos", "ACS acumulado", "Medición", "9.001", "Lectura", "15/5/67")
     )
 
     object Climate {
@@ -60,6 +61,9 @@ object KnxAddressBook {
         @Volatile var FLOOD_KITCHEN = "5/4/1"
         @Volatile var FLOOD_BATHROOM = "5/4/1"
         @Volatile var FIRE_HALLWAY = "5/4/2"
+    }
+    object Consumption {
+        @Volatile var ACS_ACCUMULATED = "15/5/67"
     }
     object Terrace {
         @Volatile var LUMINOSITY = "15/0/11"
@@ -95,5 +99,6 @@ object KnxAddressBook {
         Terrace.EXCESSIVE_WIND = value("terrace_excessive_wind")
         Terrace.WIND_SPEED = value("terrace_wind_speed")
         Terrace.RAINING = value("terrace_raining")
+        Consumption.ACS_ACCUMULATED = value("acs_accumulated")
     }
 }

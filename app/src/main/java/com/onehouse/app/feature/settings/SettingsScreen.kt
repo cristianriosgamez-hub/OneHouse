@@ -198,11 +198,6 @@ fun SettingsScreen(onBack: () -> Unit) {
                     value = viewModel.selectedEndpoint
                 )
                 SettingsDivider()
-                StatusRow(
-                    label = "Última prueba",
-                    value = formatTestDate(viewModel.lastTestEpochMillis)
-                )
-                SettingsDivider()
                 StatusRow(label = "Versión de la aplicación", value = appVersionName(context))
                 SettingsDivider()
                 StatusRow(

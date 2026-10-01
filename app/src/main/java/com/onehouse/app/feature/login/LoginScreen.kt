@@ -268,7 +268,7 @@ fun LoginScreen(
                     color = BordeTarjeta
                 )
                 Text(
-                    text = "Acceso alternativo",
+                    text = "Acceso por huella",
                     color = TextoDesactivado,
                     style = MaterialTheme.typography.labelMedium
                 )
@@ -281,8 +281,8 @@ fun LoginScreen(
             Spacer(modifier = Modifier.height(10.dp))
 
             OneHouseFingerprintRow(
-                title = "Iniciar sesión con huella",
-                subtitle = biometricSubtitle,
+                title = "",
+                subtitle = "",
                 onClick = {
                     if (!biometricAvailable) {
                         Toast.makeText(context, biometricSubtitle, Toast.LENGTH_LONG).show()

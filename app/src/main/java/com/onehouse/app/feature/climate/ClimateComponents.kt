@@ -973,9 +973,9 @@ internal fun FanSpeedSelector(
 
 @Composable
 internal fun ClimateInformationCard(
-    fanSpeed: FanSpeed?,
+    exteriorTemperature: String,
+    exteriorCondition: String,
     humidity: Int?,
-    selectedMode: ClimateMode?,
     co2Ppm: Int?
 ) {
     val co2Quality = when {
@@ -995,10 +995,11 @@ internal fun ClimateInformationCard(
     PremiumCard {
         Row(modifier = Modifier.fillMaxWidth()) {
             StatusValue(
-                title = "Ventilador",
-                value = fanSpeed?.label ?: "---",
-                iconType = ClimateIconType.FAN,
-                accent = ClimateGreen,
+                title = "Exterior",
+                value = exteriorTemperature.ifBlank { "---" },
+                secondaryValue = exteriorCondition.takeIf { it.isNotBlank() },
+                iconType = ClimateIconType.THERMOSTAT,
+                accent = ClimateBlue,
                 modifier = Modifier.weight(1f)
             )
             StatusDivider()
@@ -1007,14 +1008,6 @@ internal fun ClimateInformationCard(
                 value = humidity?.let { "$it %" } ?: "---",
                 iconType = ClimateIconType.HUMIDITY,
                 accent = ClimateCyan,
-                modifier = Modifier.weight(1f)
-            )
-            StatusDivider()
-            StatusValue(
-                title = "Modo",
-                value = selectedMode?.label ?: "---",
-                iconType = selectedMode?.iconType ?: ClimateIconType.THERMOSTAT,
-                accent = selectedMode?.accent ?: ClimateMuted,
                 modifier = Modifier.weight(1f)
             )
             StatusDivider()

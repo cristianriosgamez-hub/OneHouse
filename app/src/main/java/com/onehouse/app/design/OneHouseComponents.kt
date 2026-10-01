@@ -10,7 +10,9 @@ import androidx.compose.foundation.LocalIndication
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -362,23 +364,17 @@ fun OneHouseFingerprintRow(
     modifier: Modifier = Modifier,
     onClick: () -> Unit
 ) {
-    OneHouseCard(modifier = modifier.fillMaxWidth(), onClick = onClick) {
-        Row(
-            modifier = Modifier.padding(horizontal = 16.dp, vertical = 11.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Image(
-                painter = painterResource(R.drawable.fingerprint_modern),
-                contentDescription = "Acceso con huella",
-                modifier = Modifier.size(42.dp)
-            )
-            Spacer(modifier = Modifier.width(12.dp))
-            Column {
-                Text(text = title, color = TextoPrincipal, style = MaterialTheme.typography.titleMedium)
-                Spacer(modifier = Modifier.height(3.dp))
-                Text(text = subtitle, color = AzulClaro, style = MaterialTheme.typography.bodySmall)
-            }
-        }
+    Box(
+        modifier = modifier.fillMaxWidth(),
+        contentAlignment = Alignment.Center
+    ) {
+        Image(
+            painter = painterResource(R.drawable.fingerprint_modern),
+            contentDescription = "Acceso con huella",
+            modifier = Modifier
+                .size(58.dp)
+                .clickable(onClick = onClick)
+        )
     }
 }
 

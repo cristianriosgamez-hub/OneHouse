@@ -44,6 +44,9 @@ import com.onehouse.app.design.FondoSuperior
 import com.onehouse.app.design.TextoPrincipal
 import com.onehouse.app.design.TextoSecundario
 import com.onehouse.app.feature.rooms.detail.RoomHeader
+import com.onehouse.app.knx.KnxAddressBook
+import com.onehouse.app.knx.KnxCentralEngine
+import com.onehouse.app.knx.KnxValueDecoder
 
 @Composable
 fun ConsumptionScreen(onBack: (() -> Unit)? = null) {
@@ -58,6 +61,14 @@ fun ConsumptionScreen(onBack: (() -> Unit)? = null) {
     val analyticsPoints by viewModel.analyticsPoints.collectAsStateWithLifecycle()
     val smartEnergy by viewModel.smartEnergy.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
+    val knxResources = remember(applicationContext) { KnxCentralEngine.get(applicationContext) }
+    val knxStates by knxResources.stateRepository.stateFlow.collectAsStateWithLifecycle()
+    val acsKnxValue = remember(knxStates) {
+        knxStates[KnxAddressBook.Consumption.ACS_ACCUMULATED]
+            ?.rawValue
+            ?.let { KnxValueDecoder.decode(it, "9.001") }
+            ?.toDouble()
+    }
 
     LaunchedEffect(repository) {
         EnergyHistorySeeder(applicationContext, repository).seedIfNeeded()
@@ -82,7 +93,8 @@ fun ConsumptionScreen(onBack: (() -> Unit)? = null) {
                 onPeriodSelected = viewModel::selectPeriod,
                 onAddReading = viewModel::addReading,
                 onEditReading = viewModel::editReading,
-                onDeleteReading = viewModel::requestDelete
+                onDeleteReading = viewModel::requestDelete,
+                acsKnxValue = acsKnxValue
             )
         } else {
             EnergyDashboardScreen(
@@ -109,6 +121,7 @@ fun ConsumptionScreen(onBack: (() -> Unit)? = null) {
             EnergyReadingDialog(
                 type = type,
                 reading = state.editorReading,
+                acsKnxValue = acsKnxValue,
                 onDismiss = viewModel::dismissEditor,
                 onSave = viewModel::saveReading
             )

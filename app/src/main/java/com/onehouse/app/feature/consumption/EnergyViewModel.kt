@@ -95,7 +95,8 @@ class EnergyViewModel(
 
     fun saveReading(reading: EnergyReadingEntity) {
         scope.launch {
-            runCatching { repository.save(reading) }
+            val normalized = normalizeCalculatedValues(reading)
+            runCatching { repository.save(normalized) }
                 .onSuccess {
                     _state.value = _state.value.copy(
                         editorReading = null,
@@ -106,6 +107,29 @@ class EnergyViewModel(
                 .onFailure {
                     _state.value = _state.value.copy(message = "No se pudo guardar la lectura")
                 }
+        }
+    }
+
+
+    private fun normalizeCalculatedValues(reading: EnergyReadingEntity): EnergyReadingEntity {
+        val type = MeterType.fromStorage(reading.meterType)
+        val previous = allReadings
+            .asSequence()
+            .filter { it.meterType == reading.meterType && it.id != reading.id && it.timestamp < reading.timestamp }
+            .maxByOrNull { it.timestamp }
+
+        return if (type == MeterType.ACS) {
+            val currentMeter = reading.meterValue
+            val previousMeter = previous?.meterValue
+            val calculatedConsumption = if (currentMeter != null && previousMeter != null) {
+                (currentMeter - previousMeter).takeIf { it >= 0.0 }
+            } else reading.consumption
+            reading.copy(consumption = calculatedConsumption)
+        } else {
+            val consumption = reading.consumption
+            val previousMeter = previous?.meterValue ?: 0.0
+            val calculatedMeter = consumption?.let { previousMeter + it }
+            reading.copy(meterValue = calculatedMeter)
         }
     }
 
